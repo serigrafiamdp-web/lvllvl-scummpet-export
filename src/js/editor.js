@@ -1465,6 +1465,7 @@ main split panel north is menu
       _this.tileSetMenu.addItem({ "label": "Show Tile Editor", "id": "charactersets-edit", "shortcut": { "cmd": true, "key": "E" } });
       _this.tileSetMenu.addSeparator({ "label": "Current Tile Set" });
       _this.tileSetMenu.addItem({ "label": "Choose A Tile Set" + "...", "id": "charactersets-preset" });
+      _this.tileSetMenu.addItem({ "label": "Rico's Remix a Tile Set" + "...", "id": "rico-tileset-remix" });
       _this.tileSetMenu.addItem({ "label": "Load / Import Tile Set" + "...", "id": "charactersets-load" });
 //      _this.tileSetMenu.addItem({ "label": "Load / Import Tile Set" + "...", "id": "charactersets-load" });
       _this.tileSetMenu.addItem({ "label": "Save Tile Set" + "...", "id": "charactersets-save" });
@@ -2437,6 +2438,12 @@ main split panel north is menu
       case 'charactersets-preset':
       case 'tileset-preset':
 
+        this.textModeEditor.tileSetManager.showChoosePreset({});
+        break;
+
+      // RICO TEST08: separate menu entry; for now it intentionally opens
+      // the same original chooser. Future Remix behaviour will branch here.
+      case 'rico-tileset-remix':
         this.textModeEditor.tileSetManager.showChoosePreset({});
         break;
       break;
