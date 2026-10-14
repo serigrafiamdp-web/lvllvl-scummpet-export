@@ -1,9 +1,9 @@
 RICO / LVLLVL - FEATURES Y MILESTONES
 =====================================
 Fecha de consolidacion: 14 de octubre de 2026
-Estado actual validado: TEST 19 = PASS
-Base ejecutable validada: LVLLVL_TEST19_ACTIVE_FRAME_BANK_RENDER.zip
-SHA256 base PASS: d8137c661c0340de7619f1002f227bad3bddb0dad28011d5228dc46fae9f2d2e
+Estado actual validado: TEST 23 = PASS CONFIRMADO EN VICE
+Base ejecutable validada: LVLLVL_MASTER_RICO_PRG_DUAL_BANK_TEST23_PASS_14_OCT_2026.zip
+SHA256 base PASS: d719f8573184c9af555ef87b8e8fbdc973f77ccea0eeceddcd5a187298a8da3c
 Repositorio: serigrafiamdp-web/lvllvl-scummpet-export
 
 OBJETIVO GENERAL
