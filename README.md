@@ -27,6 +27,7 @@ Validated features:
 - ECM -> ECM reselection, allowing unused glyphs to be swapped later;
 - native-style `Edit Tile Palette` UI:
   loaded tileset on the left, 64 ECM glyphs on the right.
+- **Choose Tile Set reliable loader**: preset preview and `OK` application restored.
 
 Full documentation:
 
