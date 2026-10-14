@@ -118,34 +118,3 @@ Upstream baseline:
 
 Google Drive / OAuth is intentionally not part of this milestone.
 Local file loading remains available and was sufficient for current testing.
-
-
-## RICO-TILES-01 — Choose Tile Set reliable loading
-
-**PASS — 14/10/2026**
-
-Observed regression in the RICO build:
-
-- `Tiles -> Choose Tile Set` opened correctly;
-- clicking different character sets changed the selected row/title;
-- the preview image did not update;
-- pressing `OK` did not replace the active tile set.
-
-RICO fix:
-
-- uses a fresh `Image` object for every preview selection;
-- ignores stale asynchronous preview completions;
-- adds a per-request cache-busting query;
-- uses a fresh image request when applying the selected preset with `OK`;
-- keeps the original LVLLVL tile import/update pipeline after the image loads;
-- leaves Vector Tile handling on the original LVLLVL path.
-
-Validated result:
-
-- selecting different fonts changes the preview;
-- `OK` replaces the active tile set.
-
-Implementation:
-
-- `src/js/rico/ricoTileSetChooserFix07.js`
-- `dist/js/rico/ricoTileSetChooserFix07.js`
