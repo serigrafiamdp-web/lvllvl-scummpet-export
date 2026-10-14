@@ -1,0 +1,247 @@
+RICO / LVLLVL - FEATURES Y MILESTONES
+=====================================
+Fecha de consolidacion: 14 de octubre de 2026
+Estado actual validado: TEST 19 = PASS
+Base ejecutable validada: LVLLVL_TEST19_ACTIVE_FRAME_BANK_RENDER.zip
+SHA256 base PASS: d8137c661c0340de7619f1002f227bad3bddb0dad28011d5228dc46fae9f2d2e
+Repositorio: serigrafiamdp-web/lvllvl-scummpet-export
+
+OBJETIVO GENERAL
+================
+Extender LVLLVL para el flujo RICO/SCUMM/C64 sin romper el modelo nativo de
+screen codes de la C64. El editor debe poder trabajar con dos charsets de
+256 glifos, seleccionar por frame cual banco esta activo y mantener los
+screen codes siempre en 0..255.
+
+ARQUITECTURA ACTUAL APROBADA
+============================
+1. CHARSET BANK 1
+   - 256 slots.
+   - Es el tileset nativo de LVLLVL.
+   - En configuracion C64 nueva, por defecto contiene C64 normal.
+
+2. CHARSET BANK 2
+   - 256 slots independientes.
+   - Se guarda con el proyecto en el campo ricoCharsetBank2.
+   - En configuracion C64 nueva, por defecto se inicializa con C64 Shifted.
+   - Puede ser reemplazado/modificado con Rico's Remix.
+
+3. SCREEN CODES
+   - La pantalla nunca usa indices 256..511.
+   - Cada celda conserva siempre un codigo 0..255.
+   - El banco activo de la frame decide si el codigo N dibuja BANK 1[N]
+     o BANK 2[N].
+
+4. DATO POR FRAME
+   - Campo interno: charsetBank: 1 | 2
+   - Frames nuevas: BANK 1 por defecto.
+   - Frames viejas sin este dato: BANK 1 por compatibilidad.
+   - Duplicate conserva el banco de la frame origen.
+   - Al navegar entre frames, el selector se refresca leyendo el valor
+     guardado en esa frame.
+
+5. PRINCIPIO DE RUNTIME C64
+   - El concepto final es alternar entre dos charsets de 256 sin reescribir
+     los screen codes.
+   - La implementacion/export C64 definitiva del cambio de puntero de charset
+     queda para una milestone posterior.
+
+FEATURES RICO YA VALIDADAS
+==========================
+
+RICO-ECM-01 - LIVE REPACK TEXTMODE -> C64 ECM
+Estado: PASS
+- Escanea las frames antes de activar ECM.
+- Prioriza los glifos realmente usados.
+- Reorganiza los usados dentro de los 64 slots fisicos ECM.
+- Reescribe screen codes preservando bits 6-7 como selector de background.
+- Cancela si la conversion no puede hacerse sin perdida.
+
+RICO-ECM-02 - SELECTOR MANUAL DE 64 GLIFOS
+Estado: PASS
+- En proyectos vacios permite elegir manualmente los 64 glifos ECM.
+- Fuente: tileset cargado, normal o custom, hasta 256 glifos.
+- Los elegidos pasan a slots fisicos 0..63.
+
+RICO-ECM-03 - RESELECCION ECM -> ECM
+Estado: PASS
+- Conserva el tileset fuente original.
+- Permite reabrir la seleccion de glifos.
+- Protege slots ya usados por el artwork.
+
+RICO-ECM-04 - UI NATIVA EDIT TILE PALETTE
+Estado: PASS
+- Dialogo estilo LVLLVL.
+- Fuente a la izquierda, 64 glifos ECM a la derecha.
+- OK / Cancel.
+- Sin paneles diagnosticos agregados.
+
+BUG FIX 07 - CHOOSE A TILE SET
+Estado: PASS
+- Preview vuelve a cambiar al seleccionar presets.
+- OK aplica el tileset elegido.
+- Fix aislado en capa RICO, sin modificar el chooser original de James.
+
+RICO REMIX TILESET
+==================
+
+MILESTONE TEST 08 - MENU RICO'S REMIX
+Estado: PASS
+- Nueva opcion debajo de Choose A Tile Set.
+- ID independiente: rico-tileset-remix.
+
+MILESTONE TEST 10 - REMIX POR SLOT
+Estado: PASS
+- Variantes C64 reutilizadas desde la libreria original.
+- C64 / C64 Shifted / Swedish / Swedish Shifted / Japanese / Japanese Shifted.
+- El tileset permanece en 256 slots por banco.
+- Click en fuente N reemplaza slot N.
+- Segundo click sobre la misma fuente restaura el estado previo.
+- Cancel descarta; OK confirma.
+
+MILESTONE TEST 14 - UI REMIX 512 CONTINUO
+Estado: PASS
+- Interfaz final actual de Rico's Remix.
+- Izquierda solo familias:
+    C64
+    C64 SWEDISH
+    C64 JAPANESE
+- Cada familia representa 512 glifos continuos:
+    posiciones 0..255   = normal / BANK 1
+    posiciones 256..511 = shifted / BANK 2
+- Derecha: 512 custom en la misma geometria.
+- 32 filas x 16 columnas.
+- Sin titulos BANK 1/BANK 2 dentro de la grilla.
+- Sin separaciones negras internas.
+- Cabecera compacta.
+- Sin scroll interno: los 512 se ven juntos en la ventana Remix.
+- Correspondencia visual 1:1 SOURCE <-> CUSTOM.
+- BANK 2 persiste como ricoCharsetBank2.
+
+SELECTOR DE CHARSET POR FRAME
+=============================
+
+MILESTONE TEST 15 - CHARSET BANK POR FRAME
+Estado: validado dentro del flujo que culmina en TEST 19 PASS
+- Control junto a Frame Duration con estetica nativa:
+    Charset Bank: [1]
+- Valores 1 o 2.
+- El valor pertenece a cada frame.
+- Al navegar por < >, campo numerico, timeline o playback, se refresca.
+- Frames nuevas = BANK 1.
+- Duplicate copia el banco de origen.
+
+PALETA LATERAL DUAL BANK
+========================
+
+MILESTONE TEST 17 - PREVIEW REAL DE BANK 2
+Estado: PASS
+- Vista lateral por defecto: Columns of 16.
+- Se aprovecha el espacio vertical de Tiles.
+- La paleta muestra 512 posiciones continuas:
+    arriba = BANK 1, 256 glifos
+    abajo  = BANK 2, 256 glifos
+- El banco no activo queda grisado/bloqueado.
+- El banco activo acepta seleccion.
+- BANK 2 renderiza preview real; ya no aparece negro.
+- El tileset real de LVLLVL continua siendo de 256 indices.
+- La mitad inferior es una representacion virtual del BANK 2.
+- Al seleccionar BANK 2, un click sobre la posicion visual 256+N se traduce
+  al screen code N, nunca a 256+N.
+- Scrollbar vertical de la paleta queda disponible en Columns of 16.
+- Layers se minimiza al inicio para liberar altura.
+
+MILESTONE TEST 18 - BANK 2 C64 SHIFTED POR DEFECTO
+Estado: integrado y validado como parte de TEST 19 PASS
+- BANK 1 por defecto = C64 normal.
+- BANK 2 por defecto = C64 Shifted.
+- Si BANK 2 ya fue personalizado por Rico's Remix, no se sobrescribe.
+
+MILESTONE TEST 19 - RENDER REAL POR FRAME
+Estado: PASS CONFIRMADO
+- La seleccion BANK 1/BANK 2 deja de ser solo visual.
+- Frame en BANK 1: codigo N usa BANK 1[N].
+- Frame en BANK 2: codigo N usa BANK 2[N].
+- Se puede seleccionar un glifo de BANK 2 y pintar realmente con el glifo
+  BANK 2 correspondiente.
+- Al volver a una frame BANK 1, los mismos screen codes recuperan la forma
+  de BANK 1.
+- Al regresar a una frame BANK 2, recuperan la forma de BANK 2.
+- BANK 2 puede ser el C64 Shifted por defecto o un banco modificado con Remix.
+- No se escriben indices 256..511 en Screen RAM / mapa de LVLLVL.
+
+PERSISTENCIA ACTUAL
+===================
+Tileset:
+  ricoCharsetBank2
+    version: 1
+    width / height
+    tileData[0..255]
+    metadata de origen cuando corresponde
+
+Frame:
+  charsetBank = 1 | 2
+
+REGLAS QUE NO DEBEN ROMPERSE
+============================
+- BANK 1 y BANK 2 contienen 256 slots cada uno.
+- El mapa de pantalla trabaja exclusivamente con 0..255.
+- La posicion visual inferior 256+N representa BANK 2[N], no un screen code
+  mayor a 255.
+- Rico's Remix administra los dos bancos.
+- La frame decide cual banco interpreta sus screen codes.
+- Choose A Tile Set original debe seguir funcionando.
+- Las features ECM RICO existentes no deben degradarse.
+
+ESTADO VISUAL ACTUAL
+====================
+Panel lateral Tiles:
+- Columns of 16 por defecto.
+- BANK 1 arriba.
+- BANK 2 abajo.
+- Banco activo normal.
+- Banco inactivo grisado y no seleccionable.
+
+Barra de Frames:
+- Frame Duration: [ticks]
+- Charset Bank: [1|2]
+- Luego New Frame / Duplicate / Delete / Show Previous Frame.
+
+Rico's Remix:
+- SOURCE 512 a la izquierda.
+- CUSTOM 512 a la derecha.
+- Sin divisiones BANK visibles dentro de la grilla.
+- C64 / C64 SWEDISH / C64 JAPANESE como familias fuente.
+
+PROXIMAS MILESTONES / PENDIENTES
+================================
+1. Tile Editor para BANK 2
+   - Editar pixeles de un glifo BANK 2 sin redirigir accidentalmente a BANK 1.
+
+2. Export de framepack / SCUMM_ANIMATION_V1
+   - Serializar charsetBank por frame.
+   - Exportar ambos charsets de 256 cuando el recurso los necesite.
+
+3. Runtime C64
+   - Cargar/ubicar CHARSET BANK 1 y CHARSET BANK 2 en memoria valida.
+   - Cambiar el charset activo por frame con el mecanismo VIC-II apropiado.
+   - Mantener screen codes sin conversion adicional.
+
+4. Validacion combinada con ECM
+   - El sistema dual-bank normal esta PASS en TEST 19.
+   - La combinacion dual-bank + restricciones ECM de 64 glifos debe probarse
+     como milestone separada antes de considerarla aprobada.
+
+5. Undo/Redo
+   - Verificar explicitamente Undo/Redo del cambio charsetBank por frame y de
+     las operaciones Remix antes de promoverlo como contrato definitivo.
+
+CHECKPOINT ACTUAL
+=================
+TEST 19 = PASS.
+Este es el punto seguro para continuar el desarrollo de los dos charsets y
+su seleccion por frame.
+
+Los TEST intermedios 11-18 documentaron la evolucion de la interfaz. A partir
+de este checkpoint, este archivo es el documento consolidado/canonico de
+features y milestones. Los LEEME_TESTxx quedan solo como historial de pruebas.
