@@ -245,3 +245,47 @@ su seleccion por frame.
 Los TEST intermedios 11-18 documentaron la evolucion de la interfaz. A partir
 de este checkpoint, este archivo es el documento consolidado/canonico de
 features y milestones. Los LEEME_TESTxx quedan solo como historial de pruebas.
+
+
+MILESTONE TEST 21 - PALETA BANKS 32 x 8
+Estado: PASS CONFIRMADO
+- Nueva vista lateral Banks 32 x 8.
+- BANK 1: 32 columnas x 8 filas arriba.
+- BANK 2: 32 columnas x 8 filas debajo.
+- Preserva la composicion visual de tilesets importados desde imagenes 32x8.
+- La vista Columns of 16 continua disponible.
+- El banco inactivo sigue grisado y bloqueado.
+- BANK 2 mantiene screen codes reales 0..255.
+
+MILESTONE TEST 23 - EXPORT PRG DUAL BANK POR FRAME
+Estado: PASS CONFIRMADO EN VICE
+- Alcance validado: Standard Character Mode, sin SID/musica y sin ECM/Multicolor.
+- BANK 1 -> $3000-$37FF (2048 bytes).
+- BANK 2 -> $3800-$3FFF (2048 bytes).
+- Cada frame conserva screen codes 0..255 y selecciona automaticamente BANK 1 o BANK 2.
+- Rutina auxiliar de cambio de charset en $2FE0.
+- El cambio por frame modifica los bits de charset de $D018 sin reescribir Screen RAM.
+- BANK 2 se exporta desde ricoCharsetBank2 real, incluyendo cambios de Rico's Remix.
+- TEST22 = FAIL: crecer el player invadio la tabla de frames alrededor de $0FFF/$1000 y produjo CPU JAM en $1009.
+- TEST23 corrige el problema sin agrandar el player: reemplazo de 3 bytes STA $D024 por 3 bytes JSR $2FE0.
+- VICE confirma reproduccion correcta BANK 1 <-> BANK 2.
+
+COSTO DE MEMORIA
+================
+- BANK 1: 2048 bytes.
+- BANK 2: 2048 bytes.
+- Costo adicional frente a un solo charset: +2048 bytes.
+- No se duplica Screen RAM ni el frame data.
+- La seleccion de banco agrega metadata minima por frame y una rutina pequena.
+
+REGLA PARA EL FUTURO EXPORTADOR DE RECURSOS
+===========================================
+- screen codes 0..255;
+- charsetBank por frame;
+- BANK 2 se exporta solo cuando el recurso lo necesite;
+- el runtime cambia el puntero de charset, no la pantalla.
+
+CHECKPOINT ACTUAL
+=================
+TEST 23 = PASS CONFIRMADO EN VICE.
+Checkpoint estable: editor dual-bank + seleccion por frame + export PRG Standard dual-bank.
