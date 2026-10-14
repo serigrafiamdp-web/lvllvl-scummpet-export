@@ -1,4 +1,4 @@
-# RICO TEST07 — CHOOSE TILE SET LOADER
+# RICO TEST07 — BUG FIX: CHOOSE TILE SET
 
 Base:
 
@@ -11,7 +11,7 @@ Observed regression:
 - The preview image stays on the previous charset.
 - Pressing OK also fails to replace the active tileset.
 
-TEST07 changes one subsystem only: charset image loading.
+TEST07 is a bug fix for a regression in our RICO build. It changes one subsystem only: charset image loading.
 
 - Preview: one fresh Image object per selection.
 - Stale asynchronous preview loads are ignored.
