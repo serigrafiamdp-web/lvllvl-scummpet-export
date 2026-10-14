@@ -20,3 +20,12 @@ Original James LVLLVL baseline:
 ### Deferred
 
 - Google Drive OAuth / origin configuration.
+
+
+## 2026-10-14 — Choose Tile Set loader
+
+### PASS
+
+- `Tiles -> Choose Tile Set` preview changes correctly when selecting presets.
+- `OK` applies the chosen tile set.
+- Fix is isolated in the RICO compatibility layer and does not modify James' original chooser source.
