@@ -22,7 +22,9 @@ Original James LVLLVL baseline:
 - Google Drive OAuth / origin configuration.
 
 
-## 2026-10-14 — Choose Tile Set loader
+## 2026-10-14 — BUG FIX: Choose Tile Set
+
+Classification: bug fix of RICO regression, not a new feature.
 
 ### PASS
 
