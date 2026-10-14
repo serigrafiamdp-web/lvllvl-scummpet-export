@@ -1,8 +1,8 @@
 RICO / LVLLVL - FEATURES Y MILESTONES
 =====================================
 Fecha de consolidacion: 14 de octubre de 2026
-Estado actual validado: TEST 23 = PASS CONFIRMADO EN VICE
-Base ejecutable validada: LVLLVL_MASTER_RICO_PRG_DUAL_BANK_TEST23_PASS_14_OCT_2026.zip
+Estado actual promovido: TEST 28 / EDIT GROUP CHARS
+Base funcional promovida: TEST28 sobre TEST27 PASS + TEST25 PASS + TEST23 PASS
 SHA256 base PASS: d719f8573184c9af555ef87b8e8fbdc973f77ccea0eeceddcd5a187298a8da3c
 Repositorio: serigrafiamdp-web/lvllvl-scummpet-export
 
@@ -289,3 +289,53 @@ CHECKPOINT ACTUAL
 =================
 TEST 23 = PASS CONFIRMADO EN VICE.
 Checkpoint estable: editor dual-bank + seleccion por frame + export PRG Standard dual-bank.
+
+
+MILESTONE TEST 24 - RICO REMIX 8x8 + 7x8
+Estado: INTEGRADO
+- Sidebar de fuentes dentro de Rico's Remix.
+- Categorias iniciales 8x8 y 7x8.
+- Fuentes 7x8 adaptadas a destino C64 8x8 agregando una columna vacia.
+- No se escala ni deforma el glyph.
+- Las fuentes mas grandes quedan para experimentos posteriores.
+
+MILESTONE TEST 25 - ANIMACION DUAL BANK + PING PONG
+Estado: PASS CONFIRMADO
+- Scroll Left/Right/Up/Down corregidos: cada fase parte siempre del glyph base.
+- Loop circular limpio sin acumulacion de transformaciones.
+- Nuevos modos Ping Pong Left/Right/Up/Down.
+- Ping Pong desplaza sin wrap y regresa por el mismo recorrido.
+- BANK 1 y BANK 2 guardan propiedades de animacion independientes.
+- Tipo, ticks, frame/estado y Frames animation quedan separados por banco.
+- La exportacion PRG de Ping Pong queda pendiente de una validacion propia.
+
+MILESTONE TEST 26 - TILE EDITOR BANK-AWARE
+Estado: INTEGRADO
+- Lecturas y escrituras del Tile Editor se redirigen al banco activo.
+- Pencil / Erase / Clear / Paste / Flip / Shift / Invert respetan BANK 1 / BANK 2.
+- Seleccion multiple conserva el banco activo.
+- La UI indica BANK 1 o BANK 2.
+
+MILESTONE TEST 27 - TILE EDITOR BANK 2 RENDER
+Estado: PASS CONFIRMADO
+- Corregido el canvas del Tile Editor que aun dibujaba tileSet.tileData de BANK 1.
+- Durante el render BANK 2 se usa temporalmente ricoCharsetBank2.tileData.
+- La referencia BANK 1 se restaura inmediatamente.
+- Doble click y seleccion multiple muestran el glyph real del banco activo.
+
+MILESTONE TEST 28 - EDIT GROUP CHARS
+Estado: PROMOVIDO A MAIN
+- El boton lateral Choose Tile Set... pasa a ser Edit Chars.
+- La funcion original Choose Tile Set permanece disponible desde el menu Tiles.
+- Edit Chars abre una ventana independiente con la seleccion 2D actual.
+- Permite editar pixel a pixel varios glyphs como un unico lienzo logico.
+- Compatible con BANK 1 y BANK 2.
+- Herramientas: Pencil, Select, Cut, Copy, Paste, Clear, Zoom y Fit.
+- Shortcuts: N, S, Z, Shift+Z, Ctrl+A/C/X/V, Delete y Esc.
+- Los cambios vuelven inmediatamente al editor principal y la paleta.
+
+CHECKPOINT PROMOVIDO
+====================
+TEST28 es el estado principal promovido el 14/10/2026.
+Mantiene como bases validadas TEST23 PASS (PRG dual-bank), TEST25 PASS
+(animaciones) y TEST27 PASS (Tile Editor BANK 2).
