@@ -27,6 +27,7 @@ Validated features:
 - ECM -> ECM reselection, allowing unused glyphs to be swapped later;
 - native-style `Edit Tile Palette` UI:
   loaded tileset on the left, 64 ECM glyphs on the right.
+- **RICO bug fix:** `Choose Tile Set` preview and `OK` application restored.
 
 Full documentation:
 
@@ -49,3 +50,15 @@ and is explicitly loaded by both `src/index.html` and `dist/index.html`.
 - New behaviour is tested incrementally.
 - Upstream James remains the reference if a RICO change breaks something.
 - Google Drive/OAuth work is postponed and is not part of the current PASS milestone.
+
+
+## RICO bug fixes
+
+### Choose Tile Set — TEST07 PASS
+
+The original LVLLVL function already existed. Our RICO build had a regression where
+preset selection changed the row/title but did not refresh the preview or apply the
+chosen tile set with `OK`.
+
+TEST07 restores the original expected behaviour without changing the ECM feature
+contract.

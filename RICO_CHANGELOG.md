@@ -20,3 +20,14 @@ Original James LVLLVL baseline:
 ### Deferred
 
 - Google Drive OAuth / origin configuration.
+
+
+## 2026-10-14 — BUG FIX: Choose Tile Set
+
+Classification: bug fix of RICO regression, not a new feature.
+
+### PASS
+
+- `Tiles -> Choose Tile Set` preview changes correctly when selecting presets.
+- `OK` applies the chosen tile set.
+- Fix is isolated in the RICO compatibility layer and does not modify James' original chooser source.
