@@ -520,3 +520,13 @@ Estado: PENDING PASS/FAIL
 - Navegacion de frames integrada en la misma ventana con controles < y >.
 - Los valores de la frame actual se guardan antes de cambiar y los de la nueva frame se cargan sin cerrar la ventana.
 - Convencion UI desde TEST72: las features propias llevan el prefijo "Rico's".
+
+
+MILESTONE TEST 73 - RICO'S DIMENSIONS CUATRO LADOS
+Estado: PENDING PASS/FAIL
+- Redimension fisica del Screen mediante Left / Right / Top / Bottom con valores firmados.
+- Valor positivo agrega filas/columnas; valor negativo elimina.
+- Left/Top desplazan el contenido existente para modificar fisicamente esos bordes.
+- Right/Bottom modifican el borde correspondiente sin desplazar el origen.
+- Tamano final calculado automaticamente y preview visual incluida.
+- Rico's Window Dimensions y MAP SCROLL quedan sin cambios en este test.
