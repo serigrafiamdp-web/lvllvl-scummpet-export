@@ -82,7 +82,7 @@ Regresion
 - Ping Pong y Scroll normal siguen igual.
 - Preview TEST58 no se modifica.
 
-STATUS: TEST59 inicial bloqueado por regresion de integracion UI: opciones Move no visibles. TEST59B restaura menu dedicado; PENDING USER PASS/FAIL.
+STATUS: TEST59 inicial bloqueado por regresion de integracion UI. TEST59B = PASS CONFIRMADO por la usuaria.
 
 
 TEST59B - MENU RESTORE
@@ -101,3 +101,17 @@ Correccion:
 - conserva preview 50 Hz, zoom sync y border fix de TEST58
 - agrega alias TEST59 y mantiene aliases TEST58/57/56/37 por compatibilidad
 - runtime staging TEST59 sin cambios
+
+
+RESULTADO FINAL TEST59B
+-----------------------
+PASS confirmado.
+
+Validado por la usuaria:
+- las 8 opciones Move Out / Move In vuelven a aparecer en MAP SCROLL;
+- la transicion Move Out -> Move In funciona;
+- desaparece la microframe basura/tearing durante la pantalla vacia;
+- staging $0C00 cumple su funcion sin romper el resto del runtime.
+
+TEST59 inicial queda documentado como intento intermedio con regresion de integracion UI.
+TEST59B es la version aprobada y nuevo MASTER.
