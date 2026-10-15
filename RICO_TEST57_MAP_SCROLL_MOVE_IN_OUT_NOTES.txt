@@ -80,4 +80,4 @@ C) Regresion:
    - Ping Pong debe seguir volviendo.
    - Scroll debe seguir haciendo wrap.
 
-STATUS: PENDING USER PASS/FAIL.
+STATUS: PASS CONFIRMADO EN VICE por la usuaria.
