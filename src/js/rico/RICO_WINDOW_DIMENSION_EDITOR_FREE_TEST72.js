@@ -130,7 +130,7 @@ function stepDialogFrame72(delta){
 }
 function ensureDialog(){
   if(dialog)return;
-  dialog=UI.create('UI.Dialog',{id:'ricoWindowDimensionDialog72',title:'Window Dimension',width:500,height:535});
+  dialog=UI.create('UI.Dialog',{id:'ricoWindowDimensionDialog72',title:"Rico's Window Dimensions",width:500,height:535});
   var html='';
   html+='<div style="padding:16px 18px">';
   html+='<div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-bottom:12px">';
@@ -185,7 +185,7 @@ if(!Editor.prototype.__ricoWindowDimension72){
         for(var i=0;i<self.menuBar.menus.length;i++)if(self.menuBar.menus[i]&&self.menuBar.menus[i].label==='Screen'){screenMenu=self.menuBar.menus[i];break;}
         if(!screenMenu)return;
         var clone=screenMenu.getItem('file-windowdimensions');
-        if(!clone)clone=screenMenu.addItem({label:'Window Dimension...',id:'file-windowdimensions'});
+        if(!clone)clone=screenMenu.addItem({label:"Rico's Window Dimensions...",id:'file-windowdimensions'});
         var original=screenMenu.getItem('file-dimensions');
         if(original&&clone){
           var originalEl=document.getElementById(original.id),cloneEl=document.getElementById(clone.id);
@@ -221,5 +221,5 @@ if(!Graphic.prototype.__ricoWindowFrames72){
 window.RICO_TEST72_WINDOW_DIMENSION={field:FIELD,getConfig:getCfg,setConfig:setCfg,perFrame:true,nonDestructive:true,editorUnrestricted:true,previewExportOnly:true,fourSideCrop:true,frameNavigation:true};
 window.RICO_TEST68_WINDOW_DIMENSION=window.RICO_TEST72_WINDOW_DIMENSION;
 window.RICO_TEST67_WINDOW_DIMENSION=window.RICO_TEST72_WINDOW_DIMENSION;
-console.log('[RICO TEST72] Window Dimension: unrestricted editor + per-frame < > navigation');
+console.log('[RICO TEST72] Rico's Window Dimensions: unrestricted editor + per-frame < > navigation');
 })();
