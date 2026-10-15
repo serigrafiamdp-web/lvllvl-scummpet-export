@@ -461,7 +461,24 @@ Estado: PASS CONFIRMADO EN VICE
 
 CHECKPOINT ACTUAL PROMOVIDO
 ===========================
-TEST 55 = PASS CONFIRMADO EN VICE.
+TEST 57 = PASS CONFIRMADO EN VICE.
 Este es el nuevo punto seguro para continuar el desarrollo.
 El runtime MAP SCROLL dedicado queda como arquitectura aprobada para export PRG.
 Los experimentos TEST39-47 quedan como historial FAIL del enfoque de parchear el player clasico y no deben reutilizarse como base.
+
+
+MILESTONE TEST 56 - MAP SCROLL MOVE OUT
+Estado: PASS CONFIRMADO EN VICE
+- Agrega movimiento de salida no-wrap Left / Right / Up / Down.
+- Al alcanzar el extremo, la imagen queda fuera; no vuelve ni hace wrap.
+- Mantiene Ticks / Step, Pixels / Step y Frame Duration.
+
+MILESTONE TEST 57 - MAP SCROLL MOVE IN
+Estado: PASS CONFIRMADO EN VICE
+- MOVE pasa a llamarse visualmente MOVE OUT.
+- Agrega Move In Left / Right / Up / Down.
+- Move In arranca con la imagen fuera del viewport y la introduce hasta posición normal.
+- La dirección nombra el movimiento de la imagen:
+  Left entra desde la derecha; Right desde la izquierda; Up desde abajo; Down desde arriba.
+- Una vez completa, la imagen queda visible hasta terminar Frame Duration.
+- Códigos existentes 0..12 preservados; Move In usa 13..16.
