@@ -1,0 +1,85 @@
+RICO TEST59 - CLEAN MOVE IN TRANSITION STAGING
+15 OCT 2026
+
+Base segura
+-----------
+TEST58 PASS confirmado y promovido a main.
+Preview 50 Hz + zoom sync + border fix se conserva.
+TEST57 MOVE OUT + MOVE IN runtime era PASS salvo un microframe de basura visible
+en transiciones multi-frame hacia una frame MOVE IN.
+
+Sintoma observado
+-----------------
+Secuencia tipica:
+Frame 1: Move Out Left
+Frame 2: Move In Right (entra desde la izquierda)
+
+Cuando la pantalla debia estar vacia entre ambas, aparecia durante una microframe
+una pantalla parcialmente construida: filas superiores con caracteres y parte
+inferior aun vacia.
+
+Diagnostico
+-----------
+No era corrupcion del recurso ni del charset.
+load_frame copiaba los 1000 screen codes de la nueva frame directamente a:
+  $0400-$07E7
+  $0800-$0BE7
+mientras una de esas screen RAM podia seguir seleccionada por VIC-II.
+
+La copia ocurre desde el IRQ y dura suficientes ciclos como para atravesar raster
+visible. El VIC-II podia leer una screen a medio actualizar, produciendo tearing.
+
+Solucion TEST59
+---------------
+Se reserva una tercera screen RAM temporal:
+  $0C00-$0FFF
+
+Al inicio:
+- blank_char se inicializa.
+- $0C00-$0FFF se llena con blank_char.
+- blank_char es glyph 0 en ambos charset banks, por lo que la pantalla staging
+  siempre muestra solamente el Background Color.
+
+Cuando la NUEVA frame es Move In (tipos 13..16):
+1. Se cargan su Background Color, Border Color y charset bank.
+2. $D018 cambia temporalmente a screen $0C00.
+3. VIC-II ve una pantalla completamente vacia.
+4. La CPU puede reconstruir $0400 y $0800 sin que sean visibles.
+5. Se prepara la posicion inicial de Move In.
+6. Solo cuando esta terminada se hace swap hacia la screen real.
+
+No se agrega staging a transiciones normales para evitar introducir flashes vacios
+donde no corresponden.
+
+Memoria
+-------
+$0400-$07E7 = screen A
+$0800-$0BE7 = screen B
+$0C00-$0FFF = blank transition staging
+$2000+       = codigo runtime
+$3000/$3800 = charset banks
+$4000+       = frame data
+
+Prueba principal
+----------------
+Repetir exactamente el caso que revelo el problema:
+- Frame 1: Move Out Left
+- Frame 2: Move In desde la izquierda (Move In Right segun semantica de movimiento)
+- Ticks / Step = 1
+- Pixels / Step = 1
+- observar varias vueltas
+
+Esperado:
+- Frame 1 sale.
+- Pantalla queda limpia.
+- No aparece ninguna microframe con caracteres parciales.
+- Frame 2 comienza a entrar limpiamente desde la izquierda.
+
+Regresion
+---------
+- Move Out sigue igual.
+- Move In en las 4 direcciones sigue igual.
+- Ping Pong y Scroll normal siguen igual.
+- Preview TEST58 no se modifica.
+
+STATUS: PENDING USER PASS/FAIL.
