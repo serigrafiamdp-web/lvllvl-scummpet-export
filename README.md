@@ -180,7 +180,7 @@ en `src` como en `dist`.
 
 ## Estado técnico / milestones
 
-**15/10/2026 — promoción actual a main: TEST58 PASS**
+**15/10/2026 — promoción actual a main: TEST59B PASS**
 
 - TEST07 — Choose Tile Set regression fix: PASS.
 - TEST14 — Rico's Remix 512 continuous: PASS.
@@ -270,3 +270,21 @@ Checkpoint promovido: **TEST57 / MAP SCROLL MOVE OUT + MOVE IN**, PASS confirmad
 - El runtime PRG de TEST57 se mantuvo sin cambios.
 
 Checkpoint promovido: **TEST58 / MAP SCROLL PREVIEW SYNC + BORDER FIX**.
+
+
+## Milestone 15/10/2026 — TEST59B PASS / MASTER
+
+### Clean Move In transition
+- Se elimina la microframe de tearing al pasar de una frame Move Out a una frame Move In.
+- Causa: `load_frame` reconstruía `$0400/$0800` mientras VIC-II todavía podía mostrar una de esas screens.
+- Solución: tercera screen de staging vacía en `$0C00-$0FFF`.
+- Durante la preparación de una nueva frame Move In, VIC-II muestra la screen vacía y sólo conmuta a la screen real cuando la construcción terminó.
+
+### MAP SCROLL menu restore
+- TEST59 inicial tuvo una regresión de integración: el menú no mostraba Move Out / Move In.
+- TEST59B agrega un módulo UI dedicado y restaura las 8 opciones:
+  - Move Out Left / Right / Up / Down
+  - Move In Left / Right / Up / Down
+- Se conservan preview PAL 50 Hz, zoom sync y border fix de TEST58.
+
+**TEST59B = PASS confirmado y nuevo MASTER seguro en main.**
