@@ -89,4 +89,4 @@ C) Border
 D) Regresion
    Exportar PRG y validar que TEST57 sigue identico.
 
-STATUS: PENDING USER PASS/FAIL.
+STATUS: PASS CONFIRMADO por la usuaria.
