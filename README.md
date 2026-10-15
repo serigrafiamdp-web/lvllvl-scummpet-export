@@ -180,7 +180,7 @@ en `src` como en `dist`.
 
 ## Estado técnico / milestones
 
-**15/10/2026 — promoción actual a main: TEST55 PASS**
+**15/10/2026 — promoción actual a main: TEST57 PASS**
 
 - TEST07 — Choose Tile Set regression fix: PASS.
 - TEST14 — Rico's Remix 512 continuous: PASS.
@@ -243,3 +243,20 @@ TEST55 queda **PASS confirmado en VICE**. La ruta de export PRG usa el runtime M
 Para scroll horizontal con `Ticks / Step = 1` y `Pixels / Step = 1`, una vuelta completa de 40 caracteres requiere 320 ticks. Para vertical, 25 caracteres requieren 200 ticks.
 
 Checkpoint promovido: **TEST55 / MAP SCROLL PING PONG CONTINUOUS**.
+
+
+## Milestone 15/10/2026 — TEST56 / TEST57 PASS
+
+### TEST56 — MOVE OUT
+- Se agrega movimiento de salida no-wrap en Left / Right / Up / Down.
+- La pantalla sale una sola vez y queda fuera hasta finalizar Frame Duration.
+- El nombre visible final de esta familia es **Move Out**.
+
+### TEST57 — MOVE IN
+- Se agrega **Move In Left / Right / Up / Down**.
+- La pantalla comienza fuera del viewport, entra desde la dirección opuesta al movimiento y termina en su posición normal.
+- No reinicia ni vuelve a salir al completar el recorrido.
+- Se mantienen los límites validados: 319 px horizontal y 199 px vertical.
+- Compatibilidad con metadata `ricoMapScrollV1` y con los códigos MOVE de TEST56.
+
+Checkpoint promovido: **TEST57 / MAP SCROLL MOVE OUT + MOVE IN**, PASS confirmado en VICE.
