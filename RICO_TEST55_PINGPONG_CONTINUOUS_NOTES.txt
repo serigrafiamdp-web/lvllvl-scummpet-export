@@ -1,0 +1,21 @@
+RICO TEST55 - MAP SCROLL PING PONG CONTINUOUS
+15 OCT 2026
+
+Base: TEST54 + TEST53/TEST51 validated chain.
+
+Reason for TEST55:
+TEST54 could appear to reach the end of a Ping Pong travel and jump directly back to the original position. The Ping Pong direction state was not necessarily the cause: when a one-frame PRG reached Frame Duration, next_frame -> load_frame reloaded the same frame, clearing ping_pos/ping_reverse and restoring the original screen.
+
+Changes:
+1. Single-frame MAP SCROLL no longer reloads its screen/config at Frame Duration rollover. Only the 16-bit frame timer is reloaded. Scroll/Ping Pong state continues seamlessly.
+2. Frame Duration UI/storage/export range extended from 1-512 to 1-1024 ticks.
+3. Multi-frame behavior is unchanged: when Frame Duration ends it advances to the next frame and loads that frame's own MAP SCROLL config.
+4. Ping Pong max travel remains TEST54 behavior: horizontal 319 px, vertical 199 px, then reverse.
+5. Clean VIC-II viewport remains 38x24.
+
+Suggested tests:
+A) One frame: Ping Pong Left, Ticks/Step=1, Pixels/Step=1. Any Frame Duration value should no longer reset the image at timer rollover; it should continue and reverse.
+B) Multi-frame: use Frame Duration around 640+ if the intent is to visibly complete a full horizontal out-and-back cycle before advancing.
+
+STATUS: PASS CONFIRMADO EN VICE por la usuaria.
+El Ping Pong vuelve correctamente en sentido contrario sin reiniciar desde el origen.

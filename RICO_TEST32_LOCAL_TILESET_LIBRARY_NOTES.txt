@@ -1,0 +1,50 @@
+RICO TEST32 - LOCAL TILESET LIBRARY
+===================================
+Base: TEST31 PASS.
+
+Objetivo
+--------
+Permitir que un Tile Set importado quede guardado localmente en el navegador,
+aparezca en Custom Text Mode Sets y pueda utilizarse como SOURCE dentro de
+Rico's Remix a Tileset.
+
+Flujo
+-----
+1. Tiles -> Choose A Tile Set -> Load/Import Tile Set.
+2. Importar PNG/BIN/JSON/etc con el importador normal de LVLLVL.
+3. Dejar marcado "Save to RICO Local Library" y elegir nombre.
+4. OK: se importa normalmente y se guarda una copia local.
+5. Custom Text Mode Sets -> RICO LOCAL LIBRARY muestra los sets guardados.
+6. Export JSON genera RICO_TILESET_LIBRARY.json.
+7. Import JSON restaura/mezcla una biblioteca exportada.
+8. Rico's Remix -> RICO LOCAL LIBRARY muestra automáticamente los sets locales compatibles.
+
+Persistencia
+------------
+TEST32 usa localStorage con clave ricoLocalTileSetLibraryV1.
+Los sets quedan sólo en el navegador/perfil actual hasta exportarlos a JSON.
+El JSON puede promoverse más adelante al source del fork.
+
+Formato JSON
+------------
+format: RICO_TILESET_LIBRARY_V1
+version: 1
+tileSets: [
+  id, name, width, height, tileCount, type, source,
+  createdAt, updatedAt, tileData
+]
+
+Compatibilidad Rico Remix
+-------------------------
+8x8   -> 1 slot C64 por glyph.
+7x8   -> 1 slot C64 8x8, columna derecha vacía.
+8x14  -> 2 slots verticales, bottom con 2 filas negras.
+8x16  -> 2 slots verticales, split exacto 8+8.
+16x16 -> 4 slots en bloque C64 2x2.
+
+Otros tamaños pueden guardarse y reutilizarse desde Custom Text Mode Sets, pero
+no aparecen todavía como SOURCE de Rico's Remix hasta definir su adaptación C64.
+
+PASS/FAIL
+---------
+Pendiente de validación del usuario.

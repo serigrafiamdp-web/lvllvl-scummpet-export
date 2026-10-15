@@ -1,9 +1,9 @@
 RICO / LVLLVL - FEATURES Y MILESTONES
 =====================================
-Fecha de consolidacion: 14 de octubre de 2026
-Estado actual promovido: TEST 28 / EDIT GROUP CHARS
-Base funcional promovida: TEST28 sobre TEST27 PASS + TEST25 PASS + TEST23 PASS
-SHA256 base PASS: d719f8573184c9af555ef87b8e8fbdc973f77ccea0eeceddcd5a187298a8da3c
+Fecha de consolidacion: 15 de octubre de 2026
+Estado actual promovido: TEST 55 / MAP SCROLL PING PONG CONTINUOUS
+Base funcional promovida: TEST55 sobre TEST52 PASS + TEST51 PASS + TEST50 PASS + TEST48 PASS + TEST38 PASS + TEST34 PASS + TEST23 PASS
+SHA256 paquete TEST55 PASS: 5c8cc17f84808ce165b4dfbb2c0d501a4c12efb73ecea1bc4145513e2d8ef04f
 Repositorio: serigrafiamdp-web/lvllvl-scummpet-export
 
 OBJETIVO GENERAL
@@ -339,3 +339,129 @@ CHECKPOINT PROMOVIDO
 TEST28 es el estado principal promovido el 14/10/2026.
 Mantiene como bases validadas TEST23 PASS (PRG dual-bank), TEST25 PASS
 (animaciones) y TEST27 PASS (Tile Editor BANK 2).
+
+
+============================================================
+PROMOCION 15 OCT 2026 - TEST30 A TEST55
+============================================================
+
+MILESTONE TEST 30 - DOUBLE HEIGHT VERTICAL
+Estado: PASS
+- Fuentes 8x16 se dividen en pares verticales de caracteres C64 8x8.
+- Pair 0 = slots 0/16; pair 1 = 1/17, siguiendo la geometria de 16 columnas.
+
+MILESTONE TEST 31 - MODULOS 16x16
+Estado: PASS
+- Un modulo 16x16 se convierte en cuatro caracteres C64 8x8.
+- Modulo 0 = 0 1 / 16 17; modulo 1 = 2 3 / 18 19.
+- Mantiene geometria real 2x2 en la paleta.
+
+MILESTONE TEST 32 - LOCAL TILESET LIBRARY
+Estado: PASS
+- Biblioteca local basada en localStorage: ricoLocalTileSetLibraryV1.
+- Custom Text Mode Sets y Rico's Remix leen fuentes guardadas por el usuario.
+- Export/import JSON de la biblioteca completa.
+- Tamaños aceptados: 8x8, 7x8, 8x14, 8x16 y 16x16.
+
+MILESTONE TEST 33 - ANIMATED PALETTE PREVIEW
+Estado: integrado
+- La paleta puede mostrar preview de glyphs animados.
+- Su cache fue corregido posteriormente por TEST38.
+
+MILESTONE TEST 34 - GROUP ANIMATE
+Estado: PASS
+- Una seleccion de caracteres puede animarse como una sola superficie continua.
+- Scroll atraviesa limites 8x8 sin tratar cada glyph de forma aislada.
+- BANK-aware.
+- Soporta Scroll, Ping Pong, Blink y Frames.
+- Group Animate y animacion individual se excluyen en los caracteres involucrados.
+
+MILESTONE TEST 35 - MAP SCROLL UI
+Estado: PASS
+- Nuevo boton MAP SCROLL junto a Frame Duration.
+- Metadata por frame: ricoMapScrollV1.
+- Tipos: No, Scroll Left/Right/Up/Down y Ping Pong Left/Right/Up/Down.
+
+MILESTONE TEST 36 - MAP SCROLL BACKGROUND
+Estado: PASS
+- Las zonas expuestas de Ping Pong usan el background real de la frame.
+- Se elimina el checkerboard/transparencia de la preview.
+
+MILESTONE TEST 37 - MAP SCROLL SPEED
+Estado: PASS
+- Ticks / Step controla intervalo temporal.
+- Pixels / Step controla desplazamiento 1..8 px por paso.
+- Compatibilidad hacia atras: Pixels / Step = 1.
+
+MILESTONE TEST 38 - TILE PALETTE EDIT REFRESH
+Estado: PASS
+- Editar un glyph invalida la cache de preview.
+- Se refrescan paleta principal, paleta lateral y cache de Group Animate.
+
+MILESTONE TEST 48 - PRG MAP SCROLL REFERENCE RUNTIME
+Estado: PASS EN VICE
+- Se abandona el parcheo del viejo player para la prueba de arquitectura.
+- Runtime C64 independiente con fine scroll VIC-II y doble buffer.
+- Scroll vertical continuo validado.
+- Esta prueba demuestra que el motor funciona y que la integracion debe usar una ruta dedicada.
+
+MILESTONE TEST 49 - 4 DIRECTIONS
+Estado: prueba intermedia
+- Se agregan Left/Right/Up/Down al runtime.
+- Se detectan costuras visibles en los bordes del VIC-II.
+
+MILESTONE TEST 50 - VERTICAL CLEAN EDGES
+Estado: PASS
+- Scroll vertical usa 24-row mode.
+- La fila de trabajo queda oculta detras del borde superior/inferior.
+
+MILESTONE TEST 51 - CLEAN VIEWPORT 38x24
+Estado: PASS
+- Scroll horizontal usa 38-column mode.
+- Scroll vertical mantiene 24-row mode.
+- Viewport visible durante MAP SCROLL: 38 x 24.
+- Mapa real en RAM: 40 x 25.
+- Se eliminan costuras izquierda/derecha y arriba/abajo.
+
+MILESTONE TEST 52 - FRAME TIMING
+Estado: PASS
+- El runtime lee Frame Duration real de cada frame.
+- Cada frame puede tener direccion MAP SCROLL, Ticks / Step y Pixels / Step independientes.
+- Al vencer la duracion se carga la siguiente frame y su configuracion.
+- Loop multi-frame validado Left -> Right.
+
+MILESTONE TEST 53 - FRAME DURATION 16 BIT
+Estado: integrado en el runtime posterior
+- Frame Duration deja de estar limitado a un byte.
+- TEST53 amplio inicialmente el rango a 512 ticks.
+- TEST55 amplia el contrato final promovido a 1024 ticks.
+
+MILESTONE TEST 54 - MAP SCROLL PING PONG
+Estado: FAIL PARCIAL
+- La salida desde el origen funcionaba.
+- Al llegar al extremo, el rollover de una animacion de una sola frame recargaba la misma frame y reiniciaba la posicion en lugar de volver.
+
+MILESTONE TEST 55 - MAP SCROLL PING PONG CONTINUOUS
+Estado: PASS CONFIRMADO EN VICE
+- Corrige el reinicio de TEST54.
+- En una sola frame, al vencer Frame Duration se recarga solo el timer de 16 bits; no se recarga la pantalla/config ni se borra el estado Ping Pong.
+- Ping Pong vuelve correctamente en sentido contrario.
+- Multi-frame mantiene la regla normal: al vencer Frame Duration se avanza y se carga la configuracion de la siguiente frame.
+- Direcciones disponibles:
+    Scroll Left / Right / Up / Down
+    Ping Pong Left / Right / Up / Down
+- Viewport C64 limpio: 38 x 24.
+- Frame Duration promovido: 1..1024 ticks.
+- Ticks / Step: 1..255.
+- Pixels / Step: 1..8.
+- Horizontal a 1 px/tick: 40*8 = 320 ticks por vuelta normal.
+- Vertical a 1 px/tick: 25*8 = 200 ticks por vuelta normal.
+- Ping Pong horizontal ida+vuelta completa: 638 ticks con recorrido maximo 319 px.
+- Ping Pong vertical ida+vuelta completa: 398 ticks con recorrido maximo 199 px.
+
+CHECKPOINT ACTUAL PROMOVIDO
+===========================
+TEST 55 = PASS CONFIRMADO EN VICE.
+Este es el nuevo punto seguro para continuar el desarrollo.
+El runtime MAP SCROLL dedicado queda como arquitectura aprobada para export PRG.
+Los experimentos TEST39-47 quedan como historial FAIL del enfoque de parchear el player clasico y no deben reutilizarse como base.

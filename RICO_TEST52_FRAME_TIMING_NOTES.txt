@@ -1,0 +1,27 @@
+RICO TEST52 - MAP SCROLL FRAME TIMING
+
+Goal:
+- Export 2+ LVLLVL frames with the standalone MAP SCROLL runtime.
+- The runtime reads each LVLLVL Frame Duration (ticks).
+- When the assigned ticks finish, it loads the next LVLLVL frame and its own MAP SCROLL settings.
+- The sequence loops back to Frame 1 after the last frame.
+
+Supported in this test:
+- C64 Standard / 8x8 / 40x25.
+- 2..32 frames.
+- MAP SCROLL: No, Up, Down, Left, Right.
+- Ticks / Step and Pixels / Step independently per frame.
+- Frame Duration independently per frame.
+- 38x24 clean VIC-II viewport from TEST51.
+- BANK1/BANK2 charset selection per frame.
+- Per-frame background / border / dominant foreground color.
+
+Still intentionally postponed:
+- Ping Pong MAP SCROLL in PRG.
+- Full per-cell Color RAM scrolling (uniform dominant foreground is retained).
+- Character/group animation integration into this standalone runtime.
+
+Suggested validation:
+Frame 1: Scroll Left, Duration 150, Ticks/Step 4, Pixels/Step 1.
+Frame 2: Scroll Right, Duration 150, Ticks/Step 4, Pixels/Step 1.
+Export PRG normally. It should alternate F1 Left -> F2 Right -> F1 Left indefinitely.

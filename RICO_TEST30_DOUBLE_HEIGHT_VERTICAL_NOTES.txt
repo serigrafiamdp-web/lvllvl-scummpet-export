@@ -1,0 +1,14 @@
+RICO TEST30 - DOUBLE HEIGHT AUTO VERTICAL PAIRS
+
+Correction over TEST29:
+- A tall 8x14/8x16 source glyph is split into two real C64 8x8 chars.
+- The two sister chars are stored as a VERTICAL pair in the standard 16-column C64 palette.
+- Pair 0 = TOP slot 0 + BOTTOM slot 16; pair 1 = 1 + 17; ...
+- 128 vertical pairs consume the full 256 slots of one bank.
+- Clicking a source glyph imports BOTH halves immediately at the insertion cursor and advances to the next pair.
+- Clicking the CUSTOM tileset only moves the next insertion cursor; it is no longer required for every glyph.
+- 8x16 splits 8+8 exactly.
+- 8x14 splits 8+6 and pads the final two BOTTOM rows with black.
+- BANK defaults to the active frame bank when entering DOUBLE HEIGHT mode.
+
+Goal: the adapted C64 tileset visibly shows TOP directly above BOTTOM for every imported glyph.

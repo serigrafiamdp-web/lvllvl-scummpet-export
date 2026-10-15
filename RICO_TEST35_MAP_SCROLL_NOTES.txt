@@ -1,0 +1,14 @@
+RICO TEST35 - MAP SCROLL
+Base: TEST34 PASS.
+
+- MAP SCROLL button beside Frame Duration.
+- Visible word "ticks" removed beside Frame Duration to gain room; duration is still ticks.
+- Per-frame dialog: No / Scroll L-R-U-D / Ping Pong L-R-U-D + Ticks/Step.
+- Standard scroll wraps the complete rendered map as one surface.
+- Ping Pong moves the complete map out and back without wrap.
+- Frame Duration and MAP SCROLL Ticks/Step are independent.
+- Entering a frame restarts its map-scroll phase at 0.
+- Duplicate Frame copies the MAP SCROLL setting; new frame defaults to No.
+- Character animation and Group Animate remain independent inside the moving map.
+
+TEST STATUS: PASS confirmado por usuario.

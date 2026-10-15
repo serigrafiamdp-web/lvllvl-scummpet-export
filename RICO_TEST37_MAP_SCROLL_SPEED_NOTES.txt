@@ -1,0 +1,17 @@
+RICO TEST37 - MAP SCROLL: PIXELS PER STEP
+
+Base: TEST36 PASS.
+
+Cambio unico:
+- La ventana MAP SCROLL suma un control Pixels / Step (1..8).
+- Ticks / Step conserva el intervalo temporal.
+- Pixels / Step controla cuantos pixels avanza el mapa en cada step.
+- Ejemplos:
+  Ticks/Step=1, Pixels/Step=1 -> 1 px por tick.
+  Ticks/Step=1, Pixels/Step=8 -> 8 px por tick.
+  Ticks/Step=4, Pixels/Step=2 -> salto de 2 px cada 4 ticks.
+- Compatible con Scroll y Ping Pong en las cuatro direcciones.
+- Configuraciones TEST35/36 existentes migran implicitamente con Pixels/Step=1.
+- El fix TEST36 de rellenar con Background Color C64 en Ping Pong se conserva.
+
+PENDIENTE: PASS/FAIL del usuario.

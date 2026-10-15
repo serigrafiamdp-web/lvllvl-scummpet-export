@@ -1,0 +1,25 @@
+RICO TEST51 - MAP SCROLL CLEAN VIEWPORT 38x24
+
+Base: TEST50 PASS.
+
+Goal:
+- Hide the VIC-II seam on all four wrap directions.
+- Keep the logical screen/map data at 40x25 characters.
+- During MAP SCROLL, render in VIC-II 38-column + 24-row mode.
+
+VIC-II:
+- $D011 RSEL=0 => 24 visible rows.
+- $D016 CSEL=0 => 38 visible columns.
+- Fine Y scroll remains in $D011 bits 0..2.
+- Fine X scroll remains in $D016 bits 0..2.
+
+Directions:
+- Scroll Up: TEST50 vertical seam fix retained + CSEL=0.
+- Scroll Down: TEST50 vertical seam fix retained + CSEL=0.
+- Scroll Left: RSEL=0, CSEL=0; horizontal fine-scroll values no longer re-enable 40-column mode.
+- Scroll Right: RSEL=0, CSEL=0; horizontal fine-scroll values no longer re-enable 40-column mode.
+
+Important:
+The exported screen data remains 40x25. The reduced 38x24 viewport is only the visible VIC-II window used to hide row/column turnover at the borders.
+
+Pending user PASS/FAIL in VICE.

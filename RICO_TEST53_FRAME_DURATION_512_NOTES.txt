@@ -1,0 +1,16 @@
+RICO TEST53 - FRAME DURATION 512 TICKS
+
+Base: TEST52 PASS.
+
+Changes:
+- Frame Duration UI range expanded from 1..255 to 1..512 ticks.
+- Graphic.setFrameDuration clamps to 1..512.
+- MAP SCROLL multi-frame PRG runtime now uses a 16-bit frame countdown.
+- Duration is exported as low/high byte tables, so values 256..512 are represented correctly.
+- MAP SCROLL Ticks / Step remains 1..255; this test changes Frame Duration only.
+- Keeps TEST52 behaviour: multi-frame, per-frame scroll direction/speed, 38x24 clean viewport, Up/Down/Left/Right.
+
+Suggested validation:
+Frame 1: Scroll Left, Frame Duration 512, Ticks/Step 4, Pixels/Step 1.
+Frame 2: Scroll Right, Frame Duration 512, Ticks/Step 4, Pixels/Step 1.
+Export PRG and verify each frame remains active for the longer duration before switching.

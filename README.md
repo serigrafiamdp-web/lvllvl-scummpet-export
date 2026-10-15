@@ -180,7 +180,7 @@ en `src` como en `dist`.
 
 ## Estado técnico / milestones
 
-**14/10/2026 — promoción actual a main**
+**15/10/2026 — promoción actual a main: TEST55 PASS**
 
 - TEST07 — Choose Tile Set regression fix: PASS.
 - TEST14 — Rico's Remix 512 continuous: PASS.
@@ -210,3 +210,36 @@ TEST23 lo corrigió sin aumentar el tamaño del player: se reemplazó una instru
 - Los experimentos nuevos se prueban incrementalmente fuera de main.
 - James/LVLLVL upstream sigue siendo la referencia para detectar regresiones.
 - La documentación técnica ampliada está en `RICO_FEATURES_MILESTONES_14_OCT_2026.txt`.
+
+
+## Milestone 15/10/2026 — TEST55 PASS
+
+El estado promovido incorpora las features desarrolladas desde TEST30 hasta TEST55.
+
+### Remix y biblioteca local
+- TEST30: importación/edición de fuentes verticales dobles 8x16 como pares de caracteres C64.
+- TEST31: importación de módulos 16x16 como bloques reales 2x2 de caracteres 8x8.
+- TEST32: biblioteca local de TileSets con export/import JSON y fuentes custom para Rico's Remix.
+
+### Animación y edición
+- TEST33: preview animada en la paleta.
+- TEST34: Group Animate, animación de una selección de caracteres como una superficie continua.
+- TEST38: refresh correcto de la paleta después de editar un carácter.
+
+### MAP SCROLL
+- TEST35-37: configuración por frame `ricoMapScrollV1`, tipos Scroll/Ping Pong, Ticks / Step y Pixels / Step.
+- El MAP SCROLL es una transformación de pantalla completa independiente de Group Animate.
+- El runtime C64 usa un viewport limpio de **38 x 24 caracteres** durante el scroll, ocultando las costuras del VIC-II mediante 38-column mode y 24-row mode.
+- Scroll normal soportado: Left / Right / Up / Down.
+- Ping Pong soportado: Left / Right / Up / Down.
+- Frame Duration es de 16 bits y el estado promovido permite **1..1024 ticks**.
+- Cada frame conserva su propia dirección, velocidad, duración y charset bank.
+- En una animación de varias frames, al vencer Frame Duration se carga la siguiente configuración de MAP SCROLL.
+- En una sola frame Ping Pong, el rollover de Frame Duration ya no reinicia el desplazamiento: el movimiento continúa y vuelve en sentido contrario.
+
+### Export PRG C64 validado
+TEST55 queda **PASS confirmado en VICE**. La ruta de export PRG usa el runtime MAP SCROLL dedicado en lugar de intentar encajar el efecto dentro del player clásico de LVLLVL.
+
+Para scroll horizontal con `Ticks / Step = 1` y `Pixels / Step = 1`, una vuelta completa de 40 caracteres requiere 320 ticks. Para vertical, 25 caracteres requieren 200 ticks.
+
+Checkpoint promovido: **TEST55 / MAP SCROLL PING PONG CONTINUOUS**.

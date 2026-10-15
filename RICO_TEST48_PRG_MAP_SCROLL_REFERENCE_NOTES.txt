@@ -1,0 +1,35 @@
+RICO TEST48 - LVLLVL PRG MAP SCROLL via proven standalone runtime
+
+Base: TEST38 PASS + reference vertical MAP SCROLL PRG confirmed PASS in VICE.
+
+This test deliberately stops patching the legacy LVLLVL frame player for the supported case.
+When LVLLVL exports a PRG and the project is:
+- 1 frame
+- 40x25
+- 8x8 character set
+- MAP SCROLL = Scroll Up
+
+ToPRGAdv exports with the known-good standalone scroll runtime instead. The user still exports normally from LVLLVL.
+
+Imported from the current project at export time:
+- 1000 screen codes from frame 1
+- active frame charset bank (BANK1/BANK2) copied into $3000
+- C64 background color
+- border color
+- dominant per-cell foreground color (Color RAM is uniform in this first integration test)
+- Ticks / Step
+- Pixels / Step (1..8; very aggressive settings can be naturally limited by hidden-buffer preparation)
+
+Runtime:
+- BASIC: SYS8192
+- engine: $2000
+- screen buffers: $0400/$0800
+- charset: $3000
+- source map: $4000
+- fine vertical scroll: $D011
+- screen swap: $D018
+- hidden screen prepared in 8 IRQ phases
+
+Unsupported cases fall back to the existing LVLLVL/TEST23 exporter unchanged.
+
+TEST: export normally from LVLLVL, then run the resulting PRG in VICE.
