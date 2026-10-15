@@ -66,4 +66,4 @@ D) Regresion:
    Confirmar Ping Pong Left/Right/Up/Down sigue regresando.
    Confirmar Scroll Left/Right/Up/Down sigue haciendo wrap.
 
-STATUS: PENDING USER PASS/FAIL.
+STATUS: PASS CONFIRMADO EN VICE por la usuaria.
