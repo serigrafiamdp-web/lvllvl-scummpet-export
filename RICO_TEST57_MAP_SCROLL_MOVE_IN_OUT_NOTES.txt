@@ -1,0 +1,83 @@
+RICO TEST57 - MAP SCROLL MOVE OUT + MOVE IN
+15 OCT 2026
+
+Base segura: TEST56 PASS confirmado en VICE.
+
+Objetivo
+--------
+1. Renombrar visualmente MOVE a MOVE OUT sin romper metadata/proyectos TEST56.
+2. Agregar MOVE IN en las cuatro direcciones.
+
+Opciones
+--------
+MOVE OUT:
+- Move Out Left
+- Move Out Right
+- Move Out Up
+- Move Out Down
+
+MOVE IN:
+- Move In Left
+- Move In Right
+- Move In Up
+- Move In Down
+
+Semantica de direccion
+----------------------
+La direccion indica hacia donde SE MUEVE la imagen.
+
+Ejemplos:
+- Move In Left: empieza fuera por la derecha y entra moviendose hacia la izquierda.
+- Move In Right: empieza fuera por la izquierda y entra moviendose hacia la derecha.
+- Move In Up: empieza fuera por abajo y entra moviendose hacia arriba.
+- Move In Down: empieza fuera por arriba y entra moviendose hacia abajo.
+
+Comportamiento MOVE IN
+----------------------
+1. Al cargar la frame, el viewport visible 38x24 empieza sin caracteres de la imagen.
+2. Se ve solamente el Background Color de la frame.
+3. La imagen entra desde fuera segun la direccion seleccionada.
+4. Ticks / Step y Pixels / Step funcionan igual que en Scroll, Ping Pong y Move Out.
+5. Al completar el recorrido, la imagen queda en su posicion normal.
+6. No vuelve a salir ni reinicia durante el resto de Frame Duration.
+7. Si hay otra frame, se carga al vencer Frame Duration.
+8. En una sola frame, el rollover de Frame Duration no reinicia Move In: queda visible en posicion normal.
+
+Recorrido
+---------
+- Horizontal: 319 px maximos.
+- Vertical: 199 px maximos.
+Se reutilizan los extremos no-wrap validados en TEST55/56, suficientes para ocultar completamente
+la imagen dentro del viewport limpio 38x24 al inicio de Move In.
+
+Compatibilidad
+--------------
+- Los tipos internos TEST56 move-left/right/up/down se conservan.
+- Solo cambia su etiqueta visible a Move Out ...
+- Metadata ricoMapScrollV1 se conserva.
+- Config version: 4.
+- Codigos runtime existentes 0..12 se conservan.
+- Nuevos:
+    13 = Move In Left
+    14 = Move In Right
+    15 = Move In Up
+    16 = Move In Down
+- Alias TEST56 se conserva para compatibilidad.
+
+Prueba sugerida
+---------------
+A) Una frame:
+   Move In Left
+   Ticks / Step = 1
+   Pixels / Step = 1
+   Frame Duration = 500
+   Esperado: empieza vacia, entra desde la derecha hacia la izquierda, queda completa y espera.
+
+B) Repetir Move In Right / Up / Down.
+
+C) Regresion:
+   - Move Out Left/Right/Up/Down debe seguir igual que TEST56 PASS.
+   - Ping Pong debe seguir volviendo.
+   - Scroll debe seguir haciendo wrap.
+
+STATUS: PENDING USER PASS/FAIL.
