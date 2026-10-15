@@ -506,3 +506,17 @@ Estado: PASS CONFIRMADO
 - Mantiene staging $0C00-$0FFF.
 - Elimina la microframe basura entre Move Out y Move In.
 - Nuevo MASTER seguro promovido a main.
+
+
+MILESTONE TEST 71 - SCREEN SOURCE + WINDOW VIEWPORT
+Estado: PASS CONFIRMADO
+- Screen completo sigue siendo la fuente del scroll.
+- Window limita solamente el area visible; contenido fuera de Window puede entrar durante el desplazamiento.
+
+MILESTONE TEST 72 - RICO'S WINDOW DIMENSIONS
+Estado: PENDING PASS/FAIL
+- El editor normal queda completamente libre fuera de Window: dibujar, seleccionar y pegar no se restringen.
+- Window se aplica solamente a visualizacion MAP SCROLL y exportacion.
+- Navegacion de frames integrada en la misma ventana con controles < y >.
+- Los valores de la frame actual se guardan antes de cambiar y los de la nueva frame se cargan sin cerrar la ventana.
+- Convencion UI desde TEST72: las features propias llevan el prefijo "Rico's".
