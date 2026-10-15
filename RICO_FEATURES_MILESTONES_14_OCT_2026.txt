@@ -530,3 +530,11 @@ Estado: PENDING PASS/FAIL
 - Right/Bottom modifican el borde correspondiente sin desplazar el origen.
 - Tamano final calculado automaticamente y preview visual incluida.
 - Rico's Window Dimensions y MAP SCROLL quedan sin cambios en este test.
+
+
+MILESTONE TEST 74 - RICO'S DIMENSIONS SUBTRACT FIX
+Estado: PENDING PASS/FAIL
+- Corrige el resize fisico de Left/Top con valores negativos en proyectos con varias frames.
+- El motor original invertia offsetX/offsetY dentro del loop de frames y el signo alternaba entre frames consecutivas.
+- sourceOffsetX/sourceOffsetY ahora se calculan una sola vez y permanecen constantes durante todo el resize.
+- Right/Bottom y la interfaz de TEST73 no cambian.
