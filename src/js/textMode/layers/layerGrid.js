@@ -1401,6 +1401,12 @@ LayerGrid.prototype = {
 
     if(doc.gridWidth !== width || doc.gridHeight !== height || offsetX !== 0 || offsetY !== 0) {
       // frames need resizing
+      // RICO TEST74: keep the source offset stable for every frame.
+      // The original code inverted offsetX/offsetY inside this loop, so the
+      // sign alternated on consecutive frames and subtracting from Left/Top
+      // produced inconsistent results.
+      var sourceOffsetX = -offsetX;
+      var sourceOffsetY = -offsetY;
       var newFrames = [];
       for(var frame = 0; frame < this.frameCount; frame++) {
 
@@ -1423,17 +1429,15 @@ LayerGrid.prototype = {
 
         var data = this.frames[frame].data;
 
-        offsetX = -offsetX;
-//  reverseY       offsetY = -(height - data.length) + offsetY;
-        offsetY = -offsetY;
-
+        // sourceOffsetX/sourceOffsetY were calculated once before the frame loop.
+//  reverseY       sourceOffsetY = -(height - data.length) + sourceOffsetY;
 
         if(data) {
           newFrames[frame].data = [];
           for(var y = 0; y < height; y++) {
             newFrames[frame].data[y] = [];
             for(var x = 0; x < width; x++) {
-              if( (y + offsetY) < data.length && (y + offsetY) >= 0 && (x + offsetX) < data[y + offsetY].length && (x + offsetX) >= 0) {
+              if( (y + sourceOffsetY) < data.length && (y + sourceOffsetY) >= 0 && (x + sourceOffsetX) < data[y + sourceOffsetY].length && (x + sourceOffsetX) >= 0) {
                 // copy existing frame data
                 newFrames[frame].data[y][x] =  { t: this.blankTileId, fc: fc, bc: -1, rz: 0, fh: 0, fv: 0 };;// {};
 
@@ -1444,8 +1448,8 @@ LayerGrid.prototype = {
                 }
                 */
 
-                for(var key in data[y + offsetY][x + offsetX]) {
-                  newFrames[frame].data[y][x][key] = data[y + offsetY][x + offsetX][key];
+                for(var key in data[y + sourceOffsetY][x + sourceOffsetX]) {
+                  newFrames[frame].data[y][x][key] = data[y + sourceOffsetY][x + sourceOffsetX][key];
                 }
               } else {
                 // need to insert new data
