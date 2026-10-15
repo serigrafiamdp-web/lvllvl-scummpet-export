@@ -461,7 +461,7 @@ Estado: PASS CONFIRMADO EN VICE
 
 CHECKPOINT ACTUAL PROMOVIDO
 ===========================
-TEST 57 = PASS CONFIRMADO EN VICE.
+TEST 58 = PASS CONFIRMADO.
 Este es el nuevo punto seguro para continuar el desarrollo.
 El runtime MAP SCROLL dedicado queda como arquitectura aprobada para export PRG.
 Los experimentos TEST39-47 quedan como historial FAIL del enfoque de parchear el player clasico y no deben reutilizarse como base.
@@ -482,3 +482,12 @@ Estado: PASS CONFIRMADO EN VICE
   Left entra desde la derecha; Right desde la izquierda; Up desde abajo; Down desde arriba.
 - Una vez completa, la imagen queda visible hasta terminar Frame Duration.
 - Códigos existentes 0..12 preservados; Move In usa 13..16.
+
+
+MILESTONE TEST 58 - MAP SCROLL PREVIEW SYNC + BORDER FIX
+Estado: PASS CONFIRMADO
+- Preview sincronizado a 50 Hz PAL.
+- Velocidad lógica independiente del zoom del editor.
+- Pixels / Step representa píxeles C64 reales también en preview.
+- Border Color de LVLLVL se conserva al activar MAP SCROLL.
+- Runtime PRG TEST57 sin cambios.
