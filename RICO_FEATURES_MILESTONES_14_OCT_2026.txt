@@ -461,8 +461,8 @@ Estado: PASS CONFIRMADO EN VICE
 
 CHECKPOINT ACTUAL PROMOVIDO
 ===========================
-TEST 58 = PASS CONFIRMADO.
-Este es el nuevo punto seguro para continuar el desarrollo.
+TEST 59B = PASS CONFIRMADO.
+Este es el nuevo punto seguro / MASTER para continuar el desarrollo.
 El runtime MAP SCROLL dedicado queda como arquitectura aprobada para export PRG.
 Los experimentos TEST39-47 quedan como historial FAIL del enfoque de parchear el player clasico y no deben reutilizarse como base.
 
@@ -491,3 +491,18 @@ Estado: PASS CONFIRMADO
 - Pixels / Step representa píxeles C64 reales también en preview.
 - Border Color de LVLLVL se conserva al activar MAP SCROLL.
 - Runtime PRG TEST57 sin cambios.
+
+
+MILESTONE TEST 59 - MOVE IN TRANSITION STAGING
+Estado: intento intermedio / regresion UI
+- Se diagnostica tearing al reconstruir $0400/$0800 durante load_frame.
+- Se introduce staging screen vacia en $0C00-$0FFF para ocultar la construccion de una nueva frame Move In.
+- El primer paquete TEST59 tuvo una regresion de integracion: las opciones Move no aparecian en MAP SCROLL.
+
+MILESTONE TEST 59B - MOVE MENU RESTORE + CLEAN TRANSITION
+Estado: PASS CONFIRMADO
+- Restaura menu dedicado con Move Out Left/Right/Up/Down y Move In Left/Right/Up/Down.
+- Conserva preview PAL 50 Hz, zoom sync y Border Color de TEST58.
+- Mantiene staging $0C00-$0FFF.
+- Elimina la microframe basura entre Move Out y Move In.
+- Nuevo MASTER seguro promovido a main.
