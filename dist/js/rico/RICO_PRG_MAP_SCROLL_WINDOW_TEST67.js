@@ -103,12 +103,13 @@ function collect(self,args){
     var bg=0,br=0;try{bg=colorIndex(layer.getBackgroundColor(i),0);}catch(e){}
     try{br=colorIndex(layer.getBorderColor(i),bg);}catch(e){br=bg;}
     var bank=1;try{bank=parseInt(ed.graphic.frames[i].charsetBank,10)===2?2:1;}catch(e){}
-    var win=getWindowCfg(ed,i);
+    var win=getWindowCfg(ed,i),wx=clamp(win&&win.x,0,39,0),wy=clamp(win&&win.y,0,24,0);
+    var ww=clamp(win&&win.width,1,40-wx,40-wx),wh=clamp(win&&win.height,1,25-wy,25-wy);
     frames.push({
       type:type,typeCode:TYPE_CODE[type],duration:duration,
       ticks:clamp(c&&c.ticksPerStep,1,255,6),pixels:clamp(c&&c.pixelsPerStep,1,8,1),
       bg:bg,border:br,fg:dominantColor(layer,i),bank:bank,screen:screenData(layer,i),
-      window:{x:clamp(win&&win.x,0,39,0),y:clamp(win&&win.y,0,24,0),width:clamp(win&&win.width,1,40,40),height:clamp(win&&win.height,1,25,25)}
+      window:{x:wx,y:wy,width:ww,height:wh}
     });
   }
   var blankChar=chooseBlankChar(frames,bank1,bank2);
