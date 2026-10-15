@@ -180,7 +180,7 @@ en `src` como en `dist`.
 
 ## Estado técnico / milestones
 
-**15/10/2026 — promoción actual a main: TEST57 PASS**
+**15/10/2026 — promoción actual a main: TEST58 PASS**
 
 - TEST07 — Choose Tile Set regression fix: PASS.
 - TEST14 — Rico's Remix 512 continuous: PASS.
@@ -260,3 +260,13 @@ Checkpoint promovido: **TEST55 / MAP SCROLL PING PONG CONTINUOUS**.
 - Compatibilidad con metadata `ricoMapScrollV1` y con los códigos MOVE de TEST56.
 
 Checkpoint promovido: **TEST57 / MAP SCROLL MOVE OUT + MOVE IN**, PASS confirmado en VICE.
+
+
+## Milestone 15/10/2026 — TEST58 PASS
+
+- Preview MAP SCROLL sincronizado a reloj PAL de 50 Hz.
+- Pixels / Step se calcula en píxeles C64 y luego se escala visualmente con el zoom.
+- Activar MAP SCROLL ya no vuelve negro el borde del editor: se preserva Border Color nativo.
+- El runtime PRG de TEST57 se mantuvo sin cambios.
+
+Checkpoint promovido: **TEST58 / MAP SCROLL PREVIEW SYNC + BORDER FIX**.
