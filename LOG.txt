@@ -225,7 +225,7 @@ Status: PENDING PASS/FAIL.
 - No new per-test TXT files; cumulative LOG.txt and milestones only.
 
 TEST77 - SINGLE-FRAME SCROLL AREA EXPORT
-Status: PENDING PASS/FAIL.
+Status: PASS CONFIRMADO.
 - Fixes exporter fallback: one-frame Scroll Up/Down/Left/Right now uses the modern Window + Scroll Area runtime instead of legacy TEST50.
 - This fixes vertical D016 geometry and makes Scroll Area effective in VICE for single-frame wrap scrolls.
 - Preview behavior is unchanged.
@@ -271,3 +271,10 @@ TEST80 PASS CONFIRMADO POR USUARIO
 - Colours inicia minimizado.
 - Tiles inicia en Columns of 16.
 - TEST77 runtime/exporter permanece como base aprobada.
+
+
+TEST77 PASS EN VICE - RESULTADO FINAL
+- Scroll Area confirmado también en PRG/VICE para una sola frame.
+- Scroll vertical conserva las 40 columnas.
+- Eliminadas la banda negra y la ocultación lateral del caso validado.
+- Este runtime/exporter queda como base aprobada de TEST80.
