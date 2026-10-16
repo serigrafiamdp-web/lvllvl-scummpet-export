@@ -397,7 +397,7 @@ Estado: PENDING PASS/FAIL
 - La interfaz Rico's Window Dimensions + Scroll Area permanece igual.
 
 MILESTONE TEST 77 - SINGLE-FRAME SCROLL AREA EXPORT
-Estado: PENDING PASS/FAIL
+Estado: PASS CONFIRMADO EN VICE
 - Las animaciones de una sola frame con Scroll Up/Down/Left/Right dejan de caer al runtime legado TEST50.
 - Usan el runtime moderno con Window + Scroll Area, igual que el preview de LVLLVL.
 - Vertical conserva la geometria horizontal definida por Window; Scroll Area controla la fuente efectiva.
@@ -437,3 +437,13 @@ CHECKPOINT TEST80 PASS
 - Nuevo checkpoint seguro aprobado por usuario.
 - Mantiene TEST77 PASS como runtime/exporter MAP SCROLL.
 - Consolida Window + Scroll Area, Rico's Screen Dimension, Rico's Map Scroll con navegacion < > y PAUSE/PLAY, layout inferior limpio, paleta rapida C64 2x8, Colours minimizado y Columns of 16 por defecto.
+
+
+PROMOCION GITHUB TEST80 PASS
+============================
+- TEST80 confirmado PASS por usuario el 16/10/2026.
+- Se promueve como nuevo checkpoint seguro del repositorio.
+- Runtime/exporter MAP SCROLL aprobado: TEST77.
+- Interfaz aprobada: Screen/Window/Scroll Area, Rico's Map Scroll, layout inferior limpio, paleta C64 2x8, Colours minimizado y Columns of 16 por defecto.
+- ZIP de checkpoint aprobado: LVLLVL_TEST80_RICO_CLEAN_UI_LAYOUT_PASS.zip
+- SHA256 del ZIP aprobado: 77d44844fdf7eccb41f1ce1ee6a75e588024f82f4071e56d9a33d0e8f3e97a1c
