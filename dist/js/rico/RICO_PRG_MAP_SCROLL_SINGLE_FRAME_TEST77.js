@@ -997,7 +997,8 @@ function buildSource(d){
   out.push('move_step_done');
   out.push(' rts');
   out.push('');
-  out.push('movein_step');  out.push(' lda ping_pos_lo');
+  out.push('movein_step');
+  out.push(' lda ping_pos_lo');
   out.push(' ora ping_pos_hi');
   out.push(' beq movein_step_done');
   out.push(' jsr dec_ping_pos');
