@@ -579,7 +579,7 @@ TextModeEditor.prototype.buildInterface =  function(parentPanel) {
 
   // desktop frames panel..
   var framesPanel = UI.create("UI.Panel", { "id": "framesPanel"});
-  textModeSplitPanel.addSouth(framesPanel, 60, false);
+  // RICO TEST80: Frames spans the main editor width, independent of the center tools holder.\n  this.textModeEditorPanel.addSouth(framesPanel, 60, false);
 
   this.build2dInterface(gridHolder);
   this.build3dInterface(gridHolder);
