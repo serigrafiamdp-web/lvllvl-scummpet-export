@@ -538,3 +538,19 @@ Estado: PENDING PASS/FAIL
 - El motor original invertia offsetX/offsetY dentro del loop de frames y el signo alternaba entre frames consecutivas.
 - sourceOffsetX/sourceOffsetY ahora se calculan una sola vez y permanecen constantes durante todo el resize.
 - Right/Bottom y la interfaz de TEST73 no cambian.
+
+
+MILESTONE TEST 77 - PASS CONFIRMADO
+- Single-frame MAP SCROLL confirmado en VICE usando Window + Scroll Area.
+- Vertical conserva 40 columnas y Scroll Area gobierna la fuente efectiva sin banda negra ni recorte lateral en el caso validado.
+
+MILESTONE TEST 78 - RICO UI WORKFLOW
+Estado: PENDING PASS/FAIL
+- Menu: Rico's Screen Dimension.
+- Frames ocupa la barra inferior desde el borde izquierdo hasta el limite del panel derecho.
+- Paleta rapida 4x4 de 16 colores en la barra izquierda; FG con click izquierdo y BG con click derecho.
+- Colours derecho puede minimizarse/restaurarse manteniendo el panel completo disponible.
+- Ventana renombrada Rico's Map Scroll.
+- Navegacion de frames < > dentro de Rico's Map Scroll con guardado previo de la frame actual.
+- PAUSE / PLAY global congela y reanuda el preview MAP SCROLL sin alterar tipos, ticks, pixels/step ni configuraciones por frame.
+- TEST77 runtime/exporter permanece sin cambios funcionales.
