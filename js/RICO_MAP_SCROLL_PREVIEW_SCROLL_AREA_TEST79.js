@@ -53,7 +53,7 @@ var oldDraw=Graphic.prototype.drawFrame;
 Graphic.prototype.drawFrame=function(a){
   a=a||{};
   var n=typeof a.frame!=='undefined'?parseInt(a.frame,10):this.getCurrentFrame(),cfg=getCfg(this,n);
-  if(a.animatedTilesOnly===true||!cfg.type||n!==this.getCurrentFrame()||a.updateLayerCanvas===false||a.__ricoMap37)return oldDraw.apply(this,arguments);
+  if(!cfg.type||n!==this.getCurrentFrame()||a.updateLayerCanvas===false||a.__ricoMap37)return oldDraw.apply(this,arguments);
   if(!a.canvas||!a.context)return oldDraw.apply(this,arguments);
 
   var sc=typeof a.scale!=='undefined'?a.scale:1;
