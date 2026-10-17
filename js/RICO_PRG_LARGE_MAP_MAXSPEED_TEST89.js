@@ -162,7 +162,7 @@ function buildSource(d){
   var charsetBits=d.bank===2?0x0c:0x0e;
   var animCharsetHigh=d.bank===2?0x30:0x38;
   var directChar0Base=d.bank===2?0x3000:0x3800;
-  out.push('; RICO TEST124 - DIRECT CHAR $00 ADDRESS PROBE');
+  out.push('; RICO TEST125 - BORDER + DUAL CHAR00 HARDWARE PROBE');
   out.push('; Screen '+d.width+'x'+d.height+' source map; VIC viewport 40x'+d.window.height+'; Scroll Area 40x'+d.area.height+'.');
   out.push('; Source map stays at $4000+. Per-cell colors stay at $7000+. VIC buffers remain at $0400/$0800.');
   out.push('*=$0801');
@@ -201,6 +201,8 @@ function buildSource(d){
   out.push('anim_temp_lo=$20');
   out.push('anim_temp_hi=$21');
   out.push('char0_counter=$22');
+  out.push('probe_counter=$23');
+  out.push('probe_state=$24');
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -240,6 +242,10 @@ function buildSource(d){
   out.push(' sta main_busy');
   out.push(' lda #$06');
   out.push(' sta char0_counter');
+  out.push(' lda #$10');
+  out.push(' sta probe_counter');
+  out.push(' lda #$00');
+  out.push(' sta probe_state');
   out.push(' jsr render_front');
   out.push(' jsr render_back');
   out.push(' jsr init_sparse_colors');
@@ -296,7 +302,7 @@ function buildSource(d){
   out.push(' lda #$01');out.push(' sta $d019');
   // TEST124: preserve A/X/Y around a direct write to glyph $00 only.
   out.push(' pha');out.push(' txa');out.push(' pha');out.push(' tya');out.push(' pha');
-  out.push(' jsr animate_char0_direct');
+  out.push(' jsr probe_irq_visible');
   out.push(' pla');out.push(' tay');out.push(' pla');out.push(' tax');out.push(' pla');
   out.push(' lda main_busy');out.push(' bne irq_done_tick');out.push(' jsr frame_tick');
   out.push('irq_done_tick');
@@ -472,6 +478,21 @@ function buildSource(d){
   out.push('add40_src');out.push(' clc');out.push(' lda src_lo');out.push(' adc #$28');out.push(' sta src_lo');out.push(' lda src_hi');out.push(' adc #$00');out.push(' sta src_hi');out.push(' rts');
   out.push('add40_dst');out.push(' clc');out.push(' lda dst_lo');out.push(' adc #$28');out.push(' sta dst_lo');out.push(' lda dst_hi');out.push(' adc #$00');out.push(' sta dst_hi');out.push(' rts');
   out.push('');
+  out.push('probe_irq_visible');
+  out.push(' dec probe_counter');out.push(' bne probe_irq_done');
+  out.push(' lda #$10');out.push(' sta probe_counter');
+  out.push(' lda probe_state');out.push(' eor #$01');out.push(' sta probe_state');out.push(' beq probe_pattern_a');
+  out.push(' lda #$02');out.push(' sta $d020');
+  out.push(' ldx #$07');out.push(' lda #$ff');
+  out.push('probe_solid_loop');out.push(' sta $3000,x');out.push(' sta $3800,x');out.push(' dex');out.push(' bpl probe_solid_loop');out.push(' rts');
+  out.push('probe_pattern_a');
+  out.push(' lda #$05');out.push(' sta $d020');
+  out.push(' ldx #$07');
+  out.push('probe_checker_loop');out.push(' txa');out.push(' and #$01');out.push(' beq probe_checker_even');out.push(' lda #$aa');out.push(' jmp probe_checker_store');
+  out.push('probe_checker_even');out.push(' lda #$55');
+  out.push('probe_checker_store');out.push(' sta $3000,x');out.push(' sta $3800,x');out.push(' dex');out.push(' bpl probe_checker_loop');
+  out.push('probe_irq_done');out.push(' rts');
+  out.push('');
   out.push('animate_char0_direct');
   out.push(' dec char0_counter');out.push(' bne animate_char0_done');
   out.push(' lda #$06');out.push(' sta char0_counter');
@@ -591,11 +612,11 @@ ToPRGAdv.prototype.createPRG=function(args){
   if(!isLargeCandidate(this))return prev.apply(this,arguments);
   try{
     var d=collect(this),source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST124 CHAR0 DIRECT] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
+    console.log('[RICO TEST125 HARDWARE PROBE] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
     if(args.download===false)return bytes;if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}throw new Error('download() missing');
-  }catch(e){console.error('[RICO TEST124 CHAR0 DIRECT]',e);alert('RICO TEST124: '+e.message);return false;}
+  }catch(e){console.error('[RICO TEST125 HARDWARE PROBE]',e);alert('RICO TEST125: '+e.message);return false;}
 };
 
-window.RICO_TEST124_PRG_MAP_CHAR0_DIRECT={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],characterAnimations:['left','right','up','down','blink'],sourceMapSeparateFromVIC:true,doubleBuffer:true,pipelined8px:true};
-console.log('[RICO TEST124 CHAR0 DIRECT] Directly rotates glyph $00 at active charset base every 6 IRQs; $00 forced nonblank for color.');
+window.RICO_TEST125_PRG_HARDWARE_PROBE={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],characterAnimations:['left','right','up','down','blink'],sourceMapSeparateFromVIC:true,doubleBuffer:true,pipelined8px:true};
+console.log('[RICO TEST125 HARDWARE PROBE] Border toggles and glyph $00 is overwritten at BOTH $3000 and $3800 every 16 IRQs.');
 })();
