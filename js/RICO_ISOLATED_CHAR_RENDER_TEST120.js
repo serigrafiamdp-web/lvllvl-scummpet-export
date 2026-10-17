@@ -4,50 +4,59 @@ if(typeof TileSet==='undefined' || typeof Graphic==='undefined'){
   console.error('[RICO TEST120] TileSet/Graphic missing');
   return;
 }
-var previousUpdate120=TileSet.prototype.update;
-var previousInvalidate120=Graphic.prototype.invalidateAllCells;
-var previousRedraw120=Graphic.prototype.redraw;
-var inCharTick120=false;
 
-Graphic.prototype.invalidateAllCells=function(){
+var previousUpdate120 = TileSet.prototype.update;
+var previousInvalidate120 = Graphic.prototype.invalidateAllCells;
+var previousRedraw120 = Graphic.prototype.redraw;
+var inCharTick120 = false;
+
+Graphic.prototype.invalidateAllCells = function(){
   if(inCharTick120) return;
-  return previousInvalidate120.apply(this,arguments);
+  return previousInvalidate120.apply(this, arguments);
 };
-Graphic.prototype.redraw=function(args){
+
+Graphic.prototype.redraw = function(args){
   if(inCharTick120) return true;
-  return previousRedraw120.apply(this,arguments);
+  return previousRedraw120.apply(this, arguments);
 };
 
 function hashPixels120(a){
   if(!a) return 0;
-  var h=2166136261>>>0;
+  var h = 2166136261 >>> 0;
   for(var i=0;i<a.length;i++){
-    h^=((a[i]||0)+1);
-    h=Math.imul(h,16777619)>>>0;
+    h ^= ((a[i]||0) + 1);
+    h = Math.imul(h, 16777619) >>> 0;
   }
-  h^=a.length;
-  return h>>>0;
+  h ^= a.length;
+  return h >>> 0;
 }
+
 function snapshot120(tileSet){
-  var out=[],data=tileSet&&tileSet.currentTileData?tileSet.currentTileData:[];
+  var out=[];
+  var data=tileSet&&tileSet.currentTileData?tileSet.currentTileData:[];
   for(var i=0;i<data.length;i++) out[i]=hashPixels120(data[i]);
   return out;
 }
+
 function changedIds120(tileSet,before){
-  var out=[],data=tileSet&&tileSet.currentTileData?tileSet.currentTileData:[];
+  var out=[];
+  var data=tileSet&&tileSet.currentTileData?tileSet.currentTileData:[];
   var n=Math.max(before.length,data.length);
   for(var i=0;i<n;i++) if((before[i]||0)!==hashPixels120(data[i])) out.push(i);
   return out;
 }
+
 function muteMethod120(obj,name,stash){
-  if(!obj||typeof obj[name]!=='function') return;
+  if(!obj || typeof obj[name]!=='function') return;
   stash.push({obj:obj,name:name,fn:obj[name]});
-  obj[name]=function(){};
+  obj[name]=function(){ return; };
 }
+
 function muteTickUI120(editor){
   var stash=[];
   if(!editor) return stash;
   muteMethod120(editor.currentTile,'canvasDrawCharacters',stash);
+
   var tp=editor.tools&&editor.tools.drawTools?editor.tools.drawTools.tilePalette:null;
   var sp=editor.sideTilePalette||null;
   muteMethod120(tp,'drawTilePalette',stash);
@@ -58,15 +67,19 @@ function muteTickUI120(editor){
   muteMethod120(sp&&sp.tilePaletteDisplay,'drawTilePalette',stash);
   return stash;
 }
+
 function restoreTickUI120(stash){
   for(var i=stash.length-1;i>=0;i--) stash[i].obj[stash[i].name]=stash[i].fn;
 }
-function redrawChangedCells120(tileSet,changed){
-  if(!changed||!changed.length) return;
+
+function redrawChangedCells120(tileSet, changed){
+  if(!changed || !changed.length) return;
   var editor=tileSet&&tileSet.editor;
   if(!editor||!editor.layers||!editor.graphic) return;
+
   var changedMap={};
   for(var i=0;i<changed.length;i++) changedMap[changed[i]]=true;
+
   var frame=editor.graphic.getCurrentFrame();
   var layers=editor.layers.layers||[];
   var drawBackground=editor.layers.isBackgroundVisible();
@@ -105,9 +118,10 @@ function redrawChangedCells120(tileSet,changed){
   }
 }
 
-TileSet.prototype.update=function(tick){
+TileSet.prototype.update = function(tick){
   var before=snapshot120(this);
-  var stash=muteTickUI120(this.editor);
+  var editor=this.editor;
+  var stash=muteTickUI120(editor);
   var result=false;
   inCharTick120=true;
   try{
@@ -116,11 +130,12 @@ TileSet.prototype.update=function(tick){
     inCharTick120=false;
     restoreTickUI120(stash);
   }
+
   var changed=changedIds120(this,before);
   if(changed.length) redrawChangedCells120(this,changed);
-  return result||changed.length>0;
+  return result || changed.length>0;
 };
 
 window.RICO_TEST120_ISOLATED_CHAR_RENDER=true;
-console.log('[RICO TEST120] Glyph animation isolated from CurrentTile/palette/global redraw; only changed map cells redraw.');
+console.log('[RICO TEST120] Character tick mutates glyph data only; UI/palettes muted; only changed map cells redraw.');
 })();

@@ -491,6 +491,3 @@ TEST86 PENDING PASS/FAIL
 
 TEST87 PENDING
 - Left quick C64 palette: title removed and swatches enlarged to match approved visual reference; same sidebar anchor/position as TEST86 MASTER.
-
-TEST101 (17/10/2026) — JAMES NATIVE CHAR ANIM IN LARGE-MAP PRG — PREPARED
-Base TEST100. Functional change isolated to PRG exporter. Uses James/LVLLVL native animation semantics and exportC64.js 9-byte animated-character entries; types 0..5. Preview fixes TEST92/TEST97 are unchanged. Synthetic assembly with LVLLVL internal assembler PASS; VICE validation pending.
