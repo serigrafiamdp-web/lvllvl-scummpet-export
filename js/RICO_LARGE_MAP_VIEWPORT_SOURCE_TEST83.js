@@ -97,7 +97,6 @@ function wrapGridMethod83(name){
 
 Graphic.prototype.drawFrame=function(args){
   args=args||{};
-  if(args.animatedTilesOnly===true)return previousDraw83.apply(this,arguments);
   var n=typeof args.frame!=='undefined'?parseInt(args.frame,10):this.getCurrentFrame();
   if(!active83(this,n)||args.updateLayerCanvas===false||args.__ricoMap37||!args.canvas||!args.context){
     return previousDraw83.apply(this,arguments);
