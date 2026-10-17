@@ -762,7 +762,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   args=args||{};
   if(!isLargeCandidate(this))return prev.apply(this,arguments);
   try{
-    var d=collect(this),source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
+    var d=collect(this); alert('TEST102: detectados '+(d.jamesAnimations?d.jamesAnimations.length:0)+' caracteres animados para exportar.'); var source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
     console.log('[RICO TEST102 RUNTIME CHAR ANIM] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t | Runtime anim chars='+(d.jamesAnimations?d.jamesAnimations.length:0));
     if(args.download===false)return bytes;if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}throw new Error('download() missing');
   }catch(e){console.error('[RICO TEST102 RUNTIME CHAR ANIM]',e);alert('RICO TEST102: '+e.message);return false;}
