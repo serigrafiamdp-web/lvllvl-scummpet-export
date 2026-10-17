@@ -278,3 +278,50 @@ TEST77 PASS EN VICE - RESULTADO FINAL
 - Scroll vertical conserva las 40 columnas.
 - Eliminadas la banda negra y la ocultación lateral del caso validado.
 - Este runtime/exporter queda como base aprobada de TEST80.
+
+
+============================================================
+17 OCT 2026 - MASTER LVL-RICO / TEST120 PASS
+============================================================
+
+MASTER:
+- MASTER_LVL-RICO_17_OCTUBRE_2026.zip
+- SHA256: 7b98cb59532394b99410a9d26c5b90259b04ec21666f0c7ec6006479c96f709d
+- Exact payload: 622 files / 646 ZIP entries.
+- Validation authority: downloadable TEST120 ZIP.
+
+NATIVE CHAR ANIMATION / VICE:
+- TEST104 proved the original James native animate_chars path needs the displayed animated bank at $3800.
+- Final mapping kept in MASTER:
+  BANK 1 = $3800-$3FFF
+  BANK 2 = $3000-$37FF
+- Frame bank selection continues through $D018.
+- TEST105 confirmed native character animation in VICE with current UI preserved.
+
+EDITOR FLICKER INVESTIGATION:
+- Flicker frequency followed character ticksPerFrame exactly.
+- TEST118 diagnostic disabled TileSet.update() for animated characters: PASS diagnostic, both flicker and character motion disappeared.
+- This proved the fault was inside the animation update/repaint path rather than MAP SCROLL or the general UI clock.
+- TEST119 restored glyph updates with dirty map-cell redraw but still allowed UI-side drawing: FAIL, flicker returned.
+- TEST120 isolates the tick completely:
+  * currentTile.canvasDrawCharacters() muted during the tick;
+  * tile palette and side palette draw calls muted during the tick;
+  * Graphic.invalidateAllCells() suppressed during the tick;
+  * Graphic.redraw() suppressed during the tick;
+  * currentTileData is hashed before/after;
+  * only cells using glyph IDs that actually changed are redrawn on their layer canvas.
+- TEST120 ZIP = PASS CONFIRMADO POR USUARIO.
+- Character motion visible; general flicker removed.
+
+WEB / PACKAGING RULE:
+- Web is not rebuilt manually from separate patches.
+- Each future test is assembled first as a ZIP.
+- GitHub Pages payload must then be fully replaced from that exact ZIP.
+- TEST120 Pages was rebuilt cleanly: 622 payload files + only .github workflow/.nojekyll infrastructure.
+- 79 stale test files were removed.
+- Pages exact-payload commit: 725930f44f3beb84ffee8fe07c771e438ee0546a.
+
+PROMOTION:
+- main/dist/ promoted to exact TEST120 PASS payload.
+- Source mirror receives the final post-TEST80 runtime modules including TEST120.
+- New checkpoint branch: promotion/lvl-rico-master-17-oct-2026.

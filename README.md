@@ -180,6 +180,17 @@ en `src` como en `dist`.
 
 ## Estado técnico / milestones
 
+**17/10/2026 — MASTER ACTUAL: LVL-RICO / TEST120 PASS**
+
+- Base validada por ZIP: `LVLLVL_TEST120_ISOLATED_CHAR_RENDER.zip`.
+- MASTER consolidado: `MASTER_LVL-RICO_17_OCTUBRE_2026.zip`.
+- SHA256: `7b98cb59532394b99410a9d26c5b90259b04ec21666f0c7ec6006479c96f709d`.
+- `main/dist/` es copia exacta del payload del ZIP PASS (622 archivos).
+- GitHub Pages se publica reemplazando el payload completo desde el mismo ZIP; no se reconstruyen tests a mano.
+- TEST120 elimina el flicker general del editor durante Animated Chars: el tick modifica el glyph, silencia Current Tile/paletas/redraw global y redibuja sólo las celdas del mapa que usan los IDs realmente modificados.
+- Export/VICE mantiene el fix de animación nativa: BANK 1 en `$3800`, BANK 2 en `$3000`.
+- MAP SCROLL, UI TEST80 y runtime large-map TEST89 permanecen integrados.
+
 **15/10/2026 — promoción actual a main: TEST59B PASS**
 
 - TEST07 — Choose Tile Set regression fix: PASS.
@@ -209,7 +220,7 @@ TEST23 lo corrigió sin aumentar el tamaño del player: se reemplazó una instru
 - **main = estado RICO validado/promovido.**
 - Los experimentos nuevos se prueban incrementalmente fuera de main.
 - James/LVLLVL upstream sigue siendo la referencia para detectar regresiones.
-- La documentación técnica ampliada está en `RICO_FEATURES_MILESTONES_14_OCT_2026.txt`.
+- La documentación técnica actual está en `RICO_FEATURES_MILESTONES_17_OCT_2026.txt`; el archivo del 14/10 se conserva como histórico.
 
 
 ## Milestone 15/10/2026 — TEST55 PASS

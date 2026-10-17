@@ -1,0 +1,56 @@
+RICO / LVL-RICO — MILESTONES 17 OCT 2026
+=========================================
+
+MASTER ACTUAL
+-------------
+MASTER_LVL-RICO_17_OCTUBRE_2026.zip
+SHA256 7b98cb59532394b99410a9d26c5b90259b04ec21666f0c7ec6006479c96f709d
+VALIDACION: TEST120 ZIP PASS CONFIRMADO.
+
+CADENA RECIENTE
+---------------
+TEST80 PASS
+- Layout limpio.
+- Rico's Map Scroll operativo.
+- Paleta compacta 2x8.
+- Colours inicia minimizado.
+- Tiles inicia Columns of 16.
+
+TEST81-TEST89
+- Ajustes de viewport/large-map y runtime PRG.
+- Large Map source/window/color/timing/max-speed integrados.
+- TEST89 queda dentro del MASTER.
+
+TEST104 / TEST105
+- Recuperada animacion nativa de caracteres en VICE.
+- animate_chars nativo de James trabaja sobre $3800.
+- Mapping validado: BANK1 $3800, BANK2 $3000.
+- TEST105: VICE PASS, UI actual conservada; quedaba flicker en preview.
+
+TEST118
+- Diagnostico: se desactiva TileSet.update() para Animated Chars.
+- Resultado: desaparecen simultaneamente flicker y movimiento.
+- Prueba causal: el problema estaba dentro de la ruta de update/repaint de caracteres.
+
+TEST119
+- Dirty map cells pero aun quedaban redraws de Current Tile / palettes.
+- FAIL: vuelve el flicker.
+
+TEST120
+- Durante el tick se silencian Current Tile, palettes, invalidateAllCells y graphic.redraw.
+- Se detectan glyph IDs realmente modificados comparando currentTileData.
+- Solo se redibujan las celdas del mapa que usan esos IDs.
+- ZIP PASS CONFIRMADO: animacion visible, sin flicker general.
+
+REGLA NUEVA DE WEB
+------------------
+- ZIP = unica fuente de validacion.
+- Cada test futuro reemplaza todo el payload de GitHub Pages desde el ZIP.
+- No se vuelven a reconstruir cambios a mano en gh-pages.
+- TEST120 Pages exact payload commit: 725930f44f3beb84ffee8fe07c771e438ee0546a.
+
+PROMOCION
+---------
+- main/dist = payload exacto TEST120 PASS (622 archivos).
+- Documentacion actualizada.
+- Checkpoint: promotion/lvl-rico-master-17-oct-2026.

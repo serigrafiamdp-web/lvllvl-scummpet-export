@@ -1,6 +1,6 @@
 # FEATURES RICO
 
-Validated state: **14 October 2026**
+Validated state: **17 October 2026**
 
 ## RICO-ECM-01 — Live repack TEXTMODE -> C64 ECM
 
@@ -118,3 +118,39 @@ Upstream baseline:
 
 Google Drive / OAuth is intentionally not part of this milestone.
 Local file loading remains available and was sufficient for current testing.
+
+
+## RICO-ANIM-120 — Isolated Animated Chars renderer
+
+**PASS — 17 October 2026**
+
+The editor-side Animated Chars path no longer invalidates or repaints the whole UI on every character phase.
+
+Validated behavior:
+
+- character pixel data continues advancing at its configured `ticksPerFrame`;
+- `currentTile.canvasDrawCharacters()` is muted during the animation tick;
+- main and side tile-palette redraws are muted during the animation tick;
+- `Graphic.invalidateAllCells()` is not allowed to dirty the whole grid from that tick;
+- `Graphic.redraw()` is not called globally from that tick;
+- the wrapper snapshots `currentTileData` before/after the update, detects the glyph IDs that actually changed, and redraws only map cells that use those IDs;
+- general canvas/UI flicker disappears while character motion remains visible.
+
+This was validated by the downloadable TEST120 ZIP. TEST118 was the diagnostic proof: disabling `TileSet.update()` removed both flicker and character motion. TEST119 restored movement but still allowed UI repaint. TEST120 isolates the visual update correctly.
+
+### C64 native animation memory map
+
+For the exported PRG path, native James `animate_chars` writes at `$3800`. The validated dual-bank mapping is therefore:
+
+- BANK 1: `$3800-$3FFF`
+- BANK 2: `$3000-$37FF`
+
+Frame bank selection still updates `$D018`.
+
+### MASTER identity
+
+- MASTER: `MASTER_LVL-RICO_17_OCTUBRE_2026.zip`
+- SHA256: `7b98cb59532394b99410a9d26c5b90259b04ec21666f0c7ec6006479c96f709d`
+- Source validation base: `LVLLVL_TEST120_ISOLATED_CHAR_RENDER.zip`
+- Pages exact-payload commit: `725930f44f3beb84ffee8fe07c771e438ee0546a`
+
