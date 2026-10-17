@@ -121,6 +121,8 @@ function blankCharTable(d){
     for(var y=0;y<8;y++)if(cs[c*8+y]){blank=0;break;}
     out[c]=blank;
   }
+  // TEST124 diagnostic: screen code $00 is a real animated glyph, never a blank sentinel.
+  out[0]=0;
   return out;
 }
 function dominantVisibleColor(d,blank){
@@ -159,7 +161,8 @@ function buildSource(d){
   var d011base=d.window.height<=24?0x10:0x18;
   var charsetBits=d.bank===2?0x0c:0x0e;
   var animCharsetHigh=d.bank===2?0x30:0x38;
-  out.push('; RICO TEST123 - LARGE MAP + JAMES CHARSET CONTRACT');
+  var directChar0Base=d.bank===2?0x3000:0x3800;
+  out.push('; RICO TEST124 - DIRECT CHAR $00 ADDRESS PROBE');
   out.push('; Screen '+d.width+'x'+d.height+' source map; VIC viewport 40x'+d.window.height+'; Scroll Area 40x'+d.area.height+'.');
   out.push('; Source map stays at $4000+. Per-cell colors stay at $7000+. VIC buffers remain at $0400/$0800.');
   out.push('*=$0801');
@@ -197,6 +200,7 @@ function buildSource(d){
   out.push('anim_byte=$1f');
   out.push('anim_temp_lo=$20');
   out.push('anim_temp_hi=$21');
+  out.push('char0_counter=$22');
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -234,6 +238,8 @@ function buildSource(d){
   out.push(' sta prep_ready');
   out.push(' sta deferred_pixels');
   out.push(' sta main_busy');
+  out.push(' lda #$06');
+  out.push(' sta char0_counter');
   out.push(' jsr render_front');
   out.push(' jsr render_back');
   out.push(' jsr init_sparse_colors');
@@ -288,7 +294,10 @@ function buildSource(d){
   out.push('irq');
   out.push(' pha');out.push(' txa');out.push(' pha');out.push(' tya');out.push(' pha');
   out.push(' lda #$01');out.push(' sta $d019');
-  out.push(' jsr animate_chars');
+  // TEST124: preserve A/X/Y around a direct write to glyph $00 only.
+  out.push(' pha');out.push(' txa');out.push(' pha');out.push(' tya');out.push(' pha');
+  out.push(' jsr animate_char0_direct');
+  out.push(' pla');out.push(' tay');out.push(' pla');out.push(' tax');out.push(' pla');
   out.push(' lda main_busy');out.push(' bne irq_done_tick');out.push(' jsr frame_tick');
   out.push('irq_done_tick');
   out.push(' pla');out.push(' tay');out.push(' pla');out.push(' tax');out.push(' pla');out.push(' rti');
@@ -463,6 +472,18 @@ function buildSource(d){
   out.push('add40_src');out.push(' clc');out.push(' lda src_lo');out.push(' adc #$28');out.push(' sta src_lo');out.push(' lda src_hi');out.push(' adc #$00');out.push(' sta src_hi');out.push(' rts');
   out.push('add40_dst');out.push(' clc');out.push(' lda dst_lo');out.push(' adc #$28');out.push(' sta dst_lo');out.push(' lda dst_hi');out.push(' adc #$00');out.push(' sta dst_hi');out.push(' rts');
   out.push('');
+  out.push('animate_char0_direct');
+  out.push(' dec char0_counter');out.push(' bne animate_char0_done');
+  out.push(' lda #$06');out.push(' sta char0_counter');
+  out.push(' ldx #$07');
+  out.push('animate_char0_loop');
+  out.push(' lda $'+('0000'+directChar0Base.toString(16)).slice(-4)+',x');
+  out.push(' asl');out.push(' bcc animate_char0_store');out.push(' ora #$01');
+  out.push('animate_char0_store');
+  out.push(' sta $'+('0000'+directChar0Base.toString(16)).slice(-4)+',x');
+  out.push(' dex');out.push(' bpl animate_char0_loop');
+  out.push('animate_char0_done');out.push(' rts');
+  out.push('');
   out.push('animate_chars');
   out.push(' lda #$'+hex2(animCharsetHigh));out.push(' sta anim_temp_hi');
   out.push(' lda #$00');out.push(' sta anim_temp_lo');
@@ -570,11 +591,11 @@ ToPRGAdv.prototype.createPRG=function(args){
   if(!isLargeCandidate(this))return prev.apply(this,arguments);
   try{
     var d=collect(this),source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST123 JAMES CONTRACT] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
+    console.log('[RICO TEST124 CHAR0 DIRECT] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
     if(args.download===false)return bytes;if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}throw new Error('download() missing');
-  }catch(e){console.error('[RICO TEST123 JAMES CONTRACT]',e);alert('RICO TEST123: '+e.message);return false;}
+  }catch(e){console.error('[RICO TEST124 CHAR0 DIRECT]',e);alert('RICO TEST124: '+e.message);return false;}
 };
 
-window.RICO_TEST123_PRG_MAP_CHAR_ANIM={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],characterAnimations:['left','right','up','down','blink'],sourceMapSeparateFromVIC:true,doubleBuffer:true,pipelined8px:true};
-console.log('[RICO TEST123 JAMES CONTRACT] MAP SCROLL now uses MASTER charset layout and James native scroll routine contract.');
+window.RICO_TEST124_PRG_MAP_CHAR0_DIRECT={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],characterAnimations:['left','right','up','down','blink'],sourceMapSeparateFromVIC:true,doubleBuffer:true,pipelined8px:true};
+console.log('[RICO TEST124 CHAR0 DIRECT] Directly rotates glyph $00 at active charset base every 6 IRQs; $00 forced nonblank for color.');
 })();
