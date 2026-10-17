@@ -1,9 +1,0 @@
-RICO TEST36 - MAP SCROLL PING PONG BACKGROUND FIX
-Base: TEST35 PASS.
-
-Cambio unico:
-- En MAP SCROLL Ping Pong, el area que queda expuesta al desplazar el mapa ya no muestra transparencia/checkerboard del editor.
-- Esa zona se rellena con el Background Color C64 de la frame actual.
-- Scroll normal con wrap, velocidad, metadata por frame, Frame Duration, Character Animate y Group Animate no se modifican.
-
-TEST STATUS: awaiting PASS/FAIL.
