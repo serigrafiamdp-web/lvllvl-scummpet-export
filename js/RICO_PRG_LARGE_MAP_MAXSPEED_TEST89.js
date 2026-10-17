@@ -41,12 +41,14 @@ function charsetBytes(data,fallback){
   return o;
 }
 function collectAnimatedChars(ts,bank,bank2){
-  var src=bank===2?(bank2||[]):(ts&&ts.tileData?ts.tileData:[]),out=[];
+  var out=[];
   var typeMap={left:0,right:1,up:2,down:3,blink:4};
   for(var c=0;c<256;c++){
-    var tile=src&&src[c],props=tile&&tile.props?tile.props:null,type=props?props.animated:false;
-    if(type===false||typeof type==='undefined'||typeof typeMap[type]==='undefined')continue;
-    var ticks=clamp(props.ticksPerFrame,1,255,6),off=c*8;
+    var type=false,props=null;
+    try{ type=ts&&ts.getAnimatedType?ts.getAnimatedType(c):false; }catch(e){ type=false; }
+    try{ props=ts&&ts.getTileProperties?ts.getTileProperties(c):null; }catch(e){ props=null; }
+    if(type===false||type===''||type==='none'||typeof type==='undefined'||typeof typeMap[type]==='undefined')continue;
+    var ticks=clamp(props&&props.ticksPerFrame,1,255,6),off=c*8;
     out.push(ticks,ticks,off&255,(off>>8)&255,typeMap[type]);
   }
   out.push(0);
@@ -153,7 +155,7 @@ function buildSource(d){
   var d011base=d.window.height<=24?0x10:0x18;
   var charsetBits=d.bank===2?0x0e:0x0c;
   var animCharsetHigh=d.bank===2?0x38:0x30;
-  out.push('; RICO TEST121 - LARGE MAP + NATIVE CHARACTER SCROLL');
+  out.push('; RICO TEST122 - LARGE MAP + JAMES ANIMATION API');
   out.push('; Screen '+d.width+'x'+d.height+' source map; VIC viewport 40x'+d.window.height+'; Scroll Area 40x'+d.area.height+'.');
   out.push('; Source map stays at $4000+. Per-cell colors stay at $7000+. VIC buffers remain at $0400/$0800.');
   out.push('*=$0801');
@@ -529,11 +531,11 @@ ToPRGAdv.prototype.createPRG=function(args){
   if(!isLargeCandidate(this))return prev.apply(this,arguments);
   try{
     var d=collect(this),source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST121 MAP+CHAR] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
+    console.log('[RICO TEST122 MAP+CHAR API] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
     if(args.download===false)return bytes;if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}throw new Error('download() missing');
-  }catch(e){console.error('[RICO TEST121 MAP+CHAR]',e);alert('RICO TEST121: '+e.message);return false;}
+  }catch(e){console.error('[RICO TEST122 MAP+CHAR API]',e);alert('RICO TEST122: '+e.message);return false;}
 };
 
-window.RICO_TEST121_PRG_MAP_CHAR_ANIM={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],characterAnimations:['left','right','up','down','blink'],sourceMapSeparateFromVIC:true,doubleBuffer:true,pipelined8px:true};
-console.log('[RICO TEST121 MAP+CHAR] Large vertical map exporter loaded with native character Scroll/Blink inside the same IRQ.');
+window.RICO_TEST122_PRG_MAP_CHAR_ANIM={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],characterAnimations:['left','right','up','down','blink'],sourceMapSeparateFromVIC:true,doubleBuffer:true,pipelined8px:true};
+console.log('[RICO TEST122 MAP+CHAR API] Character table now uses James getAnimatedType()/getTileProperties() API.');
 })();
