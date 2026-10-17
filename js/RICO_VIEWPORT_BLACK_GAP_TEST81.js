@@ -14,7 +14,6 @@ function mapScrollCfg81(g,n){
 
 Graphic.prototype.drawFrame=function(args){
   args=args||{};
-  if(args.animatedTilesOnly===true)return previousDraw81.apply(this,arguments);
   try{
     var n=typeof args.frame!=='undefined'?parseInt(args.frame,10):this.getCurrentFrame();
     var cfg=mapScrollCfg81(this,n);
