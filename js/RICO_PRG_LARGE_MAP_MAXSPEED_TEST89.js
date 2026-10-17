@@ -40,6 +40,18 @@ function charsetBytes(data,fallback){
   }
   return o;
 }
+function collectAnimatedChars(ts,bank,bank2){
+  var src=bank===2?(bank2||[]):(ts&&ts.tileData?ts.tileData:[]),out=[];
+  var typeMap={left:0,right:1,up:2,down:3,blink:4};
+  for(var c=0;c<256;c++){
+    var tile=src&&src[c],props=tile&&tile.props?tile.props:null,type=props?props.animated:false;
+    if(type===false||typeof type==='undefined'||typeof typeMap[type]==='undefined')continue;
+    var ticks=clamp(props.ticksPerFrame,1,255,6),off=c*8;
+    out.push(ticks,ticks,off&255,(off>>8)&255,typeMap[type]);
+  }
+  out.push(0);
+  return new Uint8Array(out);
+}
 function mapData(layer,frame,w,h){
   var out=new Uint8Array(w*h),p=0;
   for(var y=0;y<h;y++)for(var x=0;x<w;x++){
@@ -88,10 +100,11 @@ function collect(self){
   var bg=0,border=0;try{bg=colorIndex(layer.getBackgroundColor(0),0);}catch(e){}try{border=colorIndex(layer.getBorderColor(0),bg);}catch(e){border=bg;}
   var bank=1;try{bank=parseInt(ed.graphic.frames[0].charsetBank,10)===2?2:1;}catch(e){}
   var b2=getBank2(ts),bank1=charsetBytes(ts.tileData,ts.tileData),bank2=b2?charsetBytes(b2,ts.tileData):bank1;
+  var animations=collectAnimatedChars(ts,bank,b2);
   var data=mapData(layer,0,s.width,s.height),colors=mapColorData(layer,0,s.width,s.height);
   if(MAP_DATA_BASE+data.length>=COLOR_DATA_BASE)throw new Error('Mapa demasiado grande: invade el banco de color de TEST84.');
   if(COLOR_DATA_BASE+colors.length>=0xd000)throw new Error('Mapa de colores demasiado grande para el banco RAM seguro de TEST84.');
-  return{editor:ed,width:s.width,height:s.height,type:type,typeCode:type==='up'?1:2,ticks:clamp(cfg&&cfg.ticksPerStep,1,255,6),pixels:clamp(cfg&&cfg.pixelsPerStep,1,8,1),duration:duration,bg:bg,border:border,bank:bank,window:win,area:area,initialRow:initialRow,bank1:bank1,bank2:bank2,map:data,colors:colors};
+  return{editor:ed,width:s.width,height:s.height,type:type,typeCode:type==='up'?1:2,ticks:clamp(cfg&&cfg.ticksPerStep,1,255,6),pixels:clamp(cfg&&cfg.pixelsPerStep,1,8,1),duration:duration,bg:bg,border:border,bank:bank,window:win,area:area,initialRow:initialRow,bank1:bank1,bank2:bank2,animations:animations,map:data,colors:colors};
 }
 
 
@@ -139,7 +152,8 @@ function buildSource(d){
   var durationLo=d.duration&255,durationHi=(d.duration>>8)&255;
   var d011base=d.window.height<=24?0x10:0x18;
   var charsetBits=d.bank===2?0x0e:0x0c;
-  out.push('; RICO TEST89 - LARGE MAP EXACT 8PX/FRAME PIPELINE');
+  var animCharsetHigh=d.bank===2?0x38:0x30;
+  out.push('; RICO TEST121 - LARGE MAP + NATIVE CHARACTER SCROLL');
   out.push('; Screen '+d.width+'x'+d.height+' source map; VIC viewport 40x'+d.window.height+'; Scroll Area 40x'+d.area.height+'.');
   out.push('; Source map stays at $4000+. Per-cell colors stay at $7000+. VIC buffers remain at $0400/$0800.');
   out.push('*=$0801');
@@ -170,6 +184,11 @@ function buildSource(d){
   out.push('color_tbl_lo=$18');
   out.push('color_tbl_hi=$19');
   out.push('color_updates=$1a');
+  out.push('anim_from_lo=$1b');
+  out.push('anim_from_hi=$1c');
+  out.push('anim_temp_lo=$1d');
+  out.push('anim_temp_hi=$1e');
+  out.push('anim_byte=$1f');
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -261,6 +280,7 @@ function buildSource(d){
   out.push('irq');
   out.push(' pha');out.push(' txa');out.push(' pha');out.push(' tya');out.push(' pha');
   out.push(' lda #$01');out.push(' sta $d019');
+  out.push(' jsr animate_chars');
   out.push(' lda main_busy');out.push(' bne irq_done_tick');out.push(' jsr frame_tick');
   out.push('irq_done_tick');
   out.push(' pla');out.push(' tay');out.push(' pla');out.push(' tax');out.push(' pla');out.push(' rti');
@@ -435,12 +455,44 @@ function buildSource(d){
   out.push('add40_src');out.push(' clc');out.push(' lda src_lo');out.push(' adc #$28');out.push(' sta src_lo');out.push(' lda src_hi');out.push(' adc #$00');out.push(' sta src_hi');out.push(' rts');
   out.push('add40_dst');out.push(' clc');out.push(' lda dst_lo');out.push(' adc #$28');out.push(' sta dst_lo');out.push(' lda dst_hi');out.push(' adc #$00');out.push(' sta dst_hi');out.push(' rts');
   out.push('');
+  out.push('animate_chars');
+  out.push(' lda #<animated_chars_table');out.push(' sta anim_from_lo');
+  out.push(' lda #>animated_chars_table');out.push(' sta anim_from_hi');
+  out.push('anim_char_next');
+  out.push(' ldy #$00');out.push(' lda (anim_from_lo),y');out.push(' bne anim_char_has_entry');out.push(' jmp animate_chars_done');out.push('anim_char_has_entry');
+  out.push(' iny');out.push(' lda (anim_from_lo),y');out.push(' sec');out.push(' sbc #$01');out.push(' sta (anim_from_lo),y');out.push(' beq anim_char_fire');out.push(' jmp anim_char_advance');out.push('anim_char_fire');
+  out.push(' ldy #$00');out.push(' lda (anim_from_lo),y');out.push(' iny');out.push(' sta (anim_from_lo),y');
+  out.push(' iny');out.push(' lda (anim_from_lo),y');out.push(' sta anim_temp_lo');
+  out.push(' iny');out.push(' lda (anim_from_lo),y');out.push(' clc');out.push(' adc #$'+hex2(animCharsetHigh));out.push(' sta anim_temp_hi');
+  out.push(' iny');out.push(' lda (anim_from_lo),y');
+  out.push(' cmp #$00');out.push(' beq anim_left');
+  out.push(' cmp #$01');out.push(' beq anim_right');
+  out.push(' cmp #$02');out.push(' beq anim_up');
+  out.push(' cmp #$03');out.push(' beq anim_down');
+  out.push(' jmp anim_blink');
+  out.push('anim_left');
+  out.push(' ldy #$00');out.push('anim_left_loop');out.push(' lda (anim_temp_lo),y');out.push(' asl');out.push(' bcc anim_left_store');out.push(' ora #$01');out.push('anim_left_store');out.push(' sta (anim_temp_lo),y');out.push(' iny');out.push(' cpy #$08');out.push(' bne anim_left_loop');out.push(' jmp anim_char_advance');
+  out.push('anim_right');
+  out.push(' ldy #$00');out.push('anim_right_loop');out.push(' lda (anim_temp_lo),y');out.push(' lsr');out.push(' bcc anim_right_store');out.push(' ora #$80');out.push('anim_right_store');out.push(' sta (anim_temp_lo),y');out.push(' iny');out.push(' cpy #$08');out.push(' bne anim_right_loop');out.push(' jmp anim_char_advance');
+  out.push('anim_up');
+  out.push(' ldy #$00');out.push(' lda (anim_temp_lo),y');out.push(' sta anim_byte');out.push(' ldx #$07');
+  out.push('anim_up_loop');out.push(' iny');out.push(' lda (anim_temp_lo),y');out.push(' dey');out.push(' sta (anim_temp_lo),y');out.push(' iny');out.push(' dex');out.push(' bne anim_up_loop');out.push(' lda anim_byte');out.push(' sta (anim_temp_lo),y');out.push(' jmp anim_char_advance');
+  out.push('anim_down');
+  out.push(' ldy #$07');out.push(' lda (anim_temp_lo),y');out.push(' sta anim_byte');out.push(' ldx #$07');
+  out.push('anim_down_loop');out.push(' dey');out.push(' lda (anim_temp_lo),y');out.push(' iny');out.push(' sta (anim_temp_lo),y');out.push(' dey');out.push(' dex');out.push(' bne anim_down_loop');out.push(' lda anim_byte');out.push(' sta (anim_temp_lo),y');out.push(' jmp anim_char_advance');
+  out.push('anim_blink');
+  out.push(' ldy #$00');out.push('anim_blink_loop');out.push(' lda (anim_temp_lo),y');out.push(' eor #$ff');out.push(' sta (anim_temp_lo),y');out.push(' iny');out.push(' cpy #$08');out.push(' bne anim_blink_loop');
+  out.push('anim_char_advance');
+  out.push(' clc');out.push(' lda anim_from_lo');out.push(' adc #$05');out.push(' sta anim_from_lo');out.push(' lda anim_from_hi');out.push(' adc #$00');out.push(' sta anim_from_hi');out.push(' jmp anim_char_next');
+  out.push('animate_chars_done');out.push(' rts');
+  out.push('');
   out.push('swap_screens');
   out.push(' lda front_hi');out.push(' pha');out.push(' lda back_hi');out.push(' sta front_hi');out.push(' pla');out.push(' sta back_hi');out.push(' jsr update_d018');out.push(' rts');
   out.push('update_d018');
   out.push(' lda front_hi');out.push(' cmp #$04');out.push(' bne d018_screen_0800');out.push(' lda #$10');out.push(' jmp d018_charset');out.push('d018_screen_0800');out.push(' lda #$20');out.push('d018_charset');out.push(' ora charset_bits');out.push(' sta $d018');out.push(' rts');
   out.push('apply_scroll_regs');
   out.push(' lda fine_pos');out.push(' and #$07');out.push(' ora #$'+hex2(d011base));out.push(' sta $d011');out.push(' lda #$08');out.push(' sta $d016');out.push(' rts');
+  out.push('animated_chars_table');emitBytes(out,d.animations);
   out.push('*=$3000');out.push('charset_bank1');emitBytes(out,d.bank1);
   out.push('*=$3800');out.push('charset_bank2');emitBytes(out,d.bank2);
   out.push('*=$4000');out.push('large_map_data');emitBytes(out,d.map);
@@ -477,11 +529,11 @@ ToPRGAdv.prototype.createPRG=function(args){
   if(!isLargeCandidate(this))return prev.apply(this,arguments);
   try{
     var d=collect(this),source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST89 MAX SPEED] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
+    console.log('[RICO TEST121 MAP+CHAR] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
     if(args.download===false)return bytes;if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}throw new Error('download() missing');
-  }catch(e){console.error('[RICO TEST89 MAX SPEED]',e);alert('RICO TEST88: '+e.message);return false;}
+  }catch(e){console.error('[RICO TEST121 MAP+CHAR]',e);alert('RICO TEST121: '+e.message);return false;}
 };
 
-window.RICO_TEST89_PRG_LARGE_MAP_MAXSPEED={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],sourceMapSeparateFromVIC:true,colorMapBase:COLOR_DATA_BASE,perCellColors:true,sparseColorCommit:true,blankCellsUseDominantVisibleColor:true,doubleBuffer:true,pipelined8px:true,maxPalSpeed:'8px/frame'};
-console.log('[RICO TEST89 MAX SPEED] Large vertical map exporter loaded with pipelined 8px/frame PAL max-speed path.');
+window.RICO_TEST121_PRG_MAP_CHAR_ANIM={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],characterAnimations:['left','right','up','down','blink'],sourceMapSeparateFromVIC:true,doubleBuffer:true,pipelined8px:true};
+console.log('[RICO TEST121 MAP+CHAR] Large vertical map exporter loaded with native character Scroll/Blink inside the same IRQ.');
 })();
