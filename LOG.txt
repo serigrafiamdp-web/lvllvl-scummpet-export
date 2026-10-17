@@ -354,3 +354,15 @@ TEST89 PENDING - 16/10/2026
 - Nuevo fast path vertical para 8 px/step: backbuffer preparado anticipadamente en main loop.
 - Objetivo: 8 px por frame PAL (1 fila de caracteres por frame) cuando Ticks/Step=1.
 - Los modos 1..7 px conservan la ruta TEST88.
+
+2026-10-17 — TEST101 PREPARED — PRG NATIVE CHARACTER ANIMATION (JAMES MODEL)
+- Base: TEST100 (TEST92 workspace divider + TEST97 native preview animation compatibility).
+- Preview/UI/scroll preview code unchanged.
+- New exporter layer: js/RICO_PRG_JAMES_NATIVE_CHAR_ANIM_TEST101.js, loaded after TEST89.
+- Source of truth: jaammees/lvllvl TileSet.update() + exportC64.js animated character table format.
+- Supported native types: left/right/up/down/blink/frames (types 0..5).
+- Table layout: ticks, counter, char offset lo/hi, type, frameCount, currentFrame, data ptr lo/hi; terminator 0.
+- frames exports every 8-byte bitmap and copies the selected frame into the active charset ($3000 or $3800).
+- Animation tick runs in the raster IRQ independently of MAP SCROLL frame_tick.
+- Static validation: JavaScript syntax PASS; synthetic source assembled with LVLLVL internal Assembler PASS; runtime $2000-$2521, charsets start $3000; no overlap in synthetic 40x50 test.
+- Runtime VICE result: PENDING USER PASS/FAIL.
