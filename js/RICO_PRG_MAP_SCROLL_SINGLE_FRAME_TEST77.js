@@ -205,6 +205,8 @@ function buildSource(d){
   out.push('window_max_y_lo=$2a');
   out.push('window_max_y_hi=$2b');
   out.push('window_guard_row=$2c');
+  out.push('rico_probe_counter=$2d');
+  out.push('rico_probe_phase=$2e');
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -220,6 +222,8 @@ function buildSource(d){
   out.push(' lda $dd0d');
   out.push(' lda #$'+('0'+(d.blankChar&255).toString(16)).slice(-2));
   out.push(' sta blank_char');
+  out.push(' lda #$10');out.push(' sta rico_probe_counter');
+  out.push(' lda #$00');out.push(' sta rico_probe_phase');
   out.push(' jsr fill_blank_stage');
   out.push(' lda #$00');
   out.push(' sta prep_request');
@@ -277,6 +281,7 @@ function buildSource(d){
   out.push(' pha');
   out.push(' lda #$01');
   out.push(' sta $d019');
+  out.push(' jsr rico_probe_actual_test77');
   out.push(' lda main_busy');
   out.push(' bne irq_skip_tick');
   out.push(' jsr frame_tick');
@@ -287,6 +292,24 @@ function buildSource(d){
   out.push(' tax');
   out.push(' pla');
   out.push(' rti');
+  out.push('');
+  // TEST126: Visual diagnostic for the runtime actually used by 40x25 MAP SCROLL.
+  // The called IRQ path must alternate border and glyph 0 in BOTH charset banks.
+  out.push('rico_probe_actual_test77');
+  out.push(' dec rico_probe_counter');out.push(' bne rico_probe_done');
+  out.push(' lda #$10');out.push(' sta rico_probe_counter');
+  out.push(' lda rico_probe_phase');out.push(' eor #$01');out.push(' sta rico_probe_phase');out.push(' beq rico_probe_checker');
+  out.push(' lda #$02');out.push(' sta $d020');
+  out.push(' lda #$ff');out.push(' ldx #$07');
+  out.push('rico_probe_solid_loop');out.push(' sta $3000,x');out.push(' sta $3800,x');out.push(' dex');out.push(' bpl rico_probe_solid_loop');out.push(' rts');
+  out.push('rico_probe_checker');
+  out.push(' lda #$05');out.push(' sta $d020');
+  out.push(' ldx #$07');
+  out.push('rico_probe_checker_loop');out.push(' txa');out.push(' and #$01');out.push(' beq rico_probe_checker_even');
+  out.push(' lda #$aa');out.push(' jmp rico_probe_store');
+  out.push('rico_probe_checker_even');out.push(' lda #$55');
+  out.push('rico_probe_store');out.push(' sta $3000,x');out.push(' sta $3800,x');out.push(' dex');out.push(' bpl rico_probe_checker_loop');
+  out.push('rico_probe_done');out.push(' rts');
   out.push('');
   out.push('frame_tick');
   out.push(' lda transition_request');
@@ -1712,7 +1735,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST77] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST126 TEST77 PROBE] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
@@ -1734,5 +1757,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST77] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST126 TEST77 PROBE] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
