@@ -576,7 +576,15 @@ function buildSource(d){
     out.push(' sta frame_remaining');
     out.push(' lda duration_hi_table,x');
     out.push(' sta frame_remaining_hi');
-    out.push(' rts');
+    // TEST137: For a single-frame fast 1T Map Scroll, frame-duration rollover
+    // must not drop the scroll step. The native char IRQ always ticks, so
+    // skipping this frame_tick_scroll made a periodic lateral-only frame.
+    // Preserve the original duration behavior in all non-1T configurations.
+    if(fastColorOnePass){
+      out.push(' jmp frame_tick_scroll');
+    } else {
+      out.push(' rts');
+    }
   } else {
     out.push(' jsr request_next_frame');
     out.push(' rts');
@@ -2488,7 +2496,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST136 EARLY PREFETCH 1T] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST137 NO DROPPED DURATION TICK] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
@@ -2510,5 +2518,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST136 EARLY PREFETCH 1T] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST137 NO DROPPED DURATION TICK] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
