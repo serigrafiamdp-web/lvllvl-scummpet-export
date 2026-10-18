@@ -473,9 +473,12 @@ TEST137 — PENDIENTE VICE / 18 OCT 2026
 TEST137 — FAIL PARCIAL / 18 OCT 2026
 - Usuario confirma perdidas periodicas de movimiento diagonal a 1tick. Se solicita investigar sincronizacion conjunta y el motor C64 propio.
 
-TEST138 — GEAR MAP PIXEL / PENDIENTE VICE
+TEST138 — GEAR MAP PIXEL / MILESTONE PASS VICE
 - SCUMM-PET-C64 validaba IRQ maestra y una sesion scheduler continua; Animated Chars tienen tick independiente. Se adopta mismo principio, no binarios ni mapa de memoria.
 - En modo cardinal 1frame 1tick/1px: animar glyph solo cuando fine_pos avanzo efectivamente. Su contador configurable 1..255 sigue intacto.
 - Pantalla totalmente uniforme + color uniforme: usar actualizacion fina VIC modulo8 sin preparar backbuffer identico.
 - 48/48 ensambles PASS. CPU 32/32 avance uniforme y 13/13 pruebas gear gate PASS (9 avances, 4 esperas).
-- MASTER TEST134 intacto; no promover sin VICE PASS.
+- MILESTONE PASS VISUAL CONFIRMADO POR USUARIO: engranaje TEST138 perfecto para MAP UP 1T/1px + animacion CHAR RIGHT 1T; diagonal fluida.
+- Se congela el ZIP exacto con SHA256 a8835ed08e0b4eab2a26150531e72ba7d5e138f1e311e815c9ffb1ccb3a89227.
+- Guardado como milestone separado y reproducible; MASTER TEST134 de main intacto.
+- No extrapolar PASS visual a mapas no uniformes sin validarlos.
