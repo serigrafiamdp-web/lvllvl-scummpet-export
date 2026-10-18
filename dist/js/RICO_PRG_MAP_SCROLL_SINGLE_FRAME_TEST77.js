@@ -997,7 +997,8 @@ function buildSource(d){
   out.push(' lda #$10');
   out.push(' jmp d018_add_charset');
   out.push('d018_screen_0800');
-  out.push(' lda #$20');  out.push('d018_add_charset');
+  out.push(' lda #$20');
+  out.push('d018_add_charset');
   out.push(' ora charset_bits');
   out.push(' sta $d018');
   out.push(' rts');
@@ -1996,7 +1997,8 @@ if(typeof Graphic!=='undefined' && !Graphic.prototype.__rico55Duration1024){
   Graphic.prototype.__rico55Duration1024=true;
   Graphic.prototype.setFrameDuration=function(duration,frame){
     var theFrame=this.currentFrame;
-    if(typeof frame!=='undefined')theFrame=frame;    if(theFrame<0||theFrame>=this.frameCount)return;
+    if(typeof frame!=='undefined')theFrame=frame;
+    if(theFrame<0||theFrame>=this.frameCount)return;
     duration=parseInt(duration,10);
     if(isNaN(duration))duration=12;
     duration=Math.max(1,Math.min(1024,duration));
