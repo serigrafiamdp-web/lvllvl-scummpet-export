@@ -1,5 +1,5 @@
 RICO / LVLLVL — TEST138 — 18 OCTUBRE 2026
-ESTADO: COMPILACION + SIMULACION 6502 PASS; VISUAL VICE PENDIENTE
+ESTADO: MILESTONE PASS — VICE VISUAL CONFIRMADO POR USUARIO; 48/48 COMPILACIONES PASS
 
 OBJETIVO
 - Corregir el movimiento ocasional lateral cuando Map Scroll UP 1tick/1px + Animated Char RIGHT 1tick.
@@ -28,9 +28,16 @@ VERIFICACION AUTOMATICA
 - Compilacion 6tick identica byte por byte al TEST137.
 - TEST138_CPU_GEAR_AND_UNIFORM_CHECK.cjs: 32/32 pasos consecutivos a 1px/tick SIN pedido de nuevo buffer para mapa uniforme. Simulacion de espera de mapa: 13 eventos, 9 avances, 4 esperas; la llamada a animate_chars_native ocurre solo cuando el mapa avanzo.
 - Importante: la prueba de engranaje intercepta llamadas a animate_chars_native para verificar el gate, NO es validacion grafica C64 real.
-- Este test puede evitar un avance lateral de un solo eje; NO certifica fluidez ante sobrecarga en mapas generales. Validacion real en VICE obligatoria.
+- PASS visual en VICE confirmado en el proyecto real del usuario con mapa uniforme UP 1tick/1px y char RIGHT 1tick. Mapas no uniformes y otras combinaciones conservan solo validacion automatica hasta nuevas pruebas.
 
 REGLAS
 - TEST134 es MASTER estable y NO se toca.
-- TEST137 queda como ultimo test experimental publicado anteriormente; TEST138 es prueba aislada sin PASS visual todavia.
-- No subir a main ni promover master hasta PASS del usuario con VICE y el proyecto real.
+- TEST137 fue el ultimo test experimental anterior. TEST138 queda CONGELADO como milestone PASS en rama dedicada.
+- Este milestone PASS se conserva separado de main por decision de preservar el MASTER TEST134 y el milestone TEST138 sin mezclar trabajo experimental.
+
+CONFIRMACION FINAL / 18 OCT 2026
+- Usuario confirma expresamente: 'esa solucion es perfecta'.
+- PASS del engranaje a 1 tick, diagonal fluida, sin movimientos laterales periodicos apreciables en el caso validado.
+- ZIP congelado: MILESTONE_LVL_RICO_TEST138_PIXEL_GEAR_PASS_18_OCT_2026.zip.
+- SHA256: a8835ed08e0b4eab2a26150531e72ba7d5e138f1e311e815c9ffb1ccb3a89227.
+- MAIN conserva MASTER TEST134. Rama milestone es nuevo punto de retorno.
