@@ -1,0 +1,31 @@
+{
+  "milestone": "LVL_RICO_TEST138_PIXEL_GEAR_PASS_18_OCT_2026",
+  "date": "2026-10-18",
+  "status": "PASS_VISUAL_USER_CONFIRMED_VICE",
+  "repository": "serigrafiamdp-web/lvllvl-scummpet-export",
+  "frozen_branch": "milestone/lvl-rico-pixel-gear-test138-pass-18-oct-2026",
+  "source_test_branch": "test/rico-char-map-scroll-gear-138",
+  "source_test_commit": "370c92d4921634e4b85be11af2ce1151aa74c8dc",
+  "artifacts": {
+    "archive": "MILESTONE_LVL_RICO_TEST138_PIXEL_GEAR_PASS_18_OCT_2026.zip",
+    "archive_sha256": "a8835ed08e0b4eab2a26150531e72ba7d5e138f1e311e815c9ffb1ccb3a89227",
+    "library_path": "/MILESTONE_LVL_RICO_TEST138_PIXEL_GEAR_PASS_18_OCT_2026.zip",
+    "archive_copy_of": "LVLLVL_TEST138_SCUMM_MAP_PIXEL_GEAR_1T.zip",
+    "web_index_git_blob_sha": "8c9bfb3af739d0dfdd309214c7096318d935997f",
+    "prg_exporter_git_blob_sha": "f1efaad7bd7a5baadca0af453caa15694ecfd3d1"
+  },
+  "verified_behavior": {
+    "visual_VICE": "User confirmed TEST138 solution perfect after previous stuttering at 1 tick",
+    "map_scroll": "UP 1 tick, 1 pixel per step in user example",
+    "animated_char": "RIGHT 1 tick in user example",
+    "synchronization": "Animated-character tick is gated by an effective map fine pixel advance; independent configured tick counters remain",
+    "uniform_map_fast_path": "When 40x25 scroll area truly uniform in codes and colors, continuous fine scroll avoids unnecessary buffer rebuild",
+    "regression": "48/48 test configurations compile; 32 consecutive fine pixel steps without waiting on uniform sample; VICE user PASS on the real case"
+  },
+  "safety": {
+    "previous_master": "TEST134 PASS unchanged on main",
+    "scope": "Milestone is for validated 1T gear scenario; nonuniform/general cases have compile/sim tests but require future real-machine VICE verification",
+    "deployment": "gh-pages TEST138 (still experimental deployment); old gh-pages TEST137 backed up",
+    "followup": "New experimental changes must use new TEST branch; do not modify this milestone or previous MASTER"
+  }
+}
