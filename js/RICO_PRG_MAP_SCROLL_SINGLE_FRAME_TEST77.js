@@ -86,18 +86,47 @@ function screenData(layer,frame){
   }
   return out;
 }
-function chooseBlankChar(frames,bank1,bank2){
+// TEST129: export original per-cell C64 foreground color, not the most common one.
+function colorData(layer,frame){
+  var out=new Uint8Array(1000),p=0;
+  for(var y=0;y<25;y++)for(var x=0;x<40;x++){
+    var color=14;
+    try{var c=layer.getCell({x:x,y:y,frame:frame});color=colorIndex(c&&c.fc,14);}catch(e){}
+    out[p++]=color;
+  }
+  return out;
+}
+function chooseBlankChar(frames,bank1,bank2,animated){
   var used=new Uint8Array(256);
   for(var f=0;f<frames.length;f++)for(var i=0;i<frames[f].screen.length;i++)used[frames[f].screen[i]&255]=1;
+  for(var a=0;a<animated.length;a++)used[animated[a].charCode&255]=1;
   var code=-1;
   for(var c=255;c>=0;c--)if(!used[c]){code=c;break;}
   if(code<0)throw new Error('MAP SCROLL necesita un caracter libre para representar el fondo expuesto.');
   for(var y=0;y<8;y++){bank1[code*8+y]=0;bank2[code*8+y]=0;}
   return code;
 }
+// TEST128: exact LVLLVL/JAMES character-animation metadata: getAnimatedType() and
+// getTileProperties().ticksPerFrame. Each entry uses the stock player's
+// [ticks, counter, character offset, animation type] semantics. No invented
+// frames, inversion, diagnostic effects, or remapping of character numbers.
+function collectNativeAnimations(ts){
+  var result=[], types={left:0,right:1,up:2,down:3,blink:4};
+  if(!ts||typeof ts.getAnimatedType!=='function'||typeof ts.getTileProperties!=='function')return result;
+  for(var c=0;c<256;c++){
+    var t=ts.getAnimatedType(c);
+    if(t===false||t===null||typeof t==='undefined'||t==='')continue;
+    var props=ts.getTileProperties(c)||{};
+    var ticks=clamp(props.ticksPerFrame,1,255,1);
+    // The stock player maps unrecognized enabled types to horizontal-left.
+    result.push({charCode:c,ticks:ticks,type:Object.prototype.hasOwnProperty.call(types,t)?types[t]:0});
+  }
+  return result;
+}
 function collect(self,args){
   var ed=self.editor,fc=frameCount(ed),layer=ed.layers.getSelectedLayerObject(),ts=getTileSet(ed),frames=[],hasScroll=false;
   var b2=getBank2(ts),bank1=charsetBytes(ts.tileData,ts.tileData),bank2=b2?charsetBytes(b2,ts.tileData):bank1;
+  var nativeAnimations=collectNativeAnimations(ts);
   for(var i=0;i<fc;i++){
     var c=getCfg(ed,i),type=(c&&c.type)||'';
     if(typeof TYPE_CODE[type]==='undefined')throw new Error('TEST75 no reconoce '+type+'.');
@@ -114,13 +143,13 @@ function collect(self,args){
     frames.push({
       type:type,typeCode:TYPE_CODE[type],duration:duration,
       ticks:clamp(c&&c.ticksPerStep,1,255,6),pixels:clamp(c&&c.pixelsPerStep,1,8,1),
-      bg:bg,border:br,fg:dominantColor(layer,i),bank:bank,screen:screenData(layer,i),
+      bg:bg,border:br,fg:dominantColor(layer,i),bank:bank,screen:screenData(layer,i),colors:colorData(layer,i),
       window:{x:wx,y:wy,width:ww,height:wh},
       scrollArea:{x:ax,y:ay,width:aw,height:ah}
     });
   }
-  var blankChar=chooseBlankChar(frames,bank1,bank2);
-  return {editor:ed,layer:layer,tileSet:ts,frames:frames,bank1:bank1,bank2:bank2,hasScroll:hasScroll,blankChar:blankChar};
+  var blankChar=chooseBlankChar(frames,bank1,bank2,nativeAnimations);
+  return {editor:ed,layer:layer,tileSet:ts,frames:frames,bank1:bank1,bank2:bank2,hasScroll:hasScroll,blankChar:blankChar,nativeAnimations:nativeAnimations};
 }
 function supports(self,args){
   var ed=self.editor;if(!ed)return false;
@@ -205,8 +234,16 @@ function buildSource(d){
   out.push('window_max_y_lo=$2a');
   out.push('window_max_y_hi=$2b');
   out.push('window_guard_row=$2c');
-  out.push('rico_probe_counter=$2d');
-  out.push('rico_probe_phase=$2e');
+  // TEST128: independent scratch bytes, do not overlap TEST77 scroll state ($02..$2c).
+  out.push('anim_ptr_lo=$30');
+  out.push('anim_ptr_hi=$31');
+  out.push('anim_dest_lo=$32');
+  out.push('anim_dest_hi=$33');
+  out.push('anim_temp=$34');
+  out.push('color_mode=$35');
+  out.push('color_saved_front=$36');
+  out.push('color_saved_back=$37');
+  out.push('color_saved_blank=$38');
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -222,8 +259,6 @@ function buildSource(d){
   out.push(' lda $dd0d');
   out.push(' lda #$'+('0'+(d.blankChar&255).toString(16)).slice(-2));
   out.push(' sta blank_char');
-  out.push(' lda #$10');out.push(' sta rico_probe_counter');
-  out.push(' lda #$00');out.push(' sta rico_probe_phase');
   out.push(' jsr fill_blank_stage');
   out.push(' lda #$00');
   out.push(' sta prep_request');
@@ -236,6 +271,7 @@ function buildSource(d){
   out.push(' sta main_busy');
   out.push(' sta transition_blank');
   out.push(' sta current_frame');
+  out.push(' sta color_mode');
   out.push(' jsr load_frame');
   out.push(' lda #$01');
   out.push(' sta $d01a');
@@ -267,6 +303,7 @@ function buildSource(d){
   out.push(' lda #$01');
   out.push(' sta main_busy');
   out.push(' jsr prepare_requested');
+  out.push(' jsr prepare_colors_requested');
   out.push(' lda #$00');
   out.push(' sta main_busy');
   out.push(' lda #$01');
@@ -281,7 +318,7 @@ function buildSource(d){
   out.push(' pha');
   out.push(' lda #$01');
   out.push(' sta $d019');
-  out.push(' jsr rico_probe_actual_test77');
+  if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
   out.push(' lda main_busy');
   out.push(' bne irq_skip_tick');
   out.push(' jsr frame_tick');
@@ -293,24 +330,141 @@ function buildSource(d){
   out.push(' pla');
   out.push(' rti');
   out.push('');
-  // TEST126: Visual diagnostic for the runtime actually used by 40x25 MAP SCROLL.
-  // The called IRQ path must alternate border and glyph 0 in BOTH charset banks.
-  out.push('rico_probe_actual_test77');
-  out.push(' dec rico_probe_counter');out.push(' bne rico_probe_done');
-  out.push(' lda #$10');out.push(' sta rico_probe_counter');
-  out.push(' lda rico_probe_phase');out.push(' eor #$01');out.push(' sta rico_probe_phase');out.push(' beq rico_probe_checker');
-  out.push(' lda #$02');out.push(' sta $d020');
-  out.push(' lda #$ff');out.push(' ldx #$07');
-  out.push('rico_probe_solid_loop');out.push(' sta $3000,x');out.push(' sta $3800,x');out.push(' dex');out.push(' bpl rico_probe_solid_loop');out.push(' rts');
-  out.push('rico_probe_checker');
-  out.push(' lda #$05');out.push(' sta $d020');
-  out.push(' ldx #$07');
-  out.push('rico_probe_checker_loop');out.push(' txa');out.push(' and #$01');out.push(' beq rico_probe_checker_even');
-  out.push(' lda #$aa');out.push(' jmp rico_probe_store');
-  out.push('rico_probe_checker_even');out.push(' lda #$55');
-  out.push('rico_probe_store');out.push(' sta $3000,x');out.push(' sta $3800,x');out.push(' dex');out.push(' bpl rico_probe_checker_loop');
-  out.push('rico_probe_done');out.push(' rts');
-  out.push('');
+  // TEST128: native LVLLVL / JAMES character animation, executed once per IRQ,
+  // independently from TEST77's frame_tick and main_busy. No changes to scroll.
+  // Stock semantics: decrement tick counter, then rotate glyph bitmap left/right,
+  // move rows up/down, or complement bytes for blink. Both banks keep ticking
+  // in parallel so changing charset bank doesn't reset animation phase.
+  if(d.nativeAnimations.length){
+    out.push('animate_chars_native');
+    out.push(' lda #<animated_chars_native_table');
+    out.push(' sta anim_ptr_lo');
+    out.push(' lda #>animated_chars_native_table');
+    out.push(' sta anim_ptr_hi');
+    out.push('anim_char_start');
+    out.push(' ldy #$00');
+    out.push(' lda (anim_ptr_lo),y');
+    out.push(' beq animate_chars_native_done');
+    out.push(' ldy #$01');
+    out.push(' lda (anim_ptr_lo),y');
+    out.push(' sec');
+    out.push(' sbc #$01');
+    out.push(' sta (anim_ptr_lo),y');
+    out.push(' bne next_anim_char');
+    out.push(' ldy #$00');
+    out.push(' lda (anim_ptr_lo),y');
+    out.push(' iny');
+    out.push(' sta (anim_ptr_lo),y');
+    out.push(' iny');
+    out.push(' lda (anim_ptr_lo),y');
+    out.push(' sta anim_dest_lo');
+    out.push(' iny');
+    out.push(' lda (anim_ptr_lo),y');
+    out.push(' sta anim_dest_hi');
+    out.push(' iny');
+    out.push(' lda (anim_ptr_lo),y');
+    out.push(' cmp #$00');
+    out.push(' bne anim_type_1');
+    out.push(' jsr scroll_char_left_native');
+    out.push(' jmp next_anim_char');
+    out.push('anim_type_1');
+    out.push(' cmp #$01');
+    out.push(' bne anim_type_2');
+    out.push(' jsr scroll_char_right_native');
+    out.push(' jmp next_anim_char');
+    out.push('anim_type_2');
+    out.push(' cmp #$02');
+    out.push(' bne anim_type_3');
+    out.push(' jsr scroll_char_up_native');
+    out.push(' jmp next_anim_char');
+    out.push('anim_type_3');
+    out.push(' cmp #$03');
+    out.push(' bne anim_type_4');
+    out.push(' jsr scroll_char_down_native');
+    out.push(' jmp next_anim_char');
+    out.push('anim_type_4');
+    out.push(' jsr blink_char_native');
+    out.push('next_anim_char');
+    out.push(' clc');
+    out.push(' lda anim_ptr_lo');
+    out.push(' adc #$05');
+    out.push(' sta anim_ptr_lo');
+    out.push(' lda anim_ptr_hi');
+    out.push(' adc #$00');
+    out.push(' sta anim_ptr_hi');
+    out.push(' jmp anim_char_start');
+    out.push('animate_chars_native_done');
+    out.push(' rts');
+    out.push('');
+    out.push('blink_char_native');
+    out.push(' ldy #$07');
+    out.push('blink_char_loop');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' eor #$ff');
+    out.push(' sta (anim_dest_lo),y');
+    out.push(' dey');
+    out.push(' bpl blink_char_loop');
+    out.push(' rts');
+    out.push('');
+    out.push('scroll_char_left_native');
+    out.push(' ldy #$07');
+    out.push('scroll_char_left_loop');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' asl');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' rol');
+    out.push(' sta (anim_dest_lo),y');
+    out.push(' dey');
+    out.push(' bpl scroll_char_left_loop');
+    out.push(' rts');
+    out.push('');
+    out.push('scroll_char_right_native');
+    out.push(' ldy #$07');
+    out.push('scroll_char_right_loop');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' lsr');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' ror');
+    out.push(' sta (anim_dest_lo),y');
+    out.push(' dey');
+    out.push(' bpl scroll_char_right_loop');
+    out.push(' rts');
+    out.push('');
+    out.push('scroll_char_up_native');
+    out.push(' ldy #$00');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' sta anim_temp');
+    out.push(' ldx #$07');
+    out.push('scroll_char_up_loop');
+    out.push(' iny');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' dey');
+    out.push(' sta (anim_dest_lo),y');
+    out.push(' iny');
+    out.push(' dex');
+    out.push(' bne scroll_char_up_loop');
+    out.push(' lda anim_temp');
+    out.push(' sta (anim_dest_lo),y');
+    out.push(' rts');
+    out.push('');
+    out.push('scroll_char_down_native');
+    out.push(' ldy #$07');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' sta anim_temp');
+    out.push(' ldx #$07');
+    out.push('scroll_char_down_loop');
+    out.push(' dey');
+    out.push(' lda (anim_dest_lo),y');
+    out.push(' iny');
+    out.push(' sta (anim_dest_lo),y');
+    out.push(' dey');
+    out.push(' dex');
+    out.push(' bne scroll_char_down_loop');
+    out.push(' lda anim_temp');
+    out.push(' sta (anim_dest_lo),y');
+    out.push(' rts');
+    out.push('');
+  }
   out.push('frame_tick');
   out.push(' lda transition_request');
   out.push(' beq frame_tick_timer');
@@ -473,6 +627,7 @@ function buildSource(d){
   out.push(' lda frame_ptr_hi,x');
   out.push(' sta src_hi');
   out.push(' jsr copy_frame_to_screens');
+  out.push(' jsr copy_frame_colors_to_screens');
   out.push(' lda #$04');
   out.push(' sta front_hi');
   out.push(' lda #$08');
@@ -485,7 +640,7 @@ function buildSource(d){
   out.push(' lda fg_table,x');
   out.push(' sta active_fg');
   out.push(' sta pending_fg');
-  out.push(' jsr fill_color_ram');
+  out.push(' jsr copy_color_front_to_ram');
   out.push(' lda scroll_type');
   out.push(' cmp #$0d');
   out.push(' bcc load_no_movein_init');
@@ -540,6 +695,7 @@ function buildSource(d){
   out.push('init_movein_position');
   out.push(' jsr set_ping_to_window_max');
   out.push(' jsr prepare_ping_screen');
+  out.push(' jsr prepare_colors_ping');
   out.push(' jsr swap_screens');
   out.push(' rts');
   out.push('');
@@ -566,11 +722,7 @@ function buildSource(d){
   out.push(' jsr load_window_geometry');
   out.push(' lda fg_table,x');
   out.push(' sta pending_fg');
-  out.push(' lda transition_blank');
-  out.push(' beq hidden_skip_color_fill');
-  out.push(' lda pending_fg');
-  out.push(' jsr fill_color_ram');
-  out.push('hidden_skip_color_fill');
+  // TEST129: color RAM changes atomically at commit_hidden_frame, not during preparation.
   out.push(' lda scroll_type');
   out.push(' cmp #$0d');
   out.push(' bcc hidden_regular_frame');
@@ -578,12 +730,15 @@ function buildSource(d){
   out.push(' bcs hidden_regular_frame');
   out.push(' jsr set_src_frame');
   out.push(' jsr copy_frame_to_back');
+  out.push(' jsr copy_frame_colors_to_back');
   out.push(' jsr set_ping_to_window_max');
   out.push(' jsr prepare_ping_screen');
+  out.push(' jsr prepare_colors_ping');
   out.push(' jmp hidden_set_fine');
   out.push('hidden_regular_frame');
   out.push(' jsr set_src_frame');
   out.push(' jsr copy_frame_to_back');
+  out.push(' jsr copy_frame_colors_to_back');
   out.push('hidden_set_fine');
   out.push(' lda scroll_type');
   out.push(' cmp #$01');
@@ -612,6 +767,7 @@ function buildSource(d){
   out.push('');
   out.push('commit_hidden_frame');
   out.push(' jsr swap_screen_ptrs');
+  out.push(' jsr copy_color_front_to_ram');
   out.push(' ldx current_frame');
   out.push(' lda bg_table,x');
   out.push(' sta $d021');
@@ -713,6 +869,114 @@ function buildSource(d){
   out.push(' lda #$30');
   out.push(' ora charset_bits');
   out.push(' sta $d018');
+  out.push(' rts');
+  out.push('');
+  // TEST129. Mirror TEST77's tested scroll routines for the color plane.
+  // $0400/$0800 character screens are mirrored at $1000/$1400 as per-cell colors.
+  // No new scroll algorithms: same prepare_requested and ping routines, reused.
+  out.push('enter_color_plane');
+  out.push(' lda front_hi');
+  out.push(' sta color_saved_front');
+  out.push(' lda back_hi');
+  out.push(' sta color_saved_back');
+  out.push(' lda blank_char');
+  out.push(' sta color_saved_blank');
+  out.push(' lda #$00');
+  out.push(' sta blank_char');
+  out.push(' lda front_hi');
+  out.push(' clc');
+  out.push(' adc #$0c');
+  out.push(' sta front_hi');
+  out.push(' lda back_hi');
+  out.push(' clc');
+  out.push(' adc #$0c');
+  out.push(' sta back_hi');
+  out.push(' lda #$01');
+  out.push(' sta color_mode');
+  out.push(' rts');
+  out.push('exit_color_plane');
+  out.push(' lda #$00');
+  out.push(' sta color_mode');
+  out.push(' lda color_saved_front');
+  out.push(' sta front_hi');
+  out.push(' lda color_saved_back');
+  out.push(' sta back_hi');
+  out.push(' lda color_saved_blank');
+  out.push(' sta blank_char');
+  out.push(' rts');
+  out.push('prepare_colors_requested');
+  out.push(' jsr enter_color_plane');
+  out.push(' jsr prepare_requested');
+  out.push(' jmp exit_color_plane');
+  out.push('prepare_colors_ping');
+  out.push(' jsr enter_color_plane');
+  out.push(' jsr prepare_ping_screen');
+  out.push(' jmp exit_color_plane');
+  out.push('copy_frame_colors_to_back');
+  out.push(' jsr enter_color_plane');
+  out.push(' jsr set_src_frame');
+  out.push(' jsr copy_frame_to_back');
+  out.push(' jmp exit_color_plane');
+  out.push('copy_frame_colors_to_screens');
+  out.push(' ldx current_frame');
+  out.push(' lda frame_color_ptr_lo,x');
+  out.push(' sta src_lo');
+  out.push(' lda frame_color_ptr_hi,x');
+  out.push(' sta src_hi');
+  out.push(' ldy #$00');
+  out.push('color_frame_p0');
+  out.push(' lda (src_lo),y');
+  out.push(' sta $1000,y');
+  out.push(' sta $1400,y');
+  out.push(' iny');
+  out.push(' bne color_frame_p0');
+  out.push(' inc src_hi');
+  out.push(' ldy #$00');
+  out.push('color_frame_p1');
+  out.push(' lda (src_lo),y');
+  out.push(' sta $1100,y');
+  out.push(' sta $1500,y');
+  out.push(' iny');
+  out.push(' bne color_frame_p1');
+  out.push(' inc src_hi');
+  out.push(' ldy #$00');
+  out.push('color_frame_p2');
+  out.push(' lda (src_lo),y');
+  out.push(' sta $1200,y');
+  out.push(' sta $1600,y');
+  out.push(' iny');
+  out.push(' bne color_frame_p2');
+  out.push(' inc src_hi');
+  out.push(' ldy #$00');
+  out.push('color_frame_p3');
+  out.push(' lda (src_lo),y');
+  out.push(' sta $1300,y');
+  out.push(' sta $1700,y');
+  out.push(' iny');
+  out.push(' cpy #$e8');
+  out.push(' bne color_frame_p3');
+  out.push(' rts');
+  // Fixed-address copy avoids IO-indirect reads and can run safely at bottom IRQ.
+  out.push('copy_color_front_to_ram');
+  out.push(' lda front_hi');
+  out.push(' cmp #$04');
+  out.push(' bne color_ram_from_1400');
+  out.push(' ldx #$00');
+  out.push('color_ram_from_1000_loop');
+  out.push(' lda $1000,x');out.push(' sta $d800,x');
+  out.push(' lda $1100,x');out.push(' sta $d900,x');
+  out.push(' lda $1200,x');out.push(' sta $da00,x');
+  out.push(' lda $1300,x');out.push(' sta $db00,x');
+  out.push(' inx');out.push(' bne color_ram_from_1000_loop');
+  out.push(' rts');
+  out.push('color_ram_from_1400');
+  out.push(' ldx #$00');
+  out.push('color_ram_from_1400_loop');
+  out.push(' lda $1400,x');out.push(' sta $d800,x');
+  out.push(' lda $1500,x');out.push(' sta $d900,x');
+  out.push(' lda $1600,x');out.push(' sta $da00,x');
+  out.push(' lda $1700,x');out.push(' sta $db00,x');
+  out.push(' inx');out.push(' bne color_ram_from_1400_loop');
   out.push(' rts');
   out.push('');
   out.push('fill_color_ram');
@@ -825,6 +1089,7 @@ function buildSource(d){
   out.push('');
   out.push('commit_prepared');
   out.push(' jsr swap_screens');
+  out.push(' jsr copy_color_front_to_ram');
   out.push(' lda prep_target_fine');
   out.push(' sta fine_pos');
   out.push(' jsr apply_scroll_regs');
@@ -1298,6 +1563,14 @@ function buildSource(d){
   out.push('');
   out.push('set_src_frame');
   out.push(' ldx current_frame');
+  out.push(' lda color_mode');
+  out.push(' beq set_src_frame_screen');
+  out.push(' lda frame_color_ptr_lo,x');
+  out.push(' sta src_lo');
+  out.push(' lda frame_color_ptr_hi,x');
+  out.push(' sta src_hi');
+  out.push(' rts');
+  out.push('set_src_frame_screen');
   out.push(' lda frame_ptr_lo,x');
   out.push(' sta src_lo');
   out.push(' lda frame_ptr_hi,x');
@@ -1673,6 +1946,10 @@ function buildSource(d){
   emitNumericTable(out,'d016_horizontal_base_table',d016HorizontalBases);
   emitNumericTable(out,'frame_ptr_lo',ptrlo);
   emitNumericTable(out,'frame_ptr_hi',ptrhi);
+  out.push('frame_color_ptr_lo');
+  for(var ci=0;ci<f.length;ci++)out.push('!byte <frame_color_'+ci);
+  out.push('frame_color_ptr_hi');
+  for(var ci=0;ci<f.length;ci++)out.push('!byte >frame_color_'+ci);
   out.push('');
   out.push('*=$3000');
   out.push('charset_bank1');emitBytes(out,d.bank1);
@@ -1681,6 +1958,22 @@ function buildSource(d){
   out.push('*=$4000');
   for(var fi=0;fi<f.length;fi++){
     out.push('frame_screen_'+fi);emitBytes(out,f[fi].screen);
+  }
+  if(d.nativeAnimations.length){
+    out.push('; Native LVLLVL animation records: ticks, mutable counter, absolute address, type.');
+    out.push('; BANK1 $3000, BANK2 $3800; equivalent motions in both charsets.');
+    out.push('animated_chars_native_table');
+    for(var ai=0;ai<d.nativeAnimations.length;ai++){
+      var an=d.nativeAnimations[ai];
+      for(var bi=0;bi<2;bi++){
+        var charAddr=(bi?0x3800:0x3000)+(an.charCode*8);
+        out.push(bytesLine([an.ticks,an.ticks,charAddr&255,(charAddr>>>8)&255,an.type]));
+      }
+    }
+    out.push('!byte $00');
+  }
+  for(var fi=0;fi<f.length;fi++){
+    out.push('frame_color_'+fi);emitBytes(out,f[fi].colors);
   }
   return out.join('\n');
 }
@@ -1735,7 +2028,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST126 TEST77 PROBE] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST129 TEST77 NATIVE CHAR + MAP SCROLL + ORIGINAL COLORS] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
@@ -1757,5 +2050,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST126 TEST77 PROBE] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST129 TEST77 NATIVE CHAR + MAP SCROLL + ORIGINAL COLORS] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
