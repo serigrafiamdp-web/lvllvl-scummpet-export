@@ -244,7 +244,7 @@ function buildSource(d){
   out.push('color_saved_front=$36');
   out.push('color_saved_back=$37');
   out.push('color_saved_blank=$38');
-  // TEST131: sparse packed color writes, staged off-screen at $1800..$1fcf.
+  // TEST131-132: sparse packed color writes, staged off-screen at $1800..$1fcf.
   out.push('patch_ptr_lo=$39');
   out.push('patch_ptr_hi=$3a');
   out.push('patch_src_lo=$3b');
@@ -253,6 +253,9 @@ function buildSource(d){
   out.push('patch_count_hi=$3e');
   out.push('patch_dst_lo=$3f');
   out.push('patch_dst_hi=$40');
+  // TEST132: bounded color commits (up to 40 cells per IRQ), never a full IRQ copy.
+  out.push('patch_pending=$41');
+  out.push('patch_budget=$42');
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -281,6 +284,7 @@ function buildSource(d){
   out.push(' sta transition_blank');
   out.push(' sta current_frame');
   out.push(' sta color_mode');
+  out.push(' sta patch_pending');
   out.push(' jsr load_frame');
   out.push(' lda #$01');
   out.push(' sta $d01a');
@@ -292,6 +296,9 @@ function buildSource(d){
   out.push(' sta $ffff');
   out.push(' cli');
   out.push('main_loop');
+  // No new frame or scroll staging until color RAM has finished applying.
+  out.push(' lda patch_pending');
+  out.push(' bne main_loop');
   out.push(' lda transition_request');
   out.push(' beq main_check_prep');
   out.push(' lda transition_ready');
@@ -305,6 +312,9 @@ function buildSource(d){
   out.push(' sta transition_ready');
   out.push(' jmp main_loop');
   out.push('main_check_prep');
+  // Protect the precomputed patch list until the prior step has drained.
+  out.push(' lda patch_pending');
+  out.push(' bne main_loop');
   out.push(' lda prep_request');
   out.push(' beq main_loop');
   out.push(' lda prep_ready');
@@ -329,6 +339,11 @@ function buildSource(d){
   out.push(' lda #$01');
   out.push(' sta $d019');
   if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
+  // Remaining color updates are spread over subsequent raster IRQs.
+  out.push(' lda patch_pending');
+  out.push(' beq irq_color_idle');
+  out.push(' jsr commit_sparse_colors');
+  out.push('irq_color_idle');
   out.push(' lda main_busy');
   out.push(' bne irq_skip_tick');
   out.push(' jsr frame_tick');
@@ -885,7 +900,7 @@ function buildSource(d){
   // $0400/$0800 character screens are mirrored at $1000/$1400 as per-cell colors.
   // No new scroll algorithms: same prepare_requested and ping routines, reused.
   out.push('');
-  out.push('; TEST131 - sparse color update: only changed cells touched in raster IRQ.');
+  out.push('; TEST132 - bounded sparse color update (max 40 writes/IRQ).');
   out.push('; $1800-$1fcf stores up to 1000 two-byte entries: screen offset low, (color << 2) | page.');
   out.push('; Build in main loop after color backbuffer is fully staged, before prep_ready.');
   out.push('build_sparse_colors');
@@ -1006,17 +1021,23 @@ function buildSource(d){
   out.push(' inc patch_count_hi');
   out.push('patch_advance_done');
   out.push(' rts');
-  out.push('commit_sparse_colors');
-  out.push('; Safety budget: if >120 cells change, preserve TEST130 full-color fallback.');
-  out.push(' lda patch_count_hi');
-  out.push(' bne patch_full_fallback');
-  out.push(' lda patch_count_lo');
-  out.push(' cmp #$79');
-  out.push(' bcs patch_full_fallback');
+  out.push('begin_sparse_colors');
   out.push(' lda #$00');
   out.push(' sta patch_ptr_lo');
   out.push(' lda #$18');
   out.push(' sta patch_ptr_hi');
+  out.push(' lda patch_count_lo');
+  out.push(' ora patch_count_hi');
+  out.push(' beq begin_sparse_done');
+  out.push(' lda #$01');
+  out.push(' sta patch_pending');
+  out.push(' jsr commit_sparse_colors');
+  out.push('begin_sparse_done');
+  out.push(' rts');
+  out.push('commit_sparse_colors');
+  out.push('; TEST132: bounded per-IRQ color updates; no expensive 1024-byte fallback.');
+  out.push(' lda #$28');
+  out.push(' sta patch_budget');
   out.push('patch_commit_loop');
   out.push(' lda patch_count_lo');
   out.push(' ora patch_count_hi');
@@ -1048,10 +1069,15 @@ function buildSource(d){
   out.push(' dec patch_count_hi');
   out.push('patch_commit_no_borrow');
   out.push(' dec patch_count_lo');
-  out.push(' jmp patch_commit_loop');
-  out.push('patch_full_fallback');
-  out.push(' jmp copy_color_front_to_ram');
+  out.push(' dec patch_budget');
+  out.push(' bne patch_commit_loop');
+  out.push(' lda patch_count_lo');
+  out.push(' ora patch_count_hi');
+  out.push(' beq patch_commit_done');
+  out.push(' rts');
   out.push('patch_commit_done');
+  out.push(' lda #$00');
+  out.push(' sta patch_pending');
   out.push(' rts');
   out.push('');
   out.push('enter_color_plane');
@@ -1269,7 +1295,7 @@ function buildSource(d){
   out.push('');
   out.push('commit_prepared');
   out.push(' jsr swap_screens');
-  out.push(' jsr commit_sparse_colors');
+  out.push(' jsr begin_sparse_colors');
   out.push(' lda prep_target_fine');
   out.push(' sta fine_pos');
   out.push(' jsr apply_scroll_regs');
@@ -2219,7 +2245,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST131 SPARSE COLOR IRQ] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST132 BOUNDED COLOR IRQ] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
@@ -2241,5 +2267,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST131 SPARSE COLOR IRQ] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST132 BOUNDED COLOR IRQ] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
