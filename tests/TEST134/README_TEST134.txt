@@ -23,6 +23,8 @@ VALIDACION:
 
 INSTRUCCIONES:
 - Abrir index.html de este ZIP o la web GitHub Pages TEST134.
-- Exportar EL MISMO proyecto; probar en VICE si persiste el destello blanco, sobre todo cuando aparece el dibujo.
+- Validado en VICE con el proyecto real: exportacion final aprobada, sin destello blanco.
 - Comparar opcionalmente el PRG TEST134_REPRO_USUARIO_26_ARROBAS.prg, reconstruido del ultimo archivo enviado.
-- PASS VISUAL confirmado por usuario con su proyecto real: exporta correctamente las animaciones de caracteres y Map Scroll a la vez, sin blink blanco, caracteres fantasma ni saltos de linea.\n- PASS adicional confirmado: color de borde y color de fondo del editor se respetan en el PRG ejecutable.\n- Aprobado para promocion a nuevo MASTER el 18/10/2026.
+- PASS VISUAL confirmado por usuario con su proyecto real: exporta correctamente las animaciones de caracteres y Map Scroll a la vez, sin blink blanco, caracteres fantasma ni saltos de linea.
+- PASS adicional confirmado: color de borde y color de fondo del editor se respetan en el PRG ejecutable.
+- Aprobado para promocion a nuevo MASTER el 18/10/2026.
