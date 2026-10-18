@@ -169,6 +169,14 @@ function buildSource(d){
   // TEST136: compile a single-pass color scan ONLY for the isolated 1T/1px
   // one-frame cardinal-scroll path. No added overhead in slower PASS modes.
   var fastColorOnePass=(f.length===1 && f[0].ticks===1 && f[0].pixels===1 && f[0].typeCode>=1 && f[0].typeCode<=4);
+  // A uniformly tiled 40x25 screen with uniform color is periodic every 8px:
+  // changing to the identical coarse screen would be an unnecessary CPU job.
+  // This applies to the real 1000x-$00, cyan PRG, not to general artwork.
+  var fr0=f[0],area0=fr0&&fr0.scrollArea||{};
+  var uniformFastContent=fastColorOnePass && area0.x===0 && area0.y===0 && area0.width===40 && area0.height===25 &&
+    fr0.screen && fr0.colors && fr0.screen.length===1000 && fr0.colors.length===1000 &&
+    Array.prototype.every.call(fr0.screen,function(c){return c===fr0.screen[0];}) &&
+    Array.prototype.every.call(fr0.colors,function(c){return c===fr0.colors[0];});
   var durations=[],durationLo=[],durationHi=[],types=[],ticks=[],px=[],bgs=[],borders=[],fgs=[],banks=[],ptrlo=[],ptrhi=[],windowWs=[],windowHs=[],windowOffLo=[],windowOffHi=[],maxXLo=[],maxXHi=[],maxYLo=[],maxYHi=[],guardRows=[],d011bases=[],d016bases=[],d016HorizontalBases=[];
   for(var i=0;i<f.length;i++){
     durations.push(f[i].duration);durationLo.push(f[i].duration&255);durationHi.push((f[i].duration>>8)&255);types.push(f[i].typeCode);ticks.push(f[i].ticks);px.push(f[i].pixels);
@@ -265,6 +273,14 @@ function buildSource(d){
   out.push('patch_phase=$45');
   // TEST135: single-frame, 1 tick/pixel, cardinals only. Keep old paths for other modes.
   out.push('fast_prefetch=$46');
+  // TEST138: the gear is active only for fast 1T scroll with animated glyphs.
+  // Preserve the prior assembly byte for byte in every other mode.
+  var gearCoupled=fastColorOnePass && d.nativeAnimations.length>0;
+  if(gearCoupled){
+    out.push('gear_previous_fine=$47');
+    out.push('gear_advanced_count=$48');
+    out.push('gear_wait_count=$49');
+  }
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -294,6 +310,11 @@ function buildSource(d){
   out.push(' sta current_frame');
   out.push(' sta color_mode');
   out.push(' sta patch_pending');
+  if(gearCoupled){
+    out.push(' sta gear_previous_fine');
+    out.push(' sta gear_advanced_count');
+    out.push(' sta gear_wait_count');
+  }
   out.push(' jsr load_frame');
   out.push(' lda #$01');
   out.push(' sta $d01a');
@@ -347,7 +368,14 @@ function buildSource(d){
   out.push(' pha');
   out.push(' lda #$01');
   out.push(' sta $d019');
-  if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
+  if(gearCoupled){
+    // Save map position at start of this IRQ. The glyph must only count
+    // a tick after the map actually advances a pixel, including busy IRQs.
+    out.push(' lda fine_pos');
+    out.push(' sta gear_previous_fine');
+  } else if(d.nativeAnimations.length){
+    out.push(' jsr animate_chars_native');
+  }
   // Remaining color updates are spread over subsequent raster IRQs.
   out.push(' lda patch_pending');
   out.push(' beq irq_color_idle');
@@ -362,6 +390,19 @@ function buildSource(d){
   out.push('irq_normal_tick');
   out.push(' jsr frame_tick');
   out.push('irq_skip_tick');
+  if(gearCoupled){
+    out.push(' lda fine_pos');
+    out.push(' cmp gear_previous_fine');
+    out.push(' beq irq_gear_map_wait');
+    // Native animation counters (1..255) now count accepted map pixels;
+    // the type, direction, and ticks chosen in the editor are unchanged.
+    out.push(' inc gear_advanced_count');
+    out.push(' jsr animate_chars_native');
+    out.push(' jmp irq_gear_done');
+    out.push('irq_gear_map_wait');
+    out.push(' inc gear_wait_count');
+    out.push('irq_gear_done');
+  }
   out.push(' pla');
   out.push(' tay');
   out.push(' pla');
@@ -507,6 +548,27 @@ function buildSource(d){
   // TEST135: busy IRQ may advance ONLY the VIC's fine-scroll bits; it cannot
   // use step_dispatch or apply_scroll_regs (both share tmp_byte with main).
   // No new coarse-buffer request / pointer modification during preparation.
+  // TEST138: On an entirely periodic 8x8 uniform map there is no reason to
+  // build and swap an IDENTICAL coarse screen. Wrap fine bits every 8 ticks,
+  // with no buffer wait. The gear still uses actual fine_pos progress.
+  if(uniformFastContent){
+    out.push('uniform_fast_step');
+    out.push(' lda scroll_type');
+    out.push(' cmp #$01');
+    out.push(' beq uniform_fast_dec');
+    out.push(' cmp #$03');
+    out.push(' beq uniform_fast_dec');
+    out.push(' inc fine_pos');
+    out.push(' jmp uniform_fast_mask');
+    out.push('uniform_fast_dec');
+    out.push(' dec fine_pos');
+    out.push('uniform_fast_mask');
+    out.push(' lda fine_pos');
+    out.push(' and #$07');
+    out.push(' sta fine_pos');
+    out.push(' jmp apply_scroll_regs');
+    out.push('');
+  }
   out.push('fast_busy_fine_tick');
   out.push(' dec step_counter');
   out.push(' bne fast_busy_done');
@@ -595,6 +657,12 @@ function buildSource(d){
   out.push(' beq frame_tick_done');
   out.push(' dec step_counter');
   out.push(' bne frame_tick_done');
+  if(uniformFastContent){
+    out.push(' lda ticks_per_step');
+    out.push(' sta step_counter');
+    out.push(' jsr uniform_fast_step');
+    out.push(' rts');
+  }
   out.push(' lda fast_prefetch');
   out.push(' beq frame_tick_old_prep');
   // With prefetch, DO NOT commit the prepared screen before the 8th pixel.
@@ -2496,7 +2564,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST137 NO DROPPED DURATION TICK] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST138 MAP-DRIVEN CHAR GEAR] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
@@ -2518,5 +2586,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST137 NO DROPPED DURATION TICK] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST138 MAP-DRIVEN CHAR GEAR] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
