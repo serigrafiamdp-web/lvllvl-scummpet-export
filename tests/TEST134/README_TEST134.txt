@@ -1,6 +1,6 @@
 RICO / LVLLVL — TEST134 — 18 OCTUBRE 2026
 OBJETIVO: quitar destellos blancos ocasionales al combinar la animacion ORIGINAL de caracteres @ con Map Scroll.
-ESTADO: PASS DE CODIGO / PENDIENTE PASS VISUAL EN VICE.
+ESTADO: PASS FINAL EN VICE / 18 OCT 2026.
 
 DIAGNOSTICO REAL (PRG del usuario Untitled (2).prg, exportado con TEST133):
 - Un frame; Map Scroll RIGHT, 6 ticks/step, 1 pixel/step.
@@ -25,4 +25,4 @@ INSTRUCCIONES:
 - Abrir index.html de este ZIP o la web GitHub Pages TEST134.
 - Exportar EL MISMO proyecto; probar en VICE si persiste el destello blanco, sobre todo cuando aparece el dibujo.
 - Comparar opcionalmente el PRG TEST134_REPRO_USUARIO_26_ARROBAS.prg, reconstruido del ultimo archivo enviado.
-- No promover a MASTER antes de comprobar PASS visual con el proyecto real.
+- PASS VISUAL confirmado por usuario con su proyecto real: exporta correctamente las animaciones de caracteres y Map Scroll a la vez, sin blink blanco, caracteres fantasma ni saltos de linea.\n- PASS adicional confirmado: color de borde y color de fondo del editor se respetan en el PRG ejecutable.\n- Aprobado para promocion a nuevo MASTER el 18/10/2026.
