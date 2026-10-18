@@ -925,9 +925,11 @@ function buildSource(d){
   out.push(' sta patch_src_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_0');
-  // Two-pass ordering: visible glyphs first, then color changes behind blank cells.
+  // TEST134: visibility comes from the actual C64 glyph bitmaps in both banks,
+  // not from TEST77's reserved empty-scroller code (which misses real space $20).
   out.push(' lda (patch_chars_lo),y');
-  out.push(' cmp blank_char');
+  out.push(' tax');
+  out.push(' lda character_visibility_table,x');
   out.push(' beq patch_pass_blank_0');
   out.push(' lda patch_phase');
   out.push(' bne patch_scan_next_0');
@@ -936,8 +938,12 @@ function buildSource(d){
   out.push(' lda patch_phase');
   out.push(' beq patch_scan_next_0');
   out.push('patch_pass_accept_0');
+  // C64 color RAM returns only a defined low nibble; ignore the floating high nibble.
+  out.push(' lda $d800,y');
+  out.push(' and #$0f');
+  out.push(' sta tmp_byte');
   out.push(' lda (patch_src_lo),y');
-  out.push(' cmp $d800,y');
+  out.push(' cmp tmp_byte');
   out.push(' beq patch_scan_next_0');
   out.push(' tax');
   out.push(' tya');
@@ -960,9 +966,11 @@ function buildSource(d){
   out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_1');
-  // Two-pass ordering: visible glyphs first, then color changes behind blank cells.
+  // TEST134: visibility comes from the actual C64 glyph bitmaps in both banks,
+  // not from TEST77's reserved empty-scroller code (which misses real space $20).
   out.push(' lda (patch_chars_lo),y');
-  out.push(' cmp blank_char');
+  out.push(' tax');
+  out.push(' lda character_visibility_table,x');
   out.push(' beq patch_pass_blank_1');
   out.push(' lda patch_phase');
   out.push(' bne patch_scan_next_1');
@@ -971,8 +979,12 @@ function buildSource(d){
   out.push(' lda patch_phase');
   out.push(' beq patch_scan_next_1');
   out.push('patch_pass_accept_1');
+  // C64 color RAM returns only a defined low nibble; ignore the floating high nibble.
+  out.push(' lda $d900,y');
+  out.push(' and #$0f');
+  out.push(' sta tmp_byte');
   out.push(' lda (patch_src_lo),y');
-  out.push(' cmp $d900,y');
+  out.push(' cmp tmp_byte');
   out.push(' beq patch_scan_next_1');
   out.push(' tax');
   out.push(' tya');
@@ -995,9 +1007,11 @@ function buildSource(d){
   out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_2');
-  // Two-pass ordering: visible glyphs first, then color changes behind blank cells.
+  // TEST134: visibility comes from the actual C64 glyph bitmaps in both banks,
+  // not from TEST77's reserved empty-scroller code (which misses real space $20).
   out.push(' lda (patch_chars_lo),y');
-  out.push(' cmp blank_char');
+  out.push(' tax');
+  out.push(' lda character_visibility_table,x');
   out.push(' beq patch_pass_blank_2');
   out.push(' lda patch_phase');
   out.push(' bne patch_scan_next_2');
@@ -1006,8 +1020,12 @@ function buildSource(d){
   out.push(' lda patch_phase');
   out.push(' beq patch_scan_next_2');
   out.push('patch_pass_accept_2');
+  // C64 color RAM returns only a defined low nibble; ignore the floating high nibble.
+  out.push(' lda $da00,y');
+  out.push(' and #$0f');
+  out.push(' sta tmp_byte');
   out.push(' lda (patch_src_lo),y');
-  out.push(' cmp $da00,y');
+  out.push(' cmp tmp_byte');
   out.push(' beq patch_scan_next_2');
   out.push(' tax');
   out.push(' tya');
@@ -1030,9 +1048,11 @@ function buildSource(d){
   out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_3');
-  // Two-pass ordering: visible glyphs first, then color changes behind blank cells.
+  // TEST134: visibility comes from the actual C64 glyph bitmaps in both banks,
+  // not from TEST77's reserved empty-scroller code (which misses real space $20).
   out.push(' lda (patch_chars_lo),y');
-  out.push(' cmp blank_char');
+  out.push(' tax');
+  out.push(' lda character_visibility_table,x');
   out.push(' beq patch_pass_blank_3');
   out.push(' lda patch_phase');
   out.push(' bne patch_scan_next_3');
@@ -1041,8 +1061,12 @@ function buildSource(d){
   out.push(' lda patch_phase');
   out.push(' beq patch_scan_next_3');
   out.push('patch_pass_accept_3');
+  // C64 color RAM returns only a defined low nibble; ignore the floating high nibble.
+  out.push(' lda $db00,y');
+  out.push(' and #$0f');
+  out.push(' sta tmp_byte');
   out.push(' lda (patch_src_lo),y');
-  out.push(' cmp $db00,y');
+  out.push(' cmp tmp_byte');
   out.push(' beq patch_scan_next_3');
   out.push(' tax');
   out.push(' tya');
@@ -2233,6 +2257,21 @@ function buildSource(d){
   }
   emitNumericTable(out,'frame_color_ptr_lo',colorPtrLo);
   emitNumericTable(out,'frame_color_ptr_hi',colorPtrHi);
+  // TEST134: treat any character without pixels in BOTH C64 banks as blank;
+  // animated characters always take priority even if their first bitmap is empty.
+  // This fixes the false classification of normal space ($20) as visible when
+  // blank_char is the reserved scroller character ($ff).
+  var animatedCharCodes={};
+  for(var avi=0;avi<d.nativeAnimations.length;avi++)animatedCharCodes[d.nativeAnimations[avi].charCode&255]=true;
+  var charVisible=[];
+  for(var code=0;code<256;code++){
+    var visible=!!animatedCharCodes[code];
+    for(var row=0;row<8&&!visible;row++){
+      if(d.bank1[code*8+row]||d.bank2[code*8+row])visible=true;
+    }
+    charVisible.push(visible?1:0);
+  }
+  emitNumericTable(out,'character_visibility_table',charVisible);
   out.push('');
   out.push('*=$3000');
   out.push('charset_bank1');emitBytes(out,d.bank1);
@@ -2333,5 +2372,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST133 VISIBLE-FIRST COLORS] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST134 GLYPH-AWARE COLOR FIX] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
