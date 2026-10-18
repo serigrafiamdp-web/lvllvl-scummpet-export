@@ -1,5 +1,10 @@
 # LVLLVL SCUMMPET EXPORT — RICO MOD
 
+**MASTER ACTUAL (18/10/2026): TEST138 — SCUMM PIXEL GEAR — PASS VICE.**
+Scroll horizontal perfecto en 40 columnas y vertical perfecto en 24 de 25 filas, confirmado por usuario. Sincronizacion de Animated Char y Map Scroll a 1 tick sin movimiento lateral intermitente. El motor SCUMM-PET-C64 aporta el principio de scheduler/IRQ maestro; no es un port completo del motor.
+
+**ZIP MASTER byte-identico al TEST138 aprobado:** `MASTER_LVL_RICO_SCUMM_PIXEL_GEAR_TEST138_PASS_18_OCT_2026.zip` (SHA256 `a8835ed08e0b4eab2a26150531e72ba7d5e138f1e311e815c9ffb1ccb3a89227`). Documentacion y limites: [releases/MASTER_LVL_RICO_TEST138_SCUMM_PIXEL_GEAR_18_OCT_2026/README.md](releases/MASTER_LVL_RICO_TEST138_SCUMM_PIXEL_GEAR_18_OCT_2026/README.md).
+
 Fork de LVLLVL orientado al flujo **RICO / SCUMM / Commodore 64**.
 
 La idea principal de esta versión es mantener el editor cómodo para dibujar, pero
@@ -180,6 +185,16 @@ en `src` como en `dist`.
 
 ## Estado técnico / milestones
 
+### MASTER TEST138 — INICIO IMPLEMENTACION ARQUITECTONICA SCUMM (18/10/2026)
+
+- **PASS VISUAL adicional:** scroll horizontal perfecto con las **40 columnas de ancho**; vertical perfecto con **24 filas de 25**. Una fila queda fuera de la zona de scroll vertical fluido (sin asumir posicion ni implementacion de la fila excluida).
+- **Reloj visual compartido:** Animated Chars conserva sus ticks, pero solo los contabiliza cuando hay movimiento fino real de Map Scroll. A 1 tick se mantiene la diagonal fluida.
+- **Pantallas uniformes:** modo VIC modulo 8 evita preparar buffers identicos, reduciendo bloqueos.
+- **SCUMM-PET-C64:** adopcion de principios comprobados de IRQ maestra / scheduler unico; no se han integrado sus binarios ni reemplazado el motor LVLLVL completo.
+- **Reversion segura:** rama milestone TEST138 congelada, MASTER TEST134 respaldado. ZIP TEST138 promovido a MASTER sin tocar ni un byte del runtime.
+- **Detalles y proximas pruebas:** [release MASTER TEST138](releases/MASTER_LVL_RICO_TEST138_SCUMM_PIXEL_GEAR_18_OCT_2026/README.md). Otras configuraciones siguen pendientes de PASS visual.
+
+
 ### MILESTONE TEST138 PIXEL GEAR PASS (18/10/2026)
 
 **Estado: PASS visual confirmado en VICE.** Soluciona el movimiento lateral periodico al combinar **Map Scroll UP 1 tick / 1 px** y **Animated Char RIGHT 1 tick**, manteniendo el movimiento diagonal fluido.
@@ -190,11 +205,11 @@ en `src` como en `dist`.
 - **Rama congelada:** `milestone/lvl-rico-pixel-gear-test138-pass-18-oct-2026`.
 - **Snapshot de Biblioteca:** `MILESTONE_LVL_RICO_TEST138_PIXEL_GEAR_PASS_18_OCT_2026.zip` — SHA256 `a8835ed08e0b4eab2a26150531e72ba7d5e138f1e311e815c9ffb1ccb3a89227`.
 - **Punto de regreso:** `milestones/TEST138_PIXEL_GEAR_PASS_18_OCT_2026/`.
-- **MAIN conserva MASTER TEST134 PASS**, sin cambios. Los mapas no uniformes siguen pendientes de PASS visual con esta mejora.
+- **MAIN PROMOVIDO A MASTER TEST138 PASS**. MASTER TEST134 se conserva en `backup/master-lvl-rico-test134-before-test138-18-oct-2026`. Los mapas no uniformes siguen pendientes de PASS visual con esta mejora.
 
 
 
-**18/10/2026 — MASTER ACTUAL: LVL-RICO / TEST134 PASS VISUAL EN VICE**
+**18/10/2026 — MASTER ANTERIOR: LVL-RICO / TEST134 PASS VISUAL EN VICE**
 
 - **NUEVO MASTER APROBADO:** TEST134; exportacion PRG combina animacion original de caracteres y Map Scroll.
 - Corregidos destellos blancos y artefactos de color (Color RAM $D800 nibble bajo de 4 bits, prioridad de glifos visibles por charset).
