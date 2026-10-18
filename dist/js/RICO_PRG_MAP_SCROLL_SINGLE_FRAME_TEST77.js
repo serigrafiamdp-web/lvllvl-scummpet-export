@@ -1946,10 +1946,21 @@ function buildSource(d){
   emitNumericTable(out,'d016_horizontal_base_table',d016HorizontalBases);
   emitNumericTable(out,'frame_ptr_lo',ptrlo);
   emitNumericTable(out,'frame_ptr_hi',ptrhi);
-  out.push('frame_color_ptr_lo');
-  for(var ci=0;ci<f.length;ci++)out.push('!byte <frame_color_'+ci);
-  out.push('frame_color_ptr_hi');
-  for(var ci=0;ci<f.length;ci++)out.push('!byte >frame_color_'+ci);
+  // TEST130: LVLLVL's built-in assembler rejects forward label expressions
+  // in !byte (<frame_color_0 / >frame_color_0). The color data follows
+  // all 1000-byte screen frames and the optional 10-byte native-animation
+  // records plus one terminating zero. Compute the real addresses directly.
+  var animRecordsSize=d.nativeAnimations.length?(d.nativeAnimations.length*10+1):0;
+  var firstColorAddr=0x4000+f.length*1000+animRecordsSize;
+  var colorPtrLo=[],colorPtrHi=[];
+  for(var ci=0;ci<f.length;ci++){
+    var colorAddr=firstColorAddr+ci*1000;
+    if(colorAddr+1000>0x10000)throw new Error('TEST130: datos de color exceden RAM C64 (64 KB). Reducir cantidad de frames.');
+    colorPtrLo.push(colorAddr&255);
+    colorPtrHi.push((colorAddr>>>8)&255);
+  }
+  emitNumericTable(out,'frame_color_ptr_lo',colorPtrLo);
+  emitNumericTable(out,'frame_color_ptr_hi',colorPtrHi);
   out.push('');
   out.push('*=$3000');
   out.push('charset_bank1');emitBytes(out,d.bank1);
@@ -2028,7 +2039,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST129 TEST77 NATIVE CHAR + MAP SCROLL + ORIGINAL COLORS] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST130 TEST77 NUMERIC COLOR POINTERS] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
@@ -2050,5 +2061,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST129 TEST77 NATIVE CHAR + MAP SCROLL + ORIGINAL COLORS] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST130 TEST77 NUMERIC COLOR POINTERS] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
