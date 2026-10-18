@@ -432,11 +432,11 @@ TEST133 — FAIL PARCIAL / 18 OCT 2026
 - Usuario sigue viendo blink blanco ocasional en exportacion de su proyecto real, aunque demo sintetico no parpadea.
 - Usuario envio Untitled (2).prg para comparar byte a byte con demo.
 
-TEST134 — PENDIENTE VICE / 18 OCT 2026
+TEST134 — PASS FINAL / 18 OCT 2026
 - Se confirma en PRG real: 1 frame, RIGHT scroll 6 ticks 1px, caracter $00 animado UP 6 ticks, 26 celdas del caracter $00 en celeste 14 y 974 espacios $20 blancos 1.
 - Error de TEST133: compara color entero con Color RAM (solo 4 bits validos), provocando falsas diferencias de color en C64 real.
 - Error adicional: prioridades usan blank_char ($ff), no glifos realmente vacios como el espacio $20.
 - TEST134 corrige lectura de Color RAM en los cuatro bloques con AND #$0f; prioridades usan tabla de visibilidad compilada desde BANK1/BANK2 y lista de animaciones, no codigos asumidos.
 - Emulacion 6502 con nibble alto de Color RAM simulado: 8/8 PASS. Caso PRG real desplazado 1 caracter: 30 colores modificados, listos en 1 IRQ.
 - Assembler nativo LVLLVL: 6/6 PASS; PRG real reconstruido mantuvo datos de charsets/screen/colors/animacion byte a byte.
-- PRG y WEB aun pendientes de validacion en VICE. MASTER no se toca.
+- PASS VISUAL CONFIRMADO por usuario: animacion original de los chars y Map Scroll simultaneos, sin parpadeos blancos ni artefactos.\n- PASS VALIDACION FINAL: colores de caracteres, color de borde y color de fondo configurados en el editor se respetan al exportar a ejecutable C64.\n- 18/10/2026: promocion aprobada para nuevo MASTER LVL-RICO TEST134. MASTER previo 17/10 respaldado.
