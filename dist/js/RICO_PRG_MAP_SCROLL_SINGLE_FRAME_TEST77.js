@@ -166,6 +166,9 @@ function supports(self,args){
 }
 function buildSource(d){
   var f=d.frames,out=[];
+  // TEST136: compile a single-pass color scan ONLY for the isolated 1T/1px
+  // one-frame cardinal-scroll path. No added overhead in slower PASS modes.
+  var fastColorOnePass=(f.length===1 && f[0].ticks===1 && f[0].pixels===1 && f[0].typeCode>=1 && f[0].typeCode<=4);
   var durations=[],durationLo=[],durationHi=[],types=[],ticks=[],px=[],bgs=[],borders=[],fgs=[],banks=[],ptrlo=[],ptrhi=[],windowWs=[],windowHs=[],windowOffLo=[],windowOffHi=[],maxXLo=[],maxXHi=[],maxYLo=[],maxYHi=[],guardRows=[],d011bases=[],d016bases=[],d016HorizontalBases=[];
   for(var i=0;i<f.length;i++){
     durations.push(f[i].duration);durationLo.push(f[i].duration&255);durationHi.push((f[i].duration>>8)&255);types.push(f[i].typeCode);ticks.push(f[i].ticks);px.push(f[i].pixels);
@@ -1018,6 +1021,7 @@ function buildSource(d){
   out.push(' sta patch_src_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_0');
+  if(!fastColorOnePass){
   // TEST134: visibility comes from the actual C64 glyph bitmaps in both banks,
   // not from TEST77's reserved empty-scroller code (which misses real space $20).
   out.push(' lda (patch_chars_lo),y');
@@ -1031,6 +1035,7 @@ function buildSource(d){
   out.push(' lda patch_phase');
   out.push(' beq patch_scan_next_0');
   out.push('patch_pass_accept_0');
+  }
   // C64 color RAM returns only a defined low nibble; ignore the floating high nibble.
   out.push(' lda $d800,y');
   out.push(' and #$0f');
@@ -1059,6 +1064,7 @@ function buildSource(d){
   out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_1');
+  if(!fastColorOnePass){
   // TEST134: visibility comes from the actual C64 glyph bitmaps in both banks,
   // not from TEST77's reserved empty-scroller code (which misses real space $20).
   out.push(' lda (patch_chars_lo),y');
@@ -1072,6 +1078,7 @@ function buildSource(d){
   out.push(' lda patch_phase');
   out.push(' beq patch_scan_next_1');
   out.push('patch_pass_accept_1');
+  }
   // C64 color RAM returns only a defined low nibble; ignore the floating high nibble.
   out.push(' lda $d900,y');
   out.push(' and #$0f');
@@ -1100,6 +1107,7 @@ function buildSource(d){
   out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_2');
+  if(!fastColorOnePass){
   // TEST134: visibility comes from the actual C64 glyph bitmaps in both banks,
   // not from TEST77's reserved empty-scroller code (which misses real space $20).
   out.push(' lda (patch_chars_lo),y');
@@ -1113,6 +1121,7 @@ function buildSource(d){
   out.push(' lda patch_phase');
   out.push(' beq patch_scan_next_2');
   out.push('patch_pass_accept_2');
+  }
   // C64 color RAM returns only a defined low nibble; ignore the floating high nibble.
   out.push(' lda $da00,y');
   out.push(' and #$0f');
@@ -1141,6 +1150,7 @@ function buildSource(d){
   out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_3');
+  if(!fastColorOnePass){
   // TEST134: visibility comes from the actual C64 glyph bitmaps in both banks,
   // not from TEST77's reserved empty-scroller code (which misses real space $20).
   out.push(' lda (patch_chars_lo),y');
@@ -1154,6 +1164,7 @@ function buildSource(d){
   out.push(' lda patch_phase');
   out.push(' beq patch_scan_next_3');
   out.push('patch_pass_accept_3');
+  }
   // C64 color RAM returns only a defined low nibble; ignore the floating high nibble.
   out.push(' lda $db00,y');
   out.push(' and #$0f');
@@ -1179,6 +1190,7 @@ function buildSource(d){
   out.push(' iny');
   out.push(' cpy #$e8');
   out.push(' bne patch_scan_3');
+  if(!fastColorOnePass){
   out.push(' lda patch_phase');
   out.push(' bne patch_scan_finish');
   out.push(' inc patch_phase');
@@ -1189,6 +1201,7 @@ function buildSource(d){
   out.push(' sta patch_src_hi');
   out.push(' ldy #$00');
   out.push(' jmp patch_scan_0');
+  }
   out.push('patch_scan_finish');
   out.push(' rts');
   out.push('patch_advance');
@@ -2475,7 +2488,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST135 EARLY PREFETCH 1T] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST136 EARLY PREFETCH 1T] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
@@ -2497,5 +2510,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST135 EARLY PREFETCH 1T] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST136 EARLY PREFETCH 1T] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
