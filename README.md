@@ -180,7 +180,18 @@ en `src` como en `dist`.
 
 ## Estado técnico / milestones
 
-**17/10/2026 — MASTER ACTUAL: LVL-RICO / TEST120 PASS**
+**18/10/2026 — MASTER ACTUAL: LVL-RICO / TEST134 PASS VISUAL EN VICE**
+
+- **NUEVO MASTER APROBADO:** TEST134; exportacion PRG combina animacion original de caracteres y Map Scroll.
+- Corregidos destellos blancos y artefactos de color (Color RAM $D800 nibble bajo de 4 bits, prioridad de glifos visibles por charset).
+- **PASS confirmado por usuario con proyecto real:** sin blink blanco, sin caracteres fantasma ni saltos incorrectos; color de caracteres, borde y fondo del editor se mantienen en el PRG.
+- Web activa: `https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/` (gh-pages TEST134).
+- Codigo fuente principal `dist/index.html` y `dist/js/RICO_PRG_MAP_SCROLL_SINGLE_FRAME_TEST77.js` igual a la version TEST134 de gh-pages.
+- El MASTER del 17/10 (TEST120) se conserva en la rama `backup/master-lvl-rico-17-oct-before-test134-pass`.
+- Registro tecnico y regresiones en `tests/TEST129/` a `tests/TEST134/`.
+
+
+**17/10/2026 — MASTER ANTERIOR: LVL-RICO / TEST120 PASS**
 
 - Base validada por ZIP: `LVLLVL_TEST120_ISOLATED_CHAR_RENDER.zip`.
 - MASTER consolidado: `MASTER_LVL-RICO_17_OCTUBRE_2026.zip`.
