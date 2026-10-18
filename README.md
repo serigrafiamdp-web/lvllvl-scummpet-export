@@ -180,6 +180,20 @@ en `src` como en `dist`.
 
 ## Estado técnico / milestones
 
+### MILESTONE TEST138 PIXEL GEAR PASS (18/10/2026)
+
+**Estado: PASS visual confirmado en VICE.** Soluciona el movimiento lateral periodico al combinar **Map Scroll UP 1 tick / 1 px** y **Animated Char RIGHT 1 tick**, manteniendo el movimiento diagonal fluido.
+
+- **Engranaje:** cada Animated Char conserva su contador configurable, pero recibe el tick al confirmar un avance fino real del mapa.
+- **Pantallas uniformes 40×25:** avance fino VIC continuo sin preparar pantallas identicas para cada bloque de 8 pixeles.
+- **Verificacion:** 48/48 compilaciones y 32 avances finos consecutivos sin espera en la simulacion; PASS visual del usuario en VICE con su mapa real.
+- **Rama congelada:** `milestone/lvl-rico-pixel-gear-test138-pass-18-oct-2026`.
+- **Snapshot de Biblioteca:** `MILESTONE_LVL_RICO_TEST138_PIXEL_GEAR_PASS_18_OCT_2026.zip` — SHA256 `a8835ed08e0b4eab2a26150531e72ba7d5e138f1e311e815c9ffb1ccb3a89227`.
+- **Punto de regreso:** `milestones/TEST138_PIXEL_GEAR_PASS_18_OCT_2026/`.
+- **MAIN conserva MASTER TEST134 PASS**, sin cambios. Los mapas no uniformes siguen pendientes de PASS visual con esta mejora.
+
+
+
 **18/10/2026 — MASTER ACTUAL: LVL-RICO / TEST134 PASS VISUAL EN VICE**
 
 - **NUEVO MASTER APROBADO:** TEST134; exportacion PRG combina animacion original de caracteres y Map Scroll.
