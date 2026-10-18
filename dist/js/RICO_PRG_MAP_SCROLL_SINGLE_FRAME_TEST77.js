@@ -260,6 +260,8 @@ function buildSource(d){
   out.push('patch_chars_lo=$43');
   out.push('patch_chars_hi=$44');
   out.push('patch_phase=$45');
+  // TEST135: single-frame, 1 tick/pixel, cardinals only. Keep old paths for other modes.
+  out.push('fast_prefetch=$46');
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -349,7 +351,12 @@ function buildSource(d){
   out.push(' jsr commit_sparse_colors');
   out.push('irq_color_idle');
   out.push(' lda main_busy');
-  out.push(' bne irq_skip_tick');
+  out.push(' beq irq_normal_tick');
+  out.push(' lda fast_prefetch');
+  out.push(' beq irq_skip_tick');
+  out.push(' jsr fast_busy_fine_tick');
+  out.push(' jmp irq_skip_tick');
+  out.push('irq_normal_tick');
   out.push(' jsr frame_tick');
   out.push('irq_skip_tick');
   out.push(' pla');
@@ -494,6 +501,53 @@ function buildSource(d){
     out.push(' rts');
     out.push('');
   }
+  // TEST135: busy IRQ may advance ONLY the VIC's fine-scroll bits; it cannot
+  // use step_dispatch or apply_scroll_regs (both share tmp_byte with main).
+  // No new coarse-buffer request / pointer modification during preparation.
+  out.push('fast_busy_fine_tick');
+  out.push(' dec step_counter');
+  out.push(' bne fast_busy_done');
+  out.push(' lda ticks_per_step');
+  out.push(' sta step_counter');
+  out.push(' lda prep_request');
+  out.push(' beq fast_busy_done');
+  out.push(' lda prep_target_fine');
+  out.push(' eor #$07');
+  out.push(' cmp fine_pos');
+  out.push(' beq fast_busy_done');
+  out.push(' lda scroll_type');
+  out.push(' cmp #$01');
+  out.push(' beq fast_busy_dec_vertical');
+  out.push(' cmp #$03');
+  out.push(' beq fast_busy_dec_horizontal');
+  out.push(' cmp #$02');
+  out.push(' beq fast_busy_inc_vertical');
+  out.push(' inc fine_pos');
+  out.push(' jmp fast_busy_horizontal');
+  out.push('fast_busy_dec_horizontal');
+  out.push(' dec fine_pos');
+  out.push(' jmp fast_busy_horizontal');
+  out.push('fast_busy_inc_vertical');
+  out.push(' inc fine_pos');
+  out.push(' jmp fast_busy_vertical');
+  out.push('fast_busy_dec_vertical');
+  out.push(' dec fine_pos');
+  out.push('fast_busy_vertical');
+  out.push(' ldx current_frame');
+  out.push(' lda fine_pos');
+  out.push(' and #$07');
+  out.push(' ora d011_base_table,x');
+  out.push(' sta $d011');
+  out.push(' rts');
+  out.push('fast_busy_horizontal');
+  out.push(' ldx current_frame');
+  out.push(' lda fine_pos');
+  out.push(' and #$07');
+  out.push(' ora d016_horizontal_base_table,x');
+  out.push(' sta $d016');
+  out.push('fast_busy_done');
+  out.push(' rts');
+  out.push('');
   out.push('frame_tick');
   out.push(' lda transition_request');
   out.push(' beq frame_tick_timer');
@@ -530,6 +584,26 @@ function buildSource(d){
   out.push(' beq frame_tick_done');
   out.push(' dec step_counter');
   out.push(' bne frame_tick_done');
+  out.push(' lda fast_prefetch');
+  out.push(' beq frame_tick_old_prep');
+  // With prefetch, DO NOT commit the prepared screen before the 8th pixel.
+  // Continue 1px each IRQ, then swap when reaching prep_target_fine.
+  out.push(' lda ticks_per_step');
+  out.push(' sta step_counter');
+  out.push(' lda prep_request');
+  out.push(' beq frame_tick_new_step');
+  out.push(' lda prep_target_fine');
+  out.push(' eor #$07');
+  out.push(' cmp fine_pos');
+  out.push(' bne frame_tick_fast_advance');
+  out.push(' lda prep_ready');
+  out.push(' beq frame_tick_prep_wait');
+  out.push(' jsr commit_prepared');
+  out.push(' rts');
+  out.push('frame_tick_fast_advance');
+  out.push(' jsr step_dispatch');
+  out.push(' rts');
+  out.push('frame_tick_old_prep');
   out.push(' lda prep_request');
   out.push(' beq frame_tick_new_step');
   out.push(' lda prep_ready');
@@ -628,6 +702,25 @@ function buildSource(d){
   out.push(' sta step_counter');
   out.push(' lda pixels_table,x');
   out.push(' sta pixels_per_step');
+  out.push(' lda #$00');
+  out.push(' sta fast_prefetch');
+  // The first isolated optimization is intentionally scoped to single-frame
+  // 8x8 standard scrolls (UP/DOWN/LEFT/RIGHT), 1 pixel and 1 tick per step.
+  if(f.length===1){
+    out.push(' lda scroll_type');
+    out.push(' beq load_no_fast_prefetch');
+    out.push(' cmp #$05');
+    out.push(' bcs load_no_fast_prefetch');
+    out.push(' lda ticks_per_step');
+    out.push(' cmp #$01');
+    out.push(' bne load_no_fast_prefetch');
+    out.push(' lda pixels_per_step');
+    out.push(' cmp #$01');
+    out.push(' bne load_no_fast_prefetch');
+    out.push(' lda #$01');
+    out.push(' sta fast_prefetch');
+    out.push('load_no_fast_prefetch');
+  }
   out.push(' lda #$00');
   out.push(' sta ping_pos_lo');
   out.push(' sta ping_pos_hi');
@@ -1482,8 +1575,16 @@ function buildSource(d){
   out.push(' beq step_up_wait');
   out.push(' dec fine_pos');
   out.push(' jsr apply_scroll_regs');
+  out.push(' lda fast_prefetch');
+  out.push(' beq step_up_old_prepare');
+  out.push(' lda fine_pos');
+  out.push(' cmp #$06');
+  out.push(' bne step_up_done');
+  out.push(' jmp step_up_do_prepare');
+  out.push('step_up_old_prepare');
   out.push(' lda fine_pos');
   out.push(' bne step_up_done');
+  out.push('step_up_do_prepare');
   out.push(' lda #$01');
   out.push(' ldx #$07');
   out.push(' jsr request_prepare');
@@ -1497,9 +1598,17 @@ function buildSource(d){
   out.push(' beq step_down_wait');
   out.push(' inc fine_pos');
   out.push(' jsr apply_scroll_regs');
+  out.push(' lda fast_prefetch');
+  out.push(' beq step_down_old_prepare');
+  out.push(' lda fine_pos');
+  out.push(' cmp #$01');
+  out.push(' bne step_down_done');
+  out.push(' jmp step_down_do_prepare');
+  out.push('step_down_old_prepare');
   out.push(' lda fine_pos');
   out.push(' cmp #$07');
   out.push(' bne step_down_done');
+  out.push('step_down_do_prepare');
   out.push(' lda #$02');
   out.push(' ldx #$00');
   out.push(' jsr request_prepare');
@@ -1512,8 +1621,16 @@ function buildSource(d){
   out.push(' beq step_left_wait');
   out.push(' dec fine_pos');
   out.push(' jsr apply_scroll_regs');
+  out.push(' lda fast_prefetch');
+  out.push(' beq step_left_old_prepare');
+  out.push(' lda fine_pos');
+  out.push(' cmp #$06');
+  out.push(' bne step_left_done');
+  out.push(' jmp step_left_do_prepare');
+  out.push('step_left_old_prepare');
   out.push(' lda fine_pos');
   out.push(' bne step_left_done');
+  out.push('step_left_do_prepare');
   out.push(' lda #$03');
   out.push(' ldx #$07');
   out.push(' jsr request_prepare');
@@ -1527,9 +1644,17 @@ function buildSource(d){
   out.push(' beq step_right_wait');
   out.push(' inc fine_pos');
   out.push(' jsr apply_scroll_regs');
+  out.push(' lda fast_prefetch');
+  out.push(' beq step_right_old_prepare');
+  out.push(' lda fine_pos');
+  out.push(' cmp #$01');
+  out.push(' bne step_right_done');
+  out.push(' jmp step_right_do_prepare');
+  out.push('step_right_old_prepare');
   out.push(' lda fine_pos');
   out.push(' cmp #$07');
   out.push(' bne step_right_done');
+  out.push('step_right_do_prepare');
   out.push(' lda #$04');
   out.push(' ldx #$00');
   out.push(' jsr request_prepare');
@@ -2350,7 +2475,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST132 BOUNDED COLOR IRQ] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST135 EARLY PREFETCH 1T] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
@@ -2372,5 +2497,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST134 GLYPH-AWARE COLOR FIX] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST135 EARLY PREFETCH 1T] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
