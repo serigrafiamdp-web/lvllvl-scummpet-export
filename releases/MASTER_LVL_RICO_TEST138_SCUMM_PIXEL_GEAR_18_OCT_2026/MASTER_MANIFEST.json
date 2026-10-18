@@ -1,0 +1,41 @@
+{
+  "milestone": "LVL_RICO_TEST138_SCUMM_PIXEL_GEAR_MASTER",
+  "date": "2026-10-18",
+  "status": "MASTER_PROMOTED_USER_PASS_VICE",
+  "archive": "MASTER_LVL_RICO_SCUMM_PIXEL_GEAR_TEST138_PASS_18_OCT_2026.zip",
+  "archive_sha256": "a8835ed08e0b4eab2a26150531e72ba7d5e138f1e311e815c9ffb1ccb3a89227",
+  "copy_exact_of": "MILESTONE_LVL_RICO_TEST138_PIXEL_GEAR_PASS_18_OCT_2026.zip",
+  "zip_file_count": 692,
+  "repository": "serigrafiamdp-web/lvllvl-scummpet-export",
+  "master_branch": "main",
+  "promotion_branch": "release/master-lvl-rico-test138-scumm-18-oct-2026",
+  "frozen_milestone_branch": "milestone/lvl-rico-pixel-gear-test138-pass-18-oct-2026",
+  "previous_master_backup": "backup/master-lvl-rico-test134-before-test138-18-oct-2026",
+  "dist_index_blob": "8c9bfb3af739d0dfdd309214c7096318d935997f",
+  "dist_js_blob": "f1efaad7bd7a5baadca0af453caa15694ecfd3d1",
+  "validation": {
+    "map_scroll_vertical": {
+      "rows_visible": 24,
+      "rows_total": 25,
+      "reported": "perfect vertical scroll; only one row excluded"
+    },
+    "map_scroll_horizontal": {
+      "columns": 40,
+      "reported": "perfect horizontal scroll on full 40-column width"
+    },
+    "combined_1tick": {
+      "map": "UP 1tick 1px",
+      "animated_char": "RIGHT 1tick",
+      "reported": "perfect diagonal movement, no lateral stutter"
+    },
+    "regression_compilations": "48/48 PASS",
+    "uniform_1tick_sim": "32 continuous pixels"
+  },
+  "integration": "SCUMM-PET-C64 master IRQ/single visual scheduler design principles adopted for LVLLVL pixel-gear. Not a complete SCUMM engine port.",
+  "limits": [
+    "Visual PASS user case only",
+    "25th vertical row not validated",
+    "Nonuniform maps/general modes need VICE tests"
+  ],
+  "referenced_scumm_repo": "https://github.com/serigrafiamdp-web/SCUMM-PET-C64"
+}
