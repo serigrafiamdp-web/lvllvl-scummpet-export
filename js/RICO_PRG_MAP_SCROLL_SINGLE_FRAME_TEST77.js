@@ -256,6 +256,10 @@ function buildSource(d){
   // TEST132: bounded color commits (up to 40 cells per IRQ), never a full IRQ copy.
   out.push('patch_pending=$41');
   out.push('patch_budget=$42');
+  // TEST133: prioritize patches of nonblank cells before blank cell colors.
+  out.push('patch_chars_lo=$43');
+  out.push('patch_chars_hi=$44');
+  out.push('patch_phase=$45');
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -909,6 +913,10 @@ function buildSource(d){
   out.push(' sta patch_src_lo');
   out.push(' sta patch_count_lo');
   out.push(' sta patch_count_hi');
+  out.push(' sta patch_chars_lo');
+  out.push(' sta patch_phase');
+  out.push(' lda back_hi');
+  out.push(' sta patch_chars_hi');
   out.push(' lda #$18');
   out.push(' sta patch_ptr_hi');
   out.push(' lda back_hi');
@@ -917,6 +925,17 @@ function buildSource(d){
   out.push(' sta patch_src_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_0');
+  // Two-pass ordering: visible glyphs first, then color changes behind blank cells.
+  out.push(' lda (patch_chars_lo),y');
+  out.push(' cmp blank_char');
+  out.push(' beq patch_pass_blank_0');
+  out.push(' lda patch_phase');
+  out.push(' bne patch_scan_next_0');
+  out.push(' jmp patch_pass_accept_0');
+  out.push('patch_pass_blank_0');
+  out.push(' lda patch_phase');
+  out.push(' beq patch_scan_next_0');
+  out.push('patch_pass_accept_0');
   out.push(' lda (patch_src_lo),y');
   out.push(' cmp $d800,y');
   out.push(' beq patch_scan_next_0');
@@ -938,8 +957,20 @@ function buildSource(d){
   out.push(' iny');
   out.push(' bne patch_scan_0');
   out.push(' inc patch_src_hi');
+  out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_1');
+  // Two-pass ordering: visible glyphs first, then color changes behind blank cells.
+  out.push(' lda (patch_chars_lo),y');
+  out.push(' cmp blank_char');
+  out.push(' beq patch_pass_blank_1');
+  out.push(' lda patch_phase');
+  out.push(' bne patch_scan_next_1');
+  out.push(' jmp patch_pass_accept_1');
+  out.push('patch_pass_blank_1');
+  out.push(' lda patch_phase');
+  out.push(' beq patch_scan_next_1');
+  out.push('patch_pass_accept_1');
   out.push(' lda (patch_src_lo),y');
   out.push(' cmp $d900,y');
   out.push(' beq patch_scan_next_1');
@@ -961,8 +992,20 @@ function buildSource(d){
   out.push(' iny');
   out.push(' bne patch_scan_1');
   out.push(' inc patch_src_hi');
+  out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_2');
+  // Two-pass ordering: visible glyphs first, then color changes behind blank cells.
+  out.push(' lda (patch_chars_lo),y');
+  out.push(' cmp blank_char');
+  out.push(' beq patch_pass_blank_2');
+  out.push(' lda patch_phase');
+  out.push(' bne patch_scan_next_2');
+  out.push(' jmp patch_pass_accept_2');
+  out.push('patch_pass_blank_2');
+  out.push(' lda patch_phase');
+  out.push(' beq patch_scan_next_2');
+  out.push('patch_pass_accept_2');
   out.push(' lda (patch_src_lo),y');
   out.push(' cmp $da00,y');
   out.push(' beq patch_scan_next_2');
@@ -984,8 +1027,20 @@ function buildSource(d){
   out.push(' iny');
   out.push(' bne patch_scan_2');
   out.push(' inc patch_src_hi');
+  out.push(' inc patch_chars_hi');
   out.push(' ldy #$00');
   out.push('patch_scan_3');
+  // Two-pass ordering: visible glyphs first, then color changes behind blank cells.
+  out.push(' lda (patch_chars_lo),y');
+  out.push(' cmp blank_char');
+  out.push(' beq patch_pass_blank_3');
+  out.push(' lda patch_phase');
+  out.push(' bne patch_scan_next_3');
+  out.push(' jmp patch_pass_accept_3');
+  out.push('patch_pass_blank_3');
+  out.push(' lda patch_phase');
+  out.push(' beq patch_scan_next_3');
+  out.push('patch_pass_accept_3');
   out.push(' lda (patch_src_lo),y');
   out.push(' cmp $db00,y');
   out.push(' beq patch_scan_next_3');
@@ -1007,6 +1062,17 @@ function buildSource(d){
   out.push(' iny');
   out.push(' cpy #$e8');
   out.push(' bne patch_scan_3');
+  out.push(' lda patch_phase');
+  out.push(' bne patch_scan_finish');
+  out.push(' inc patch_phase');
+  out.push(' lda back_hi');
+  out.push(' sta patch_chars_hi');
+  out.push(' clc');
+  out.push(' adc #$0c');
+  out.push(' sta patch_src_hi');
+  out.push(' ldy #$00');
+  out.push(' jmp patch_scan_0');
+  out.push('patch_scan_finish');
   out.push(' rts');
   out.push('patch_advance');
   out.push(' clc');
@@ -2267,5 +2333,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST132 BOUNDED COLOR IRQ] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST133 VISIBLE-FIRST COLORS] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
