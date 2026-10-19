@@ -1,0 +1,5 @@
+19/10/2026 — Usuario confirma: usa Animated Characters NORMAL, cada glyph scrollea dentro de su 8x8; NO Group Animate; NO Map Scroll en tests actuales.
+19/10/2026 — Usuario confirma: cuando combine animaciones y Map Scroll, ambos se hacen mas lentos. Se pospone ese escenario hasta aislar la animacion NORMAL de 1 tick.
+19/10/2026 — TEST143 corrige el selector del exportador para NORMAL + no Map Scroll; incorpora fast path vertical UP/DOWN (no-map only).
+19/10/2026 — 20/20 exportaciones ensambladas. 64 UP 1 tick 9250 ciclos de la rutina estudiada; 256 UP 1 tick 37159 ciclos > 19656 PAL nominales. Pixel equality PASS.
+19/10/2026 — TEST139, TEST140, TEST142 regresion PASS. VICE VISUAL PENDIENTE.
