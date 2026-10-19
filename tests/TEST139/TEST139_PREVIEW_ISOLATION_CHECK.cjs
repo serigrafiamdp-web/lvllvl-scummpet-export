@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const base=__dirname;
+const jsRoot=fs.existsSync(base+'/js/RICO_PALETTE_ANIM_UNMUTE_TEST139.js') ? base+'/js' : base+'/../../dist/js';
 let ms=1000,draws=[],mapRedraws=0,canvasCalls=0,rawCalls=0;
 class TileSet {
   constructor(){this.tileData=Array.from({length:256},()=>({data:[new Array(64).fill(0)],props:{animated:false}}));
@@ -26,7 +27,7 @@ class TilePaletteDisplay {
 let timers=[];const ctx={TileSet,Graphic,TilePaletteDisplay,window:{},console,Date:{now:()=>ms},UI:{on:(type,fn)=>{if(type==='ready')timers.push(fn)}},setTimeout:()=>{},g_tick:0};
 vm.createContext(ctx);
 for(const file of ['RICO_ANIMATED_PALETTE_PREVIEW_TEST33.js','RICO_ISOLATED_CHAR_RENDER_TEST120.js','RICO_PALETTE_ANIM_UNMUTE_TEST139.js']) {
- const path=base+'/js/'+file;
+ const path=jsRoot+'/'+file;
  vm.runInContext(fs.readFileSync(path,'utf8'),ctx,{filename:file});
 }
 let ts=new TileSet();ts.tileData[0].data[0][0]=1;ts.tileData[0].props={animated:'right',ticksPerFrame:1};ts.bank2[0].data[0][1]=1;ts.bank2[0].props={animated:'down',ticksPerFrame:1};
