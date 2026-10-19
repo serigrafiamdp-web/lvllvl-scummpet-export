@@ -1,0 +1,6 @@
+RICO LVLLVL — TEST140 / 19 OCT 2026
+- Usuario reporta alerta "RICO TEST76: MAP SCROLL necesita un caracter libre..." al importar un tileset personalizado y exportar desde TEST139.
+- Diagnostico: fallo exclusivo del guard chooseBlankChar al contabilizar los 256 screen codes.
+- TEST140: sin tocar la salida de quienes ya disponen de un codigo libre; permite reutilizar char vacio (ambos bancos y no animado) o scroll circular single-frame FULL256 sin blank. Otros movimientos que muestran fondo continuan exigiendo espacio real.
+- TEST140: 10/10 comprobaciones custom tileset + 48/48 assembler + TEST138 SCUMM CPU + TEST139 preview PASS automatico.
+- Master TEST138 preservado; TEST139 milestone preservado; TEST140 esperando PASS/FAIL visual del usuario.
