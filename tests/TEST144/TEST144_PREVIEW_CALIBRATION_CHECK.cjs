@@ -1,6 +1,7 @@
 'use strict';
-const fs=require('fs'),vm=require('vm'),assert=require('assert');
-const source=fs.readFileSync(__dirname+'/js/RICO_NORMAL_PREVIEW_LOAD_TEST144.js','utf8');
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
+const appRoot=fs.existsSync(path.join(__dirname,'js','RICO_NORMAL_PREVIEW_LOAD_TEST144.js')) ? __dirname : path.join(__dirname,'..','..','dist');
+const source=fs.readFileSync(appRoot+'/js/RICO_NORMAL_PREVIEW_LOAD_TEST144.js','utf8');
 const passes=[];function ok(name,callback){callback();passes.push(name)}
 const oldTicks=[];
 function TileSet(){
@@ -31,6 +32,6 @@ ok('no map scroll calibration',()=>{let ts=tiles(256);ts.editor.graphic.frames[0
 ok('bank2 controls rate when bank2 selected',()=>{let ts=tiles(1);for(let i=0;i<256;i++)ts.bank2[i].props.animated='up';ts.editor.graphic.frames[0].charsetBank=2;oldTicks.length=0;for(let i=0;i<51;i++)ts.update(i);assert(oldTicks.at(-1)<12)});
 ok('no changes to saved tick settings / tiles',()=>{let ts=tiles(256);const before=JSON.stringify(ts.tileData);for(let i=0;i<20;i++)ts.update(i);assert.equal(before,JSON.stringify(ts.tileData))});
 ok('repeated raw tick does not advance extra preview phase',()=>{let ts=tiles(128);oldTicks.length=0;ts.update(10);ts.update(10);assert.equal(oldTicks.at(-1),oldTicks.at(-2))});
-ok('unchanged TEST143 export file is present',()=>{let js=fs.readFileSync(__dirname+'/js/RICO_PRG_MAP_SCROLL_SINGLE_FRAME_TEST77.js');assert(js.length>100000)});
-ok('fast index redraw cap avoids 95ms aliasing',()=>{let s=fs.readFileSync(__dirname+'/js/RICO_PALETTE_ANIM_UNMUTE_TEST139.js','utf8');assert(s.includes('PREVIEW_INTERVAL_MS = 16'));assert(!s.includes('PREVIEW_INTERVAL_MS = 95'))});
+ok('unchanged TEST143 export file is present',()=>{let js=fs.readFileSync(appRoot+'/js/RICO_PRG_MAP_SCROLL_SINGLE_FRAME_TEST77.js');assert(js.length>100000)});
+ok('fast index redraw cap avoids 95ms aliasing',()=>{let s=fs.readFileSync(appRoot+'/js/RICO_PALETTE_ANIM_UNMUTE_TEST139.js','utf8');assert(s.includes('PREVIEW_INTERVAL_MS = 16'));assert(!s.includes('PREVIEW_INTERVAL_MS = 95'))});
 console.log(`TEST144 PREVIEW CALIBRATION ${passes.length}/${passes.length} PASS`); passes.forEach((p,i)=>console.log(`${i+1}. ${p}`));
