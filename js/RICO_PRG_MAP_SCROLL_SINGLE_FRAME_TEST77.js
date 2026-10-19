@@ -131,6 +131,11 @@ function chooseBlankChar(frames,bank1,bank2,animated){
   if(frames.length===1 && frames[0].typeCode>=1 && frames[0].typeCode<=4){
     return 255;
   }
+  // TEST143: no Map Scroll and only Character Animation NORMAL: there is
+  // no exposed blank area, so ALL 256 glyph codes can remain occupied.
+  if(frames.length===1 && frames[0].typeCode===0){
+    return 255;
+  }
   // Ping Pong / Move In / Move Out with truly exposed background still
   // require at least one nonanimated glyph with zero bitmap in both banks.
   throw new Error('No hay codigo libre ni caracter vacio para el fondo expuesto. En Ping Pong/Move In/Out reserva un glyph vacio en BANK 1 y BANK 2 (sin animacion); para Scroll circular de 1 frame no hace falta.');
@@ -191,11 +196,17 @@ function supports(self,args){
   var any=false,anyPing=false,anyMove=false;
   for(var i=0;i<fc;i++){var c=getCfg(ed,i),t=(c&&c.type)||'';if(t)any=true;if(t.indexOf('pingpong-')===0)anyPing=true;if(t.indexOf('move-')===0||t.indexOf('movein-')===0)anyMove=true;if(typeof TYPE_CODE[t]==='undefined')return false;}
   // TEST77: single-frame wrap scrolls must also use the modern Window + Scroll Area runtime.
-  return any;
+  // TEST143: Character Animation NORMAL is valid WITHOUT Map Scroll.
+  // Keep multi-frame no-scroll projects on their former exporter until tested.
+  // Group Animate data is not inspected or changed here.
+  return any || (fc===1 && collectNativeAnimations(ts).length>0);
 }
 function buildSource(d,options){
   options=options||{};
   var f=d.frames,out=[];
+  // Calling buildSource directly in tests may not provide hasScroll: derive
+  // the runtime mode from frame metadata as an additional guard.
+  var hasRealScroll=!!d.hasScroll||f.some(function(frame){return frame.typeCode!==0;});
   // TEST141: Native C64 character animation is a CPU IRQ job, not a VIC
   // hardware feature. Running 256 selected glyphs in both banks scans as many
   // as 512 records EVERY IRQ even when the 40x25 scene uses only a few.
@@ -225,7 +236,8 @@ function buildSource(d,options){
   // TEST142: Fast horizontal/blink animation for contiguous glyphs that
   // share type AND tick interval within one bank. One shared counter is
   // equivalent to their initially identical independent counters.
-  // Avoid groups for UP/DOWN: their 8-byte row transfers need separate code.
+  // TEST143: UP/DOWN can use direct 8x8 vertical loops, but ONLY in
+  // no-Map-Scroll mode. Never alter the proven TEST138 gear path.
   // Only 8+ consecutive characters qualify; isolated/mixed entries stay in
   // the unmodified native animation path. Keep all editor metadata untouched.
   var animFastGroups=[], maskedAnimations=emittedAnimations.map(function(an){
@@ -240,7 +252,7 @@ function buildSource(d,options){
       var index=byCode[gi];
       if(index===undefined){gi++;continue;}
       var candidate=maskedAnimations[index];
-      if(candidate.type!==0&&candidate.type!==1&&candidate.type!==4){gi++;continue;}
+      if(candidate.type!==0&&candidate.type!==1&&candidate.type!==4 && !(!hasRealScroll&&(candidate.type===2||candidate.type===3))){gi++;continue;}
       var stop=gi+1;
       while(stop<256){
         var next=byCode[stop];
@@ -526,9 +538,40 @@ function buildSource(d,options){
       out.push(' lda #$'+hex(gr.ticks));
       out.push(' sta fast_group_counter_'+qg);
       for(var chOff=0,piece=0;chOff<total;piece++){
+        // TEST143: vertical groups advance in CHAR strides of eight bytes;
+        // each source row stays inside the original glyph's 8x8 tile.
+        // Limit a chunk to 32 chars: X wraps after 256 bytes, no extra RAM.
+        var vertical=(gr.type===2||gr.type===3);
         var count=Math.min(256,total-chOff),addr=base+chOff;
         out.push(' ldx #$00');
         out.push('fast_group_loop_'+qg+'_'+piece);
+        if(vertical){
+          out.push(' lda $'+hex(addr+(gr.type===2?0:7),4)+',x');
+          out.push(' sta anim_temp');
+          if(gr.type===2){
+            for(var row=0;row<7;row++){
+              out.push(' lda $'+hex(addr+row+1,4)+',x');
+              out.push(' sta $'+hex(addr+row,4)+',x');
+            }
+            out.push(' lda anim_temp');
+            out.push(' sta $'+hex(addr+7,4)+',x');
+          }else{
+            for(var row=7;row>=1;row--){
+              out.push(' lda $'+hex(addr+row-1,4)+',x');
+              out.push(' sta $'+hex(addr+row,4)+',x');
+            }
+            out.push(' lda anim_temp');
+            out.push(' sta $'+hex(addr,4)+',x');
+          }
+          out.push(' txa');
+          out.push(' clc');
+          out.push(' adc #$08');
+          out.push(' tax');
+          if(count!==256)out.push(' cpx #$'+hex(count));
+          out.push(' bne fast_group_loop_'+qg+'_'+piece);
+          chOff+=count;
+          continue;
+        }
         out.push(' lda $'+hex(addr,4)+',x');
         if(gr.type===0){
           // (a << 1) | (a >> 7): ASL carry is the original high bit.
@@ -2728,18 +2771,18 @@ ToPRGAdv.prototype.createPRG=function(args){
       // Fall back to the last verified TEST141 runtime when fast unrolling
       // would intrude on the charset $3000. Never export corrupted glyphs.
       if(!ex.fastCodeOverflow)throw ex;
-      console.warn('[RICO TEST142] Code space exhausted; using tested native char path.');
+      console.warn('[RICO TEST143] Code space exhausted; using proven per-char fallback.');
       source=buildSource(d,{disableFastGroups:true});
       bytes=assemblePRG(this,source);
     }
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST142 FAST GROUPED IRQ] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST143 NATIVE CHAR 8x8 FAST IRQ] '+(d.hasScroll?'MAP SCROLL':'NO MAP SCROLL')+' '+d.nativeAnimations.length+' configured glyphs; exported '+d.frames.length+' frame(s).');
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
   }catch(e){
     console.error('[RICO TEST77]',e);
-    alert('RICO TEST142: '+e.message);
+    alert('RICO TEST143: '+e.message);
     return false;
   }
 };
@@ -2755,5 +2798,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST142 FAST GROUPED IRQ] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST143 NATIVE CHAR 8x8] no-map export fast UP/DOWN; TEST138 scroll gear unchanged.');
 })();
