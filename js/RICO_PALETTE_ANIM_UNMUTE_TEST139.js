@@ -4,7 +4,7 @@
   if (typeof TileSet === 'undefined') return;
   var oldUpdate = TileSet.prototype.update;
   var BANK_SIZE = 256;
-  var PREVIEW_INTERVAL_MS = 95; // visual identification, not C64-exact timing
+  var PREVIEW_INTERVAL_MS = 16; // TEST144: do not alias 1-tick 8-phase animation
   var running = false;
 
   function activeBank(tileSet) {
@@ -62,7 +62,7 @@
     if (!codes1.length && !codes2.length) return result;
 
     var now = Date.now();
-    // 95ms is presentation-only. Never re-time real character data / PRG.
+    // TEST144: <=16ms presentation cap avoids inverted aliasing. PRG untouched.
     if (this.__ricoIndex139Init && now - (this.__ricoIndex139Last || 0) < PREVIEW_INTERVAL_MS) return result;
 
     var editor = this.editor;
