@@ -1,0 +1,11 @@
+TEST141 — 19 OCT 2026 — TEST, PENDIENTE PASS VISUAL VICE
+BASE: TEST140 (experimental) + TEST139 PASS index + TEST138 MASTER SCUMM.
+Motivo: 256 Animated Chars seleccionados crean 2*256=512 registros IRQ,
+aunque el mapa visible no use los 256. Costo CPU C64 eleva ticks efectivos.
+Cambio: reducir runtime table a indices efectivamente presentes y bancos
+realmente usados; omitir glyph vacio sin blink, preservar blink.
+Punteros Color RAM recalculados por 5 bytes/registro realmente emitido.
+12 tests y 48 compilaciones PASS con Assembler original; TEST140 10/10,
+TEST139 10/10, SCUMM CPU 32/32 y 13/13 PASS.
+NO confirmado en VICE. NO tocar MASTER TEST138, ni milestone TEST139.
+Limitacion: 256 glyphs realmente visibles a 1 tick pueden exceder CPU PAL.
