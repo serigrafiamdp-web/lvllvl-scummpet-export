@@ -194,6 +194,35 @@ function supports(self,args){
 }
 function buildSource(d){
   var f=d.frames,out=[];
+  // TEST141: Native C64 character animation is a CPU IRQ job, not a VIC
+  // hardware feature. Running 256 selected glyphs in both banks scans as many
+  // as 512 records EVERY IRQ even when the 40x25 scene uses only a few.
+  // Build the runtime workset from actual screen-code use, PER BANK across
+  // ALL exported frames. Preserve editable tiles and their animation metadata.
+  // Never skip a visible blinking glyph, even when its original pixels are zero.
+  var usedBankMask=new Uint8Array(256);
+  for(var vf=0;vf<f.length;vf++){
+    var screen=f[vf].screen, mask=(f[vf].bank===2)?2:1;
+    for(var vi=0;vi<screen.length;vi++)usedBankMask[screen[vi]&255]|=mask;
+  }
+  var emittedAnimations=[], skippedEmptyRows=0;
+  for(var ai=0;ai<d.nativeAnimations.length;ai++){
+    var anim=d.nativeAnimations[ai],cc=anim.charCode&255, used=usedBankMask[cc];
+    if(!used)continue;
+    // Rotating an all-zero glyph is always a no-op. Blink ($type 4) is
+    // intentionally not filtered (its all-zero bitmap alternates with $FF).
+    var bankMask=0;
+    for(var bank=0;bank<2;bank++)if(used&(1<<bank)){
+      var bytes=bank?d.bank2:d.bank1, visible=anim.type===4;
+      for(var y=0;y<8&&!visible;y++)if(bytes[cc*8+y])visible=true;
+      if(visible)bankMask|=1<<bank;
+      else skippedEmptyRows++;
+    }
+    if(bankMask)emittedAnimations.push({charCode:cc,ticks:anim.ticks,type:anim.type,runtimeBankMask:bankMask});
+  }
+  // Never mutate d: the original 256-character editor metadata is preserved.
+  // Only emitted 6502 records get compacted. Empty worksets omit animation IRQ.
+  d=Object.assign({},d,{nativeAnimations:emittedAnimations});
   // TEST136: compile a single-pass color scan ONLY for the isolated 1T/1px
   // one-frame cardinal-scroll path. No added overhead in slower PASS modes.
   var fastColorOnePass=(f.length===1 && f[0].ticks===1 && f[0].pixels===1 && f[0].typeCode>=1 && f[0].typeCode<=4);
@@ -2486,9 +2515,15 @@ function buildSource(d){
   emitNumericTable(out,'frame_ptr_hi',ptrhi);
   // TEST130: LVLLVL's built-in assembler rejects forward label expressions
   // in !byte (<frame_color_0 / >frame_color_0). The color data follows
-  // all 1000-byte screen frames and the optional 10-byte native-animation
-  // records plus one terminating zero. Compute the real addresses directly.
-  var animRecordsSize=d.nativeAnimations.length?(d.nativeAnimations.length*10+1):0;
+  // all 1000-byte screen frames and the optional emitted BANK-specific native
+  // animation records (5 bytes each) plus the terminating zero. TEST141
+  // counts exact records to avoid shifting C64 color pointers.
+  var animRecordCount=0;
+  for(var ra=0;ra<d.nativeAnimations.length;ra++){
+    if(d.nativeAnimations[ra].runtimeBankMask&1)animRecordCount++;
+    if(d.nativeAnimations[ra].runtimeBankMask&2)animRecordCount++;
+  }
+  var animRecordsSize=animRecordCount?(animRecordCount*5+1):0;
   var firstColorAddr=0x4000+f.length*1000+animRecordsSize;
   var colorPtrLo=[],colorPtrHi=[];
   for(var ci=0;ci<f.length;ci++){
@@ -2530,6 +2565,7 @@ function buildSource(d){
     for(var ai=0;ai<d.nativeAnimations.length;ai++){
       var an=d.nativeAnimations[ai];
       for(var bi=0;bi<2;bi++){
+        if(!(an.runtimeBankMask&(1<<bi)))continue;
         var charAddr=(bi?0x3800:0x3000)+(an.charCode*8);
         out.push(bytesLine([an.ticks,an.ticks,charAddr&255,(charAddr>>>8)&255,an.type]));
       }
@@ -2592,13 +2628,13 @@ ToPRGAdv.prototype.createPRG=function(args){
   try{
     var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST138 MAP-DRIVEN CHAR GEAR] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST141 NATIVE CHAR IRQ WORKSET] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
   }catch(e){
     console.error('[RICO TEST77]',e);
-    alert('RICO TEST140: '+e.message);
+    alert('RICO TEST141: '+e.message);
     return false;
   }
 };
@@ -2614,5 +2650,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST138 MAP-DRIVEN CHAR GEAR] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST141 CHAR IRQ WORKSET] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
