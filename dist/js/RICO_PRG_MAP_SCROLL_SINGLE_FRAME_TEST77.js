@@ -96,15 +96,43 @@ function colorData(layer,frame){
   }
   return out;
 }
+// TEST140: A custom tileset can legitimately fill all 256 character indices.
+// Reuse existing *truly empty* glyphs (in both banks), even if referenced on
+// screen; never erase a glyph that is visible in the user's artwork.
+// A one-frame cardinal SCROLL wraps existing artwork and NEVER exposes a new
+// background cell, so it needs no dedicated blank code at all.
+// TEST140: preserve TEST138's exact reservation when a free glyph exists.
+// If all 256 codes are in use, a true blank glyph can still be reused safely.
+// For a one-frame cardinal *wrap* no blank pixels are ever exposed: the
+// staging buffer is not displayed, so no glyph must be sacrificed.
 function chooseBlankChar(frames,bank1,bank2,animated){
   var used=new Uint8Array(256);
   for(var f=0;f<frames.length;f++)for(var i=0;i<frames[f].screen.length;i++)used[frames[f].screen[i]&255]=1;
   for(var a=0;a<animated.length;a++)used[animated[a].charCode&255]=1;
-  var code=-1;
-  for(var c=255;c>=0;c--)if(!used[c]){code=c;break;}
-  if(code<0)throw new Error('MAP SCROLL necesita un caracter libre para representar el fondo expuesto.');
-  for(var y=0;y<8;y++){bank1[code*8+y]=0;bank2[code*8+y]=0;}
-  return code;
+  // Preserve the historical TEST138 path byte-for-byte for every project
+  // that could already export: reserve the highest truly unused code.
+  for(var c=255;c>=0;c--)if(!used[c]){
+    for(var y=0;y<8;y++){bank1[c*8+y]=0;bank2[c*8+y]=0;}
+    return c;
+  }
+  // All codes are occupied. An existing blank code needs no reservation
+  // and can be used even if already drawn on screen (it is already empty).
+  var animatedCode=new Uint8Array(256);
+  for(var a=0;a<animated.length;a++)animatedCode[animated[a].charCode&255]=1;
+  for(var n=255;n>=0;n--){
+    if(animatedCode[n])continue;
+    var isEmpty=true;
+    for(var r=0;r<8;r++)if(bank1[n*8+r]!==0||bank2[n*8+r]!==0){isEmpty=false;break;}
+    if(isEmpty)return n;
+  }
+  // One-frame cyclic UP/DOWN/LEFT/RIGHT does not display an exposed blank
+  // or the temporary blank-stage screen. Use a placeholder unmodified.
+  if(frames.length===1 && frames[0].typeCode>=1 && frames[0].typeCode<=4){
+    return 255;
+  }
+  // Ping Pong / Move In / Move Out with truly exposed background still
+  // require at least one nonanimated glyph with zero bitmap in both banks.
+  throw new Error('No hay codigo libre ni caracter vacio para el fondo expuesto. En Ping Pong/Move In/Out reserva un glyph vacio en BANK 1 y BANK 2 (sin animacion); para Scroll circular de 1 frame no hace falta.');
 }
 // TEST128: exact LVLLVL/JAMES character-animation metadata: getAnimatedType() and
 // getTileProperties().ticksPerFrame. Each entry uses the stock player's
@@ -2570,7 +2598,7 @@ ToPRGAdv.prototype.createPRG=function(args){
     throw new Error('download() missing');
   }catch(e){
     console.error('[RICO TEST77]',e);
-    alert('RICO TEST76: '+e.message);
+    alert('RICO TEST140: '+e.message);
     return false;
   }
 };
