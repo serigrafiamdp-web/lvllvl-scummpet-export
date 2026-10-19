@@ -1,6 +1,6 @@
 RICO / LVLLVL TEST139 — 18 OCTUBRE 2026
 OBJETIVO: mostrar en el indice de caracteres los glyphs que estan animados, SIN modificar fondo o motor/exportador.
-ESTADO: CODIGO Y TEST AISLADO PASS; PENDIENTE CONFIRMACION VISUAL EN NAVEGADOR.
+ESTADO: PASS VISUAL CONFIRMADO POR USUARIO EN NAVEGADOR — 18/10/2026; 10/10 PRUEBAS AUTOMATICAS PASS.
 
 CAUSA VERIFICADA:
 - TEST33 calcula cache de pixeles animados para BANK 1 y BANK 2.
@@ -23,4 +23,10 @@ VALIDACIONES AUTOMATICAS:
 CONTINUACION:
 - Probar la web TEST139: animar un caracter en BANK 1 y otro en BANK 2, mirar el indice lateral sin insertarlos en el mapa.
 - Comparar Columns of 16 y Banks 32 x 8.
-- MASTER en main sigue siendo TEST138 y no se modifica hasta PASS visual.
+- MASTER en main sigue siendo TEST138 y se conserva intacto; TEST139 queda como PASS de la vista previa del indice, no como cambio del runtime.
+
+CONFIRMACION FINAL — TEST139 PASS
+- Usuario confirma 'pass' tras probar TEST139 online.
+- Correccion aprobada: visibilidad de Animated Chars en indice de BANK 1/BANK 2 sin cambiar el fondo, Map Scroll ni exportacion C64.
+- El refresco de la paleta es orientativo; no garantiza precision de ticks.
+- Guardar esta version como punto de retorno independiente; nuevas pruebas parten de ella y nunca editan la rama del MASTER TEST138.
