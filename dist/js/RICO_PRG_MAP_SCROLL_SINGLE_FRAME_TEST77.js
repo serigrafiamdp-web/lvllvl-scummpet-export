@@ -5,6 +5,7 @@ if(typeof ToPRGAdv==='undefined'){console.error('[RICO TEST77] ToPRGAdv missing'
 var MAX_FRAMES=32;
 var TYPE_CODE={'':0,'up':1,'down':2,'left':3,'right':4,'pingpong-left':5,'pingpong-right':6,'pingpong-up':7,'pingpong-down':8,'move-left':9,'move-right':10,'move-up':11,'move-down':12,'movein-left':13,'movein-right':14,'movein-up':15,'movein-down':16};
 
+function hex(v,width){return (v>>>0).toString(16).padStart(width||2,'0');}
 function clamp(v,a,b,d){v=parseInt(v,10);return isNaN(v)?d:Math.max(a,Math.min(b,v));}
 function colorIndex(v,d){v=parseInt(v,10);return isNaN(v)||v<0?d:(v&15);}
 function frameCount(editor){try{return editor.graphic.getFrameCount();}catch(e){return editor.graphic.frames?editor.graphic.frames.length:0;}}
@@ -192,7 +193,8 @@ function supports(self,args){
   // TEST77: single-frame wrap scrolls must also use the modern Window + Scroll Area runtime.
   return any;
 }
-function buildSource(d){
+function buildSource(d,options){
+  options=options||{};
   var f=d.frames,out=[];
   // TEST141: Native C64 character animation is a CPU IRQ job, not a VIC
   // hardware feature. Running 256 selected glyphs in both banks scans as many
@@ -220,9 +222,47 @@ function buildSource(d){
     }
     if(bankMask)emittedAnimations.push({charCode:cc,ticks:anim.ticks,type:anim.type,runtimeBankMask:bankMask});
   }
-  // Never mutate d: the original 256-character editor metadata is preserved.
-  // Only emitted 6502 records get compacted. Empty worksets omit animation IRQ.
-  d=Object.assign({},d,{nativeAnimations:emittedAnimations});
+  // TEST142: Fast horizontal/blink animation for contiguous glyphs that
+  // share type AND tick interval within one bank. One shared counter is
+  // equivalent to their initially identical independent counters.
+  // Avoid groups for UP/DOWN: their 8-byte row transfers need separate code.
+  // Only 8+ consecutive characters qualify; isolated/mixed entries stay in
+  // the unmodified native animation path. Keep all editor metadata untouched.
+  var animFastGroups=[], maskedAnimations=emittedAnimations.map(function(an){
+    return Object.assign({},an);
+  });
+  for(var groupBank=0;groupBank<2;groupBank++){
+    var bMask=1<<groupBank,byCode=new Array(256);
+    for(var ji=0;ji<maskedAnimations.length;ji++){
+      if(maskedAnimations[ji].runtimeBankMask&bMask)byCode[maskedAnimations[ji].charCode]=ji;
+    }
+    for(var gi=0;gi<256;){
+      var index=byCode[gi];
+      if(index===undefined){gi++;continue;}
+      var candidate=maskedAnimations[index];
+      if(candidate.type!==0&&candidate.type!==1&&candidate.type!==4){gi++;continue;}
+      var stop=gi+1;
+      while(stop<256){
+        var next=byCode[stop];
+        if(next===undefined)break;
+        var other=maskedAnimations[next];
+        if(other.type!==candidate.type||other.ticks!==candidate.ticks)break;
+        stop++;
+      }
+      if(!options.disableFastGroups && stop-gi>=8 && animFastGroups.length<3){
+        animFastGroups.push({bank:groupBank+1,start:gi,count:stop-gi,ticks:candidate.ticks,type:candidate.type});
+        for(var cg=gi;cg<stop;cg++)maskedAnimations[byCode[cg]].runtimeBankMask&=~bMask;
+      }
+      gi=stop;
+    }
+  }
+  maskedAnimations=maskedAnimations.filter(function(an){return an.runtimeBankMask!==0;});
+  var allAnimatedCodes=emittedAnimations.map(function(an){return an.charCode&255;});
+  // Only emitted 6502 records are compacted. Group phases/counters are data
+  // in code below $3000, so frame_color pointers still follow ONLY records.
+  d=Object.assign({},d,{nativeAnimations:maskedAnimations,fastGroups:animFastGroups});
+  var hasAnyAnim=(maskedAnimations.length>0||animFastGroups.length>0);
+
   // TEST136: compile a single-pass color scan ONLY for the isolated 1T/1px
   // one-frame cardinal-scroll path. No added overhead in slower PASS modes.
   var fastColorOnePass=(f.length===1 && f[0].ticks===1 && f[0].pixels===1 && f[0].typeCode>=1 && f[0].typeCode<=4);
@@ -332,7 +372,7 @@ function buildSource(d){
   out.push('fast_prefetch=$46');
   // TEST138: the gear is active only for fast 1T scroll with animated glyphs.
   // Preserve the prior assembly byte for byte in every other mode.
-  var gearCoupled=fastColorOnePass && d.nativeAnimations.length>0;
+  var gearCoupled=fastColorOnePass && hasAnyAnim;
   if(gearCoupled){
     out.push('gear_previous_fine=$47');
     out.push('gear_advanced_count=$48');
@@ -430,8 +470,9 @@ function buildSource(d){
     // a tick after the map actually advances a pixel, including busy IRQs.
     out.push(' lda fine_pos');
     out.push(' sta gear_previous_fine');
-  } else if(d.nativeAnimations.length){
-    out.push(' jsr animate_chars_native');
+  } else if(hasAnyAnim){
+    if(d.fastGroups.length)out.push(' jsr animate_chars_fast_groups');
+    if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
   }
   // Remaining color updates are spread over subsequent raster IRQs.
   out.push(' lda patch_pending');
@@ -454,7 +495,8 @@ function buildSource(d){
     // Native animation counters (1..255) now count accepted map pixels;
     // the type, direction, and ticks chosen in the editor are unchanged.
     out.push(' inc gear_advanced_count');
-    out.push(' jsr animate_chars_native');
+    if(d.fastGroups.length)out.push(' jsr animate_chars_fast_groups');
+    if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
     out.push(' jmp irq_gear_done');
     out.push('irq_gear_map_wait');
     out.push(' inc gear_wait_count');
@@ -467,6 +509,53 @@ function buildSource(d){
   out.push(' pla');
   out.push(' rti');
   out.push('');
+  // TEST142: one countdown per contiguous run; direct absolute indexed
+  // charset bytes. The loop always rotates a byte identically to the stock
+  // code, but avoids the 5-byte record dispatcher and per-row indirection.
+  if(d.fastGroups.length){
+    out.push('animate_chars_fast_groups');
+    for(var qg=0;qg<d.fastGroups.length;qg++)out.push(' jsr fast_group_tick_'+qg);
+    out.push(' rts');
+    out.push('');
+    for(var qg=0;qg<d.fastGroups.length;qg++){
+      var gr=d.fastGroups[qg],base=(gr.bank===2?0x3800:0x3000)+gr.start*8;
+      var total=gr.count*8;
+      out.push('fast_group_tick_'+qg);
+      out.push(' dec fast_group_counter_'+qg);
+      out.push(' bne fast_group_done_'+qg);
+      out.push(' lda #$'+hex(gr.ticks));
+      out.push(' sta fast_group_counter_'+qg);
+      for(var chOff=0,piece=0;chOff<total;piece++){
+        var count=Math.min(256,total-chOff),addr=base+chOff;
+        out.push(' ldx #$00');
+        out.push('fast_group_loop_'+qg+'_'+piece);
+        out.push(' lda $'+hex(addr,4)+',x');
+        if(gr.type===0){
+          // (a << 1) | (a >> 7): ASL carry is the original high bit.
+          out.push(' asl');
+          out.push(' adc #$00');
+        }else if(gr.type===1){
+          // (a >> 1) | ((a & 1) << 7): LSR carry is original low bit.
+          out.push(' lsr');
+          out.push(' bcc fast_group_no_hi_'+qg+'_'+piece);
+          out.push(' ora #$80');
+          out.push('fast_group_no_hi_'+qg+'_'+piece);
+        }else{
+          out.push(' eor #$ff');
+        }
+        out.push(' sta $'+hex(addr,4)+',x');
+        out.push(' inx');
+        if(count!==256)out.push(' cpx #$'+hex(count));
+        out.push(' bne fast_group_loop_'+qg+'_'+piece);
+        chOff+=count;
+      }
+      out.push('fast_group_done_'+qg);
+      out.push(' rts');
+      out.push('fast_group_counter_'+qg);
+      out.push('!byte $'+hex(gr.ticks));
+      out.push('');
+    }
+  }
   // TEST128: native LVLLVL / JAMES character animation, executed once per IRQ,
   // independently from TEST77's frame_tick and main_busy. No changes to scroll.
   // Stock semantics: decrement tick counter, then rotate glyph bitmap left/right,
@@ -2539,7 +2628,7 @@ function buildSource(d){
   // This fixes the false classification of normal space ($20) as visible when
   // blank_char is the reserved scroller character ($ff).
   var animatedCharCodes={};
-  for(var avi=0;avi<d.nativeAnimations.length;avi++)animatedCharCodes[d.nativeAnimations[avi].charCode&255]=true;
+  for(var avi=0;avi<allAnimatedCodes.length;avi++)animatedCharCodes[allAnimatedCodes[avi]]=true;
   var charVisible=[];
   for(var code=0;code<256;code++){
     var visible=!!animatedCharCodes[code];
@@ -2550,6 +2639,9 @@ function buildSource(d){
   }
   emitNumericTable(out,'character_visibility_table',charVisible);
   out.push('');
+  // TEST142: always record the end of generated code so accidental overflow
+  // into VIC charset $3000 cannot corrupt custom glyphs silently.
+  out.push('test142_code_end');
   out.push('*=$3000');
   out.push('charset_bank1');emitBytes(out,d.bank1);
   out.push('*=$3800');
@@ -2583,6 +2675,11 @@ function assemblePRG(self,source){
   if(!result||!result.success){
     var msgs=[];if(result&&result.errors)for(var i=0;i<result.errors.length;i++)msgs.push(result.errors[i].message||String(result.errors[i]));
     throw new Error('Error ensamblando runtime TEST75'+(msgs.length?': '+msgs.join(' | '):'.'));
+  }
+  // TEST142: protecting the $3000 charset is mandatory if runtime jobs grow.
+  if(assembler.labels&&assembler.labels.test142_code_end&&assembler.labels.test142_code_end.value>0x3000){
+    var fastOverflow=new Error('TEST142: runtime no entra antes de $3000 (limite charset).');
+    fastOverflow.fastCodeOverflow=true;throw fastOverflow;
   }
   var mem=assembler.getMemory(),start=result.start,end=result.end;
   var prg=new Uint8Array(2+(end-start));prg[0]=start&255;prg[1]=(start>>8)&255;
@@ -2626,15 +2723,23 @@ ToPRGAdv.prototype.createPRG=function(args){
   args=args||{};
   if(!supports(this,args))return prev.apply(this,arguments);
   try{
-    var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
+    var d=collect(this,args),source=buildSource(d),bytes;
+    try{bytes=assemblePRG(this,source);}catch(ex){
+      // Fall back to the last verified TEST141 runtime when fast unrolling
+      // would intrude on the charset $3000. Never export corrupted glyphs.
+      if(!ex.fastCodeOverflow)throw ex;
+      console.warn('[RICO TEST142] Code space exhausted; using tested native char path.');
+      source=buildSource(d,{disableFastGroups:true});
+      bytes=assemblePRG(this,source);
+    }
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST141 NATIVE CHAR IRQ WORKSET] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST142 FAST GROUPED IRQ] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
   }catch(e){
     console.error('[RICO TEST77]',e);
-    alert('RICO TEST141: '+e.message);
+    alert('RICO TEST142: '+e.message);
     return false;
   }
 };
@@ -2650,5 +2755,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST141 CHAR IRQ WORKSET] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST142 FAST GROUPED IRQ] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
 })();
