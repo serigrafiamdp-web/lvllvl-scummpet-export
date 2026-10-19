@@ -1,0 +1,5 @@
+18 OCT 2026 — TEST141 PARCIAL (usuario): "lo veo mas rapido creo, pero deberia ir mucho mas rapido a 1 tick comparado a preview".
+18 OCT 2026 — ANALISIS TEST142: ruta nativa LEFT/RIGHT 256 visibles 85k-87k ciclos en 6502; presupuesto PAL nominal ~19656 ciclos/frame.
+18 OCT 2026 — TEST142: fast groups homogéneos de 8+ indices contiguos, mismo banco/ticks/tipo (LEFT,RIGHT,BLINK). Aceleracion approx 2x; no modifica SCUMM Pixel Gear ni index TEST139.
+18 OCT 2026 — 14/14 pruebas grupo, 30/30 CPU con salida bitmap exacta, 48/48 compiles TEST141; TEST140 10/10 y TEST139 10/10.
+ESTADO: VICE PENDIENTE. MASTER TEST138 SIN CAMBIOS.
