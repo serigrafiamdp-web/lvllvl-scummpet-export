@@ -3,6 +3,7 @@
 if(typeof Frames==='undefined'||typeof Graphic==='undefined'||typeof TileSet==='undefined'){console.error('[RICO TEST79 UI] dependencies missing');return;}
 var FIELD='ricoMapScrollV1', DEF=6, DEF_PIX=1, PAL_TICK_MS=20, activeFrames58=null, previewLoop58=false, stepping79=false;
 var pause79={paused:false,rawStart:0,offset:0,frozen:0};
+var autoFit177=null;
 var OPTS=[['','No'],['left','Scroll Left'],['right','Scroll Right'],['up','Scroll Up'],['down','Scroll Down'],['pingpong-left','Ping Pong Left'],['pingpong-right','Ping Pong Right'],['pingpong-up','Ping Pong Up'],['pingpong-down','Ping Pong Down'],['move-left','Move Out Left'],['move-right','Move Out Right'],['move-up','Move Out Up'],['move-down','Move Out Down'],['movein-left','Move In Left'],['movein-right','Move In Right'],['movein-up','Move In Up'],['movein-down','Move In Down']];
 function rawTick79(){var ms=0;try{if(typeof getTimestamp==='function')ms=getTimestamp();else if(typeof performance!=='undefined'&&performance.now)ms=performance.now();else ms=Date.now();}catch(e){ms=Date.now();}return Math.floor(ms/PAL_TICK_MS);}
 function tick(){var r=rawTick79();return pause79.paused?pause79.frozen:(r-pause79.offset);}
@@ -24,26 +25,42 @@ function previewPump58(){try{var fc=activeFrames58,g=graphicOf(fc);if(g&&g.frame
 function startPreviewPump58(){if(previewLoop58||typeof requestAnimationFrame!=='function')return;previewLoop58=true;requestAnimationFrame(previewPump58);}
 function refreshButton(fc){var b=$('#ricoMapScrollButton37');if(!b.length)return;var g=graphicOf(fc);if(!g)return;var c=getCfg(g,g.getCurrentFrame());b.text('MAP SCROLL'+(c.type?' · ON':''));b.css('font-weight',c.type?'bold':'');b.attr('title',c.type?(c.type+' · '+c.ticksPerStep+' ticks/step · '+c.pixelsPerStep+' px/step'):'Map Scroll settings for this frame');}
 function readDialogCfg79(){var n=parseInt($('#ricoMapScrollTicks37').val(),10);if(isNaN(n)||n<1)n=DEF;if(n>255)n=255;var px=parseInt($('#ricoMapScrollPixels37').val(),10);if(isNaN(px)||px<1)px=DEF_PIX;if(px>8)px=8;return{type:$('#ricoMapScrollType37').val()||'',ticksPerStep:n,pixelsPerStep:px};}
-function saveDialogFrame79(fc){var g=graphicOf(fc);if(!g)return;setCfg(g,g.getCurrentFrame(),readDialogCfg79());refreshButton(fc);}
-function loadDialogFrame79(fc){var g=graphicOf(fc);if(!g)return;var n=g.getCurrentFrame(),count=g.getFrameCount?g.getFrameCount():(g.frames?g.frames.length:1),cfg=getCfg(g,n),f=frameObj(g,n);$('#ricoMapScrollType37').html(options(cfg.type)).val(cfg.type);$('#ricoMapScrollTicks37').val(cfg.ticksPerStep);$('#ricoMapScrollPixels37').val(cfg.pixelsPerStep);$('#ricoMapScrollFrame79').text('Frame '+(n+1)+' / '+count);$('#ricoMapScrollPrev79').css('opacity',n<=0?0.35:1);$('#ricoMapScrollNext79').css('opacity',n>=count-1?0.35:1);$('#ricoMapScrollInfo37').text('Frame Duration: '+(f&&f.duration?f.duration:'?')+' ticks · '+cfg.pixelsPerStep+' px every '+cfg.ticksPerStep+' tick'+(cfg.ticksPerStep===1?'':'s')+(pause79.paused?' · GLOBAL PAUSE':''));updatePause79();}
+function saveDialogFrame79(fc){var g=graphicOf(fc);if(!g)return;var n=g.getCurrentFrame();setCfg(g,n,readDialogCfg79());
+  if(autoFit177&&autoFit177.frame===n){var api=window.RICO_TEST75_WINDOW_DIMENSION;if(api&&api.setScrollArea)api.setScrollArea(g,n,autoFit177.rect);autoFit177=null;}
+  refreshButton(fc);
+}
+function loadDialogFrame79(fc){var g=graphicOf(fc);if(!g)return;$('#ricoMapAutoFitStatus177').text('Auto Fit detecta los caracteres exteriores del frame. Guardar con OK.').css('color','#aaa');var n=g.getCurrentFrame(),count=g.getFrameCount?g.getFrameCount():(g.frames?g.frames.length:1),cfg=getCfg(g,n),f=frameObj(g,n);$('#ricoMapScrollType37').html(options(cfg.type)).val(cfg.type);$('#ricoMapScrollTicks37').val(cfg.ticksPerStep);$('#ricoMapScrollPixels37').val(cfg.pixelsPerStep);$('#ricoMapScrollFrame79').text('Frame '+(n+1)+' / '+count);$('#ricoMapScrollPrev79').css('opacity',n<=0?0.35:1);$('#ricoMapScrollNext79').css('opacity',n>=count-1?0.35:1);$('#ricoMapScrollInfo37').text('Frame Duration: '+(f&&f.duration?f.duration:'?')+' ticks · '+cfg.pixelsPerStep+' px every '+cfg.ticksPerStep+' tick'+(cfg.ticksPerStep===1?'':'s')+(pause79.paused?' · GLOBAL PAUSE':''));updatePause79();}
+function autoFitScroll177(fc){
+  var g=graphicOf(fc),api=window.RICO_TEST177_ART_FIT;
+  if(!g||!api)return;
+  var editor=g.editor;
+  if(!editor||!editor.layers||!editor.layers.getSelectedLayerObject)editor=typeof g_app!=='undefined'&&g_app?g_app.textModeEditor:null;
+  var v=api.scan(editor,g.getCurrentFrame(),'scroll');
+  if(!v.ok){$('#ricoMapAutoFitStatus177').text(v.error).css('color','#e8ae68');return;}
+  autoFit177={frame:g.getCurrentFrame(),rect:v.rect};
+  var r=v.rect;
+  $('#ricoMapAutoFitStatus177').text('Scroll Area '+r.width+'×'+r.height+' (X'+r.x+', Y'+r.y+') lista; pulsa OK para guardar.'+(v.warning?' '+v.warning:'')).css('color',v.warning?'#e8ae68':'#9cddaa');
+}
 function stepDialogFrame79(fc,delta){var g=graphicOf(fc);if(!g)return;var n=g.getCurrentFrame(),count=g.getFrameCount?g.getFrameCount():(g.frames?g.frames.length:1),target=n+delta;if(target<0||target>=count)return;saveDialogFrame79(fc);stepping79=true;try{fc.gotoFrame(target);}finally{stepping79=false;}loadDialogFrame79(fc);}
 
 function ensureDialog(fc){
   if(UI.get&&UI.get('ricoMapScrollDialog37'))return;
-  var d=UI.create('UI.Dialog',{id:'ricoMapScrollDialog37',title:"Rico's Map Scroll",width:470,height:330});
+  var d=UI.create('UI.Dialog',{id:'ricoMapScrollDialog37',title:"Rico's Map Scroll",width:470,height:388});
   var html='<div style="padding:14px 18px">';
   html+='<div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:14px"><div class="ui-button" id="ricoMapScrollPrev79" style="min-width:30px;text-align:center">&lt;</div><div id="ricoMapScrollFrame79" style="min-width:100px;text-align:center;font-weight:bold">Frame</div><div class="ui-button" id="ricoMapScrollNext79" style="min-width:30px;text-align:center">&gt;</div><div class="ui-button" id="ricoMapScrollPause79" style="min-width:66px;text-align:center;margin-left:10px">PAUSE</div></div>';
   html+='<div style="margin-bottom:14px"><label style="display:inline-block;width:125px">Map Scroll:</label><select id="ricoMapScrollType37" style="width:230px">'+options('')+'</select></div>';
   html+='<div style="margin-bottom:10px"><label style="display:inline-block;width:125px">Ticks / Step:</label><input id="ricoMapScrollTicks37" class="number integer" type="number" min="1" max="255" value="6" style="width:70px"></div>';
   html+='<div><label style="display:inline-block;width:125px">Pixels / Step:</label><input id="ricoMapScrollPixels37" class="number integer" type="number" min="1" max="8" value="1" style="width:70px"> <span style="color:#aaa;font-size:11px">1–8 px</span></div>';
-  html+='<div id="ricoMapScrollInfo37" style="margin-top:16px;color:#aaa;font-size:11px"></div>';
+  html+='<div style="margin-top:13px;text-align:center"><div id="ricoMapAutoFit177" class="ui-button">Auto Fit Scroll Area to Art</div></div>';
+  html+='<div id="ricoMapAutoFitStatus177" style="margin-top:7px;text-align:center;color:#aaa;font-size:11px;min-height:16px">Auto Fit detecta los caracteres exteriores del frame. Guardar con OK.</div>';
+  html+='<div id="ricoMapScrollInfo37" style="margin-top:12px;color:#aaa;font-size:11px"></div>';
   html+='<div style="margin-top:10px;color:#888;font-size:11px">&lt; &gt; saves the current frame before changing. PAUSE / PLAY freezes every MAP SCROLL preview without changing its configuration.</div></div>';
   d.add(UI.create('UI.HTMLPanel',{html:html}));
   var ok=UI.create('UI.Button',{text:'OK',color:'primary'});d.addButton(ok);ok.on('click',function(){saveDialogFrame79(fc);UI.closeDialog();});
-  var ca=UI.create('UI.Button',{text:'Cancel',color:'secondary'});d.addButton(ca);ca.on('click',function(){UI.closeDialog();});
-  setTimeout(function(){$('#ricoMapScrollPrev79').on('click',function(){stepDialogFrame79(fc,-1);});$('#ricoMapScrollNext79').on('click',function(){stepDialogFrame79(fc,1);});$('#ricoMapScrollPause79').on('click',function(){setPaused79(!pause79.paused);loadDialogFrame79(fc);});},0);
+  var ca=UI.create('UI.Button',{text:'Cancel',color:'secondary'});d.addButton(ca);ca.on('click',function(){autoFit177=null;UI.closeDialog();});
+  setTimeout(function(){$('#ricoMapScrollPrev79').on('click',function(){stepDialogFrame79(fc,-1);});$('#ricoMapScrollNext79').on('click',function(){stepDialogFrame79(fc,1);});$('#ricoMapScrollPause79').on('click',function(){setPaused79(!pause79.paused);loadDialogFrame79(fc);});$('#ricoMapAutoFit177').on('click',function(){autoFitScroll177(fc);});},0);
 }
-function openDialog(fc){var g=graphicOf(fc);if(!g)return;activeFrames58=fc;ensureDialog(fc);UI.showDialog('ricoMapScrollDialog37');setTimeout(function(){loadDialogFrame79(fc);},0);}
+function openDialog(fc){var g=graphicOf(fc);if(!g)return;autoFit177=null;activeFrames58=fc;ensureDialog(fc);UI.showDialog('ricoMapScrollDialog37');setTimeout(function(){loadDialogFrame79(fc);},0);}
 function install(fc){activeFrames58=fc;startPreviewPump58();if($('#ricoMapScrollButton37').length){refreshButton(fc);return;}var d=$('#frameDuration');if(!d.length)return;removeTicksWord();var b=$('<div class="ui-button" id="ricoMapScrollButton37" style="margin-left:8px;vertical-align:middle">MAP SCROLL</div>');d.after(b);b.on('click.rico37',function(){openDialog(fc);});refreshButton(fc);}
 var oldInit=Frames.prototype.initEvents;Frames.prototype.initEvents=function(){var r=oldInit.apply(this,arguments);install(this);return r;};
 var oldGoto=Frames.prototype.gotoFrame;Frames.prototype.gotoFrame=function(n){var open=!stepping79&&$('#ricoMapScrollDialog37').is(':visible')&&activeFrames58===this;if(open)saveDialogFrame79(this);var r=oldGoto.apply(this,arguments),g=graphicOf(this);if(g)reset(g,g.getCurrentFrame());refreshButton(this);if(open)setTimeout((function(fc){return function(){loadDialogFrame79(fc);};})(this),0);return r;};
