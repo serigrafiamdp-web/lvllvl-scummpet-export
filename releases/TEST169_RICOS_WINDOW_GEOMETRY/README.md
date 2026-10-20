@@ -13,4 +13,4 @@
 Verificaciones de codigo: 16/16 tipos con viewport 40x25 en mapa 40x50, OFF recupera pantalla completa, caso 24 filas / Window Y=10, 40x25 tradicional sin marco. Prueba en navegador real y VICE pendiente.
 
 ZIP TEST169: `LVLLVL_TEST169_RICOS_WINDOW_VIEWPORT_ROJO_WEB_LOCAL.zip`.
-SHA256: `07382e21a1ee8d76a9decdef264fb4abaab1a6abeabe9721cab3bfd5aecd47cc`.
+SHA256: `07ebbe19069080c179214e233c18d18e978a7e365f8e12230884d126f45fa235`.
