@@ -27,7 +27,8 @@
     { value: 'pingpong-up', label: 'Ping Pong Up' },
     { value: 'pingpong-down', label: 'Ping Pong Down' },
     { value: 'blink', label: 'Blink' },
-    { value: 'frames', label: 'Frames' }
+    { value: 'frames', label: 'Frames' },
+    { value: 'switch-bank', label: 'Switch Bank 1 / Bank 2' }
   ];
 
   function copyPixels(src) {
@@ -272,6 +273,7 @@
     getGroups(tileSet, desc.bank, true).push(group);
     markModified(tileSet);
     tileSet.__ricoGroupPhase34 = null;
+    tileSet.__ricoSwitchBankClock171 = null;
     return group;
   }
 
@@ -315,6 +317,7 @@
     var width = Math.max(1, group.widthTiles * TILE_W);
     var height = Math.max(1, group.heightTiles * TILE_H);
     switch(group.type) {
+      case 'switch-bank': return 2;
       case 'left':
       case 'right': return width;
       case 'up':
@@ -541,6 +544,9 @@
 
     for(var g = 0; g < groups.length; g++) {
       var group = groups[g];
+      // TEST171: Hardware charset switch is global. Group is the timing controller,
+      // never apply a composite/pixel rewrite to its members.
+      if(group.type === 'switch-bank') continue;
       var ticks = parseInt(group.ticksPerFrame, 10);
       if(isNaN(ticks) || ticks < 1) ticks = 6;
       var count = groupFrameCount(tileSet, bank, group);
@@ -555,6 +561,27 @@
       }
     }
     return changed;
+  }
+
+  // TEST171: single VIC-II charset pointer shared by the entire screen.
+  // Switch groups are *triggers*, not local glyph banks; every screen code
+  // sees the same selected hardware bank. No tile data or frame metadata edits.
+  function previewBankSwitch171(tileSet, tick) {
+    var store = getStore(tileSet, false);
+    if(!store) return null;
+    var base = getActiveBank(tileSet);
+    var source = (base === 2 ? store.bank2 : store.bank1) || [];
+    var group = null;
+    for(var j=0;j<source.length;j++) if(source[j].type === 'switch-bank') { group=source[j]; break; }
+    if(!group) return null;
+    var ticks = parseInt(group.ticksPerFrame,10);
+    if(!Number.isInteger(ticks) || ticks < 1) ticks = 1;
+    var now = (typeof performance !== 'undefined' && performance && performance.now)
+      ? performance.now() : Date.now();
+    var key = base+':'+group.id+':'+ticks;
+    var clock = tileSet.__ricoSwitchBankClock171;
+    if(!clock || clock.key !== key || now < clock.start) clock = tileSet.__ricoSwitchBankClock171 = {key:key,start:now};
+    return Math.floor((now-clock.start)/(20*ticks)) % 2 === 0 ? base : 3-base;
   }
 
   // -------------------------------------------------------------------------
@@ -576,8 +603,19 @@
 
     if(changed1.length || changed2.length) {
       refreshGroupVisuals(this, activeChanged, changed1, changed2);
+    }
+    // Use the same bank switch as C64, but only in the screen preview;
+    // the side BANK 1 / BANK 2 palette continues to show original glyphs.
+    var desiredBank = previewBankSwitch171(this,tick);
+    var previousBank = this.__ricoSwitchBankPreview171;
+    if(desiredBank !== previousBank && !(desiredBank === null && typeof previousBank === 'undefined')) {
+      this.__ricoSwitchBankPreview171 = desiredBank;
+      if(typeof window.RICO_applyActiveCharsetBank === 'function') {
+        window.RICO_applyActiveCharsetBank(true, true);
+      }
       return true;
     }
+    if(changed1.length || changed2.length) return true;
     return result;
   };
 
@@ -655,7 +693,7 @@
           '<select id="ricoGroupAnimatedType34" style="margin-right: 6px; margin-top: 6px;">' + optionsHtml('', false) + '</select>' +
           '<div style="display:inline-block; margin-top:6px" id="ricoGroupTicksRow34">' +
             '<label for="ricoGroupTicks34">Ticks/Frame:</label> ' +
-            '<input size="2" class="number" min="1" max="64" value="6" id="ricoGroupTicks34"/>' +
+            '<input size="2" class="number" min="1" max="255" value="6" id="ricoGroupTicks34"/>' +
           '</div>' +
         '</div>' +
         '<div id="ricoGroupEmptyRow151" style="margin-top:9px;">' +
@@ -704,6 +742,7 @@
     var pxW = desc.widthTiles * TILE_W;
     var pxH = desc.heightTiles * TILE_H;
     var msg = desc.cells.length + ' tiles = one ' + pxW + 'x' + pxH + ' px animation surface';
+    if(exact && exact.type === 'switch-bank') msg = 'Switch BANK 1 / BANK 2 — global VIC-II screen effect; tick=20 ms PAL.';
     if(desc.duplicate) msg += ' · duplicate tile IDs detected';
     $('#ricoGroupInfo34').text(msg);
   }
@@ -719,6 +758,7 @@
 
     createGroup(tileEditor.tileSet, desc, type, ticks);
     tileEditor.tileSet.__ricoGroupPhase34 = null;
+    tileEditor.tileSet.__ricoSwitchBankClock171 = null;
     tileEditor.tileSet.__ricoGroupActiveBank34 = 0;
     tileEditor.tileSet.update(typeof g_tick !== 'undefined' ? g_tick : 0);
     refreshGroupSelection153(tileEditor.tileSet, desc);
@@ -758,6 +798,7 @@
     var ticks = parseInt($('#ricoGroupTicks34').val(), 10);
     if(isNaN(ticks) || ticks < 1) return;
     group.ticksPerFrame = ticks;
+    tileEditor.tileSet.__ricoSwitchBankClock171 = null;
     markModified(tileEditor.tileSet);
     tileEditor.tileSet.__ricoGroupPhase34 = null;
   }
@@ -812,6 +853,7 @@
   window.RICO_TEST151_GLOBAL_EMPTY_CHARACTERS = { get: getAnimateEmptyCharacters, isEmpty: isEmptyGroupTile };
   window.RICO_TEST153_STATIC_GROUP_PALETTE = true;
   window.RICO_TEST165_PAL_GROUP_PREVIEW = true;
+  window.RICO_TEST171_GROUP_BANK_SWITCH = true;
   window.RICO_TEST152_PIXEL_BASED_EMPTY_CHARACTERS = true;
   console.log('[RICO TEST165] Group Scroll Up preview PAL-paced (2 px/IRQ, legacy TEST155 1 px), unchanged exports and static tileset.');
 })();
