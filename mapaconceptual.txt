@@ -1,3 +1,18 @@
+MASTER LVL RICO — 20/10/2026 — PASS VICE
+ MASTER TEST149 / 256 normal 1 tick
+    -> Group Animate TEST153/155
+    -> Scroll Up rapido TEST161/164, grupos hasta 256, 2px IRQ nominal
+    -> Preview 50Hz TEST165 PASS, sin cambiar exportador
+    -> TEST167 FIX idle ghost bytes de VIC-II, sin recortar pantalla
+          25 filas, sin hardware Map Scroll: $D011=$1B
+          25 filas, con Map Scroll: se conserva $D011=$18
+          24 filas: se conserva $D011=$10
+          $3FFF nunca sobrescrito (glyph 255)
+          PRG GROUP e INDIVIDUAL PASS VICE confirmado.
+    -> NUEVO MASTER 20 OCT (reversible; TEST166 descartado).
+CHECKPOINT: releases/MASTER_LVL_RICO_20_OCTUBRE_2026/README.md
+----------------------------------------------------------
+
 MASTER LVLLVL RICO — 256 CARACTERES / 1 TICK — 19 DE OCTUBRE DE 2026
 =============================================================================
 ESTADO: MASTER APROBADO DESDE TEST149 (PASS).
