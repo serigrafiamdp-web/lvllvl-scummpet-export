@@ -348,7 +348,11 @@
   TileSet.prototype.update = function(tick) {
     if(!isDual8x8(this)) return originalUpdate.apply(this, arguments);
 
-    var bank = getActiveBank(this);
+    // TEST172: edit controls still follow the selected FRAME BANK, but the
+    // animated working canvas follows the bank currently visible through
+    // hardware Switch Bank. TEST33 separately advances both preview phases.
+    var bank = (this.__ricoSwitchBankPreview171===1 || this.__ricoSwitchBankPreview171===2)
+      ? this.__ricoSwitchBankPreview171 : getActiveBank(this);
     var updated = [];
     var bankChanged = this.__ricoAnimationBank25 !== bank;
     this.__ricoAnimationBank25 = bank;

@@ -212,7 +212,7 @@
     return changed;
   }
 
-  function removeIntersectingGroups(tileSet, desc) {
+  function removeIntersectingGroups(tileSet, desc, preserveBankSwitch) {
     if(!desc) return [];
     var groups = getGroups(tileSet, desc.bank, true);
     var selected = {};
@@ -221,6 +221,12 @@
     var resetMap = {};
 
     for(var g = 0; g < groups.length; g++) {
+      // TEST172: setting an individual animation must never remove the
+      // global Switch Bank trigger, even when it uses the same tile codes.
+      if(preserveBankSwitch && groups[g].type === 'switch-bank') {
+        kept.push(groups[g]);
+        continue;
+      }
       var hit = false;
       var cells = groups[g].cells || [];
       for(var c = 0; c < cells.length; c++) {
@@ -259,7 +265,10 @@
       return null;
     }
 
-    disableIndividualAnimation(tileSet, desc.bank, desc.cells);
+    // TEST172: Switching the VIC-II charset is NOT mutually exclusive with
+    // native animation in either bank. Only pixel-writing group motions
+    // retain their previous exclusive behavior.
+    if(type !== 'switch-bank') disableIndividualAnimation(tileSet, desc.bank, desc.cells);
     var group = {
       id: 'g' + (store.nextId++),
       selectionKey: desc.key,
@@ -570,9 +579,13 @@
     var store = getStore(tileSet, false);
     if(!store) return null;
     var base = getActiveBank(tileSet);
-    var source = (base === 2 ? store.bank2 : store.bank1) || [];
-    var group = null;
-    for(var j=0;j<source.length;j++) if(source[j].type === 'switch-bank') { group=source[j]; break; }
+    // TEST172: Switch Bank is global. It must stay enabled when the user
+    // edits native character animations in the OTHER bank. Find the single
+    // trigger in either bank rather than looking only at the frame bank.
+    var banks=[store.bank1||[],store.bank2||[]],group=null;
+    for(var bi=0;bi<banks.length&&!group;bi++)
+      for(var j=0;j<banks[bi].length;j++)
+        if(banks[bi][j].type === 'switch-bank') {group=banks[bi][j];break;}
     if(!group) return null;
     var ticks = parseInt(group.ticksPerFrame,10);
     if(!Number.isInteger(ticks) || ticks < 1) ticks = 1;
@@ -637,6 +650,9 @@
     var saved = {}, seen = {};
     try {
       for(var g=0;g<groups.length;g++) {
+        // TEST172: Switch Bank does not own the glyph pixels; keep each
+        // character's live individual animation in the palette.
+        if(groups[g].type==='switch-bank') continue;
         var cells=groups[g].cells || [];
         for(var c=0;c<cells.length;c++) {
           var id=cells[c].tile;
@@ -825,7 +841,7 @@
     if(this.tileSet && this.characters && this.characters.length) {
       var desc = selectionDescriptor(this);
       if(desc && desc.cells.length) {
-        var reset = removeIntersectingGroups(this.tileSet, desc);
+        var reset = removeIntersectingGroups(this.tileSet, desc, true);
         if(reset.length) {
           this.tileSet.__ricoGroupPhase34 = null;
           this.tileSet.__ricoGroupActiveBank34 = 0;
@@ -854,6 +870,7 @@
   window.RICO_TEST153_STATIC_GROUP_PALETTE = true;
   window.RICO_TEST165_PAL_GROUP_PREVIEW = true;
   window.RICO_TEST171_GROUP_BANK_SWITCH = true;
+  window.RICO_TEST172_DUAL_NATIVE_BANK_SWITCH = true;
   window.RICO_TEST152_PIXEL_BASED_EMPTY_CHARACTERS = true;
   console.log('[RICO TEST165] Group Scroll Up preview PAL-paced (2 px/IRQ, legacy TEST155 1 px), unchanged exports and static tileset.');
 })();

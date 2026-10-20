@@ -102,9 +102,14 @@
 
     if(changed) {
       for(var i = 0; i < BANK_SIZE; i++) {
-        tileSet.currentTileData[i] = effectiveBank === 2
-          ? bank2Pixels(stored, i)
-          : bank1Pixels(tileSet, i);
+        // TEST172: draw the *current independent animation phase* of the
+        // newly selected bank, not the original static bitmap (frame 0).
+        var state=tileSet.__ricoPalettePreview33;
+        var animated=tileSet.__ricoSwitchBankPreview171 && state && state.phase &&
+          state.phase[effectiveBank] && typeof state.phase[effectiveBank][i]!=='undefined';
+        tileSet.currentTileData[i] = animated && state.pixels && state.pixels[effectiveBank] && state.pixels[effectiveBank][i]
+          ? state.pixels[effectiveBank][i].slice(0)
+          : (effectiveBank === 2 ? bank2Pixels(stored, i) : bank1Pixels(tileSet, i));
       }
       tileSet.__ricoActiveCharsetBank = effectiveBank;
       tileSet.__ricoActiveCharsetSource = sourceRef;
