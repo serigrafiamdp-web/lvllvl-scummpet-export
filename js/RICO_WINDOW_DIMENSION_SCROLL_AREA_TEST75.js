@@ -131,6 +131,19 @@ function resetSelected75(){
   if(activeMode==='scroll')draftScroll=r;else draftWindow=r;
   setInputsFromRect(r);drawPreview();
 }
+function autoFitSelected177(){
+  var e=activeEditor&&activeEditor.textModeEditor,g=e&&e.graphic;
+  var api=window.RICO_TEST177_ART_FIT;
+  if(!api||!g)return;
+  // Preserve any margins the user typed before clicking (only the selected rect changes).
+  captureActiveDraft();
+  var result=api.scan(e,g.getCurrentFrame(),activeMode);
+  if(!result.ok){$('#ricoGeomFitStatus177').text(result.error).css('color','#e8ae68');return;}
+  var r=result.rect;
+  if(activeMode==='scroll')draftScroll=r;else draftWindow=r;
+  setInputsFromRect(r);drawPreview();
+  $('#ricoGeomFitStatus177').text('Auto Fit '+(activeMode==='scroll'?'Scroll Area':'Window')+': '+r.width+'×'+r.height+' (X'+r.x+', Y'+r.y+'). Presiona OK para guardar.'+(result.warning?' '+result.warning:'')).css('color',result.warning?'#e8ae68':'#9cddaa');
+}
 function ensureDialog(){
   if(dialog)return;
   dialog=UI.create('UI.Dialog',{id:'ricoWindowScrollDialog75',title:"Rico's Window Dimensions",width:560,height:610});
@@ -144,7 +157,8 @@ function ensureDialog(){
   html+='<div style="text-align:center;margin-bottom:8px"><label style="display:inline-block;width:62px">Top:</label><input id="ricoGeomTop75" type="number" min="0" value="0" style="width:72px"></div>';
   html+='<div style="display:flex;align-items:center;justify-content:center;gap:12px"><div style="width:92px;text-align:right"><label>Left:</label><br><input id="ricoGeomLeft75" type="number" min="0" value="0" style="width:72px;margin-top:4px"></div><canvas id="ricoGeomCanvas75" width="260" height="200" style="display:block"></canvas><div style="width:92px;text-align:left"><label>Right:</label><br><input id="ricoGeomRight75" type="number" min="0" value="0" style="width:72px;margin-top:4px"></div></div>';
   html+='<div style="text-align:center;margin-top:8px"><label style="display:inline-block;width:62px">Bottom:</label><input id="ricoGeomBottom75" type="number" min="0" value="0" style="width:72px"></div>';
-  html+='<div style="text-align:center;margin-top:12px"><div class="ui-button" id="ricoGeomReset75">Reset selected to Screen</div></div>';
+  html+='<div style="text-align:center;margin-top:12px;display:flex;justify-content:center;gap:9px"><div class="ui-button" id="ricoGeomAutoFit177">Auto Fit to Art</div><div class="ui-button" id="ricoGeomReset75">Reset selected to Screen</div></div>';
+  html+='<div id="ricoGeomFitStatus177" style="margin-top:7px;min-height:15px;text-align:center;color:#999;font-size:11px">Ajusta Window o Scroll Area según la pestaña seleccionada; no modifica los caracteres.</div>';
   html+='<div style="margin-top:16px;color:#aaa;font-size:11px;line-height:1.4"><b>Screen</b> = mapa completo editable. <b>Window</b> = vista C64 al activar MAP SCROLL. <b>Scroll Area</b> = superficie fuente (puede ser 40x50 o mas). Marco rojo = maximo C64 40x25. Dibujar nunca reduce el Screen.</div>';
   html+='</div>';
   dialog.add(UI.create('UI.HTMLPanel',{html:html}));
@@ -155,10 +169,10 @@ function ensureDialog(){
     $('#ricoGeomTop75').on('input change',function(){drawPreview('top');});$('#ricoGeomBottom75').on('input change',function(){drawPreview('bottom');});
     $('#ricoGeomPrev75').on('click',function(){stepDialogFrame75(-1);});$('#ricoGeomNext75').on('click',function(){stepDialogFrame75(1);});
     $('#ricoGeomWindow75').on('click',function(){switchMode75('window');});$('#ricoGeomScroll75').on('click',function(){switchMode75('scroll');});
-    $('#ricoGeomReset75').on('click',resetSelected75);
+    $('#ricoGeomReset75').on('click',resetSelected75);$('#ricoGeomAutoFit177').on('click',autoFitSelected177);
   },0);
 }
-function openDialog(editor){activeEditor=editor;ensureDialog();activeMode='window';UI.showDialog('ricoWindowScrollDialog75');loadDialogFrame75();}
+function openDialog(editor){activeEditor=editor;ensureDialog();activeMode='window';UI.showDialog('ricoWindowScrollDialog75');loadDialogFrame75();$('#ricoGeomFitStatus177').text('Ajusta Window o Scroll Area según la pestaña seleccionada; no modifica los caracteres.').css('color','#999');}
 
 if(!Editor.prototype.__ricoWindowScroll75){
   Editor.prototype.__ricoWindowScroll75=true;
