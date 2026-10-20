@@ -5,6 +5,7 @@ if(typeof ToPRGAdv==='undefined'){console.error('[RICO TEST77] ToPRGAdv missing'
 var MAX_FRAMES=32;
 var TYPE_CODE={'':0,'up':1,'down':2,'left':3,'right':4,'pingpong-left':5,'pingpong-right':6,'pingpong-up':7,'pingpong-down':8,'move-left':9,'move-right':10,'move-up':11,'move-down':12,'movein-left':13,'movein-right':14,'movein-up':15,'movein-down':16};
 
+function hex(v,width){return (v>>>0).toString(16).padStart(width||2,'0');}
 function clamp(v,a,b,d){v=parseInt(v,10);return isNaN(v)?d:Math.max(a,Math.min(b,v));}
 function colorIndex(v,d){v=parseInt(v,10);return isNaN(v)||v<0?d:(v&15);}
 function frameCount(editor){try{return editor.graphic.getFrameCount();}catch(e){return editor.graphic.frames?editor.graphic.frames.length:0;}}
@@ -96,15 +97,48 @@ function colorData(layer,frame){
   }
   return out;
 }
+// TEST140: A custom tileset can legitimately fill all 256 character indices.
+// Reuse existing *truly empty* glyphs (in both banks), even if referenced on
+// screen; never erase a glyph that is visible in the user's artwork.
+// A one-frame cardinal SCROLL wraps existing artwork and NEVER exposes a new
+// background cell, so it needs no dedicated blank code at all.
+// TEST140: preserve TEST138's exact reservation when a free glyph exists.
+// If all 256 codes are in use, a true blank glyph can still be reused safely.
+// For a one-frame cardinal *wrap* no blank pixels are ever exposed: the
+// staging buffer is not displayed, so no glyph must be sacrificed.
 function chooseBlankChar(frames,bank1,bank2,animated){
   var used=new Uint8Array(256);
   for(var f=0;f<frames.length;f++)for(var i=0;i<frames[f].screen.length;i++)used[frames[f].screen[i]&255]=1;
   for(var a=0;a<animated.length;a++)used[animated[a].charCode&255]=1;
-  var code=-1;
-  for(var c=255;c>=0;c--)if(!used[c]){code=c;break;}
-  if(code<0)throw new Error('MAP SCROLL necesita un caracter libre para representar el fondo expuesto.');
-  for(var y=0;y<8;y++){bank1[code*8+y]=0;bank2[code*8+y]=0;}
-  return code;
+  // Preserve the historical TEST138 path byte-for-byte for every project
+  // that could already export: reserve the highest truly unused code.
+  for(var c=255;c>=0;c--)if(!used[c]){
+    for(var y=0;y<8;y++){bank1[c*8+y]=0;bank2[c*8+y]=0;}
+    return c;
+  }
+  // All codes are occupied. An existing blank code needs no reservation
+  // and can be used even if already drawn on screen (it is already empty).
+  var animatedCode=new Uint8Array(256);
+  for(var a=0;a<animated.length;a++)animatedCode[animated[a].charCode&255]=1;
+  for(var n=255;n>=0;n--){
+    if(animatedCode[n])continue;
+    var isEmpty=true;
+    for(var r=0;r<8;r++)if(bank1[n*8+r]!==0||bank2[n*8+r]!==0){isEmpty=false;break;}
+    if(isEmpty)return n;
+  }
+  // One-frame cyclic UP/DOWN/LEFT/RIGHT does not display an exposed blank
+  // or the temporary blank-stage screen. Use a placeholder unmodified.
+  if(frames.length===1 && frames[0].typeCode>=1 && frames[0].typeCode<=4){
+    return 255;
+  }
+  // TEST143: no Map Scroll and only Character Animation NORMAL: there is
+  // no exposed blank area, so ALL 256 glyph codes can remain occupied.
+  if(frames.length===1 && frames[0].typeCode===0){
+    return 255;
+  }
+  // Ping Pong / Move In / Move Out with truly exposed background still
+  // require at least one nonanimated glyph with zero bitmap in both banks.
+  throw new Error('No hay codigo libre ni caracter vacio para el fondo expuesto. En Ping Pong/Move In/Out reserva un glyph vacio en BANK 1 y BANK 2 (sin animacion); para Scroll circular de 1 frame no hace falta.');
 }
 // TEST128: exact LVLLVL/JAMES character-animation metadata: getAnimatedType() and
 // getTileProperties().ticksPerFrame. Each entry uses the stock player's
@@ -162,10 +196,91 @@ function supports(self,args){
   var any=false,anyPing=false,anyMove=false;
   for(var i=0;i<fc;i++){var c=getCfg(ed,i),t=(c&&c.type)||'';if(t)any=true;if(t.indexOf('pingpong-')===0)anyPing=true;if(t.indexOf('move-')===0||t.indexOf('movein-')===0)anyMove=true;if(typeof TYPE_CODE[t]==='undefined')return false;}
   // TEST77: single-frame wrap scrolls must also use the modern Window + Scroll Area runtime.
-  return any;
+  // TEST143: Character Animation NORMAL is valid WITHOUT Map Scroll.
+  // Keep multi-frame no-scroll projects on their former exporter until tested.
+  // Group Animate data is not inspected or changed here.
+  return any || (fc===1 && collectNativeAnimations(ts).length>0);
 }
-function buildSource(d){
+function buildSource(d,options){
+  options=options||{};
   var f=d.frames,out=[];
+  // Calling buildSource directly in tests may not provide hasScroll: derive
+  // the runtime mode from frame metadata as an additional guard.
+  var hasRealScroll=!!d.hasScroll||f.some(function(frame){return frame.typeCode!==0;});
+  // TEST141: Native C64 character animation is a CPU IRQ job, not a VIC
+  // hardware feature. Running 256 selected glyphs in both banks scans as many
+  // as 512 records EVERY IRQ even when the 40x25 scene uses only a few.
+  // Build the runtime workset from actual screen-code use, PER BANK across
+  // ALL exported frames. Preserve editable tiles and their animation metadata.
+  // Never skip a visible blinking glyph, even when its original pixels are zero.
+  var usedBankMask=new Uint8Array(256);
+  for(var vf=0;vf<f.length;vf++){
+    var screen=f[vf].screen, mask=(f[vf].bank===2)?2:1;
+    for(var vi=0;vi<screen.length;vi++)usedBankMask[screen[vi]&255]|=mask;
+  }
+  var emittedAnimations=[], skippedEmptyRows=0;
+  for(var ai=0;ai<d.nativeAnimations.length;ai++){
+    var anim=d.nativeAnimations[ai],cc=anim.charCode&255, used=usedBankMask[cc];
+    if(!used)continue;
+    var bankMask=0;
+    if(hasRealScroll){
+      // TEST138 SCUMM scroll: preserve the entire previously approved workset.
+      for(var bank=0;bank<2;bank++)if(used&(1<<bank)){
+        var bytes=bank?d.bank2:d.bank1, visible=anim.type===4;
+        for(var y=0;y<8&&!visible;y++)if(bytes[cc*8+y])visible=true;
+        if(visible)bankMask|=1<<bank;
+        else skippedEmptyRows++;
+      }
+    }else{
+      // TEST147 no-scroll: a glyph is still animated even if its SHAPE
+      // conceals the movement. Never classify it as inactive by pixels.
+      // This also keeps 0..255 contiguous, so all can use the fast UP loop.
+      bankMask=used;
+    }
+    if(bankMask)emittedAnimations.push({charCode:cc,ticks:anim.ticks,type:anim.type,runtimeBankMask:bankMask});
+  }
+  // TEST142: Fast horizontal/blink animation for contiguous glyphs that
+  // share type AND tick interval within one bank. One shared counter is
+  // equivalent to their initially identical independent counters.
+  // TEST143: UP/DOWN can use direct 8x8 vertical loops, but ONLY in
+  // no-Map-Scroll mode. Never alter the proven TEST138 gear path.
+  // Only 8+ consecutive characters qualify; isolated/mixed entries stay in
+  // the unmodified native animation path. Keep all editor metadata untouched.
+  var animFastGroups=[], maskedAnimations=emittedAnimations.map(function(an){
+    return Object.assign({},an);
+  });
+  for(var groupBank=0;groupBank<2;groupBank++){
+    var bMask=1<<groupBank,byCode=new Array(256);
+    for(var ji=0;ji<maskedAnimations.length;ji++){
+      if(maskedAnimations[ji].runtimeBankMask&bMask)byCode[maskedAnimations[ji].charCode]=ji;
+    }
+    for(var gi=0;gi<256;){
+      var index=byCode[gi];
+      if(index===undefined){gi++;continue;}
+      var candidate=maskedAnimations[index];
+      if(candidate.type!==0&&candidate.type!==1&&candidate.type!==4 && !(!hasRealScroll&&(candidate.type===2||candidate.type===3))){gi++;continue;}
+      var stop=gi+1;
+      while(stop<256){
+        var next=byCode[stop];
+        if(next===undefined)break;
+        var other=maskedAnimations[next];
+        if(other.type!==candidate.type||other.ticks!==candidate.ticks)break;
+        stop++;
+      }
+      if(!options.disableFastGroups && stop-gi>=8 && animFastGroups.length<3){
+        animFastGroups.push({bank:groupBank+1,start:gi,count:stop-gi,ticks:candidate.ticks,type:candidate.type});
+        for(var cg=gi;cg<stop;cg++)maskedAnimations[byCode[cg]].runtimeBankMask&=~bMask;
+      }
+      gi=stop;
+    }
+  }
+  maskedAnimations=maskedAnimations.filter(function(an){return an.runtimeBankMask!==0;});
+  var allAnimatedCodes=emittedAnimations.map(function(an){return an.charCode&255;});
+  // Only emitted 6502 records are compacted. Group phases/counters are data
+  // in code below $3000, so frame_color pointers still follow ONLY records.
+  d=Object.assign({},d,{nativeAnimations:maskedAnimations,fastGroups:animFastGroups});
+  var hasAnyAnim=(maskedAnimations.length>0||animFastGroups.length>0);
+
   // TEST136: compile a single-pass color scan ONLY for the isolated 1T/1px
   // one-frame cardinal-scroll path. No added overhead in slower PASS modes.
   var fastColorOnePass=(f.length===1 && f[0].ticks===1 && f[0].pixels===1 && f[0].typeCode>=1 && f[0].typeCode<=4);
@@ -275,7 +390,7 @@ function buildSource(d){
   out.push('fast_prefetch=$46');
   // TEST138: the gear is active only for fast 1T scroll with animated glyphs.
   // Preserve the prior assembly byte for byte in every other mode.
-  var gearCoupled=fastColorOnePass && d.nativeAnimations.length>0;
+  var gearCoupled=fastColorOnePass && hasAnyAnim;
   if(gearCoupled){
     out.push('gear_previous_fine=$47');
     out.push('gear_advanced_count=$48');
@@ -373,8 +488,9 @@ function buildSource(d){
     // a tick after the map actually advances a pixel, including busy IRQs.
     out.push(' lda fine_pos');
     out.push(' sta gear_previous_fine');
-  } else if(d.nativeAnimations.length){
-    out.push(' jsr animate_chars_native');
+  } else if(hasAnyAnim){
+    if(d.fastGroups.length)out.push(' jsr animate_chars_fast_groups');
+    if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
   }
   // Remaining color updates are spread over subsequent raster IRQs.
   out.push(' lda patch_pending');
@@ -397,7 +513,8 @@ function buildSource(d){
     // Native animation counters (1..255) now count accepted map pixels;
     // the type, direction, and ticks chosen in the editor are unchanged.
     out.push(' inc gear_advanced_count');
-    out.push(' jsr animate_chars_native');
+    if(d.fastGroups.length)out.push(' jsr animate_chars_fast_groups');
+    if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
     out.push(' jmp irq_gear_done');
     out.push('irq_gear_map_wait');
     out.push(' inc gear_wait_count');
@@ -410,6 +527,92 @@ function buildSource(d){
   out.push(' pla');
   out.push(' rti');
   out.push('');
+  // TEST142: one countdown per contiguous run; direct absolute indexed
+  // charset bytes. The loop always rotates a byte identically to the stock
+  // code, but avoids the 5-byte record dispatcher and per-row indirection.
+  if(d.fastGroups.length){
+    out.push('animate_chars_fast_groups');
+    for(var qg=0;qg<d.fastGroups.length;qg++)out.push(' jsr fast_group_tick_'+qg);
+    out.push(' rts');
+    out.push('');
+    for(var qg=0;qg<d.fastGroups.length;qg++){
+      var gr=d.fastGroups[qg],base=(gr.bank===2?0x3800:0x3000)+gr.start*8;
+      var total=gr.count*8;
+      out.push('fast_group_tick_'+qg);
+      out.push(' dec fast_group_counter_'+qg);
+      // TEST147: a 240+ char group may exceed the 6502 relative-branch range.
+      if(hasRealScroll){
+        out.push(' bne fast_group_done_'+qg); // unchanged TEST138 code
+      }else{
+        // TEST147: compact early return, avoids long relative jumps.
+        out.push(' beq fast_group_run_'+qg);
+        out.push(' rts');
+        out.push('fast_group_run_'+qg);
+      }
+      out.push(' lda #$'+hex(gr.ticks));
+      out.push(' sta fast_group_counter_'+qg);
+      for(var chOff=0,piece=0;chOff<total;piece++){
+        // TEST143: vertical groups advance in CHAR strides of eight bytes;
+        // each source row stays inside the original glyph's 8x8 tile.
+        // Limit a chunk to 32 chars: X wraps after 256 bytes, no extra RAM.
+        var vertical=(gr.type===2||gr.type===3);
+        var count=Math.min(256,total-chOff),addr=base+chOff;
+        out.push(' ldx #$00');
+        out.push('fast_group_loop_'+qg+'_'+piece);
+        if(vertical){
+          out.push(' lda $'+hex(addr+(gr.type===2?0:7),4)+',x');
+          out.push(' sta anim_temp');
+          if(gr.type===2){
+            for(var row=0;row<7;row++){
+              out.push(' lda $'+hex(addr+row+1,4)+',x');
+              out.push(' sta $'+hex(addr+row,4)+',x');
+            }
+            out.push(' lda anim_temp');
+            out.push(' sta $'+hex(addr+7,4)+',x');
+          }else{
+            for(var row=7;row>=1;row--){
+              out.push(' lda $'+hex(addr+row-1,4)+',x');
+              out.push(' sta $'+hex(addr+row,4)+',x');
+            }
+            out.push(' lda anim_temp');
+            out.push(' sta $'+hex(addr,4)+',x');
+          }
+          out.push(' txa');
+          out.push(' clc');
+          out.push(' adc #$08');
+          out.push(' tax');
+          if(count!==256)out.push(' cpx #$'+hex(count));
+          out.push(' bne fast_group_loop_'+qg+'_'+piece);
+          chOff+=count;
+          continue;
+        }
+        out.push(' lda $'+hex(addr,4)+',x');
+        if(gr.type===0){
+          // (a << 1) | (a >> 7): ASL carry is the original high bit.
+          out.push(' asl');
+          out.push(' adc #$00');
+        }else if(gr.type===1){
+          // (a >> 1) | ((a & 1) << 7): LSR carry is original low bit.
+          out.push(' lsr');
+          out.push(' bcc fast_group_no_hi_'+qg+'_'+piece);
+          out.push(' ora #$80');
+          out.push('fast_group_no_hi_'+qg+'_'+piece);
+        }else{
+          out.push(' eor #$ff');
+        }
+        out.push(' sta $'+hex(addr,4)+',x');
+        out.push(' inx');
+        if(count!==256)out.push(' cpx #$'+hex(count));
+        out.push(' bne fast_group_loop_'+qg+'_'+piece);
+        chOff+=count;
+      }
+      out.push('fast_group_done_'+qg);
+      out.push(' rts');
+      out.push('fast_group_counter_'+qg);
+      out.push('!byte $'+hex(gr.ticks));
+      out.push('');
+    }
+  }
   // TEST128: native LVLLVL / JAMES character animation, executed once per IRQ,
   // independently from TEST77's frame_tick and main_busy. No changes to scroll.
   // Stock semantics: decrement tick counter, then rotate glyph bitmap left/right,
@@ -617,7 +820,14 @@ function buildSource(d){
   out.push(' lda transition_request');
   out.push(' beq frame_tick_timer');
   out.push(' lda transition_ready');
-  out.push(' beq frame_tick_done');
+  if(hasRealScroll){
+    out.push(' beq frame_tick_done'); // byte-identical TEST138 path
+  } else {
+    // TEST147: avoid relative-branch overflow in the grouped no-scroll player.
+    out.push(' bne frame_tick_commit_147');
+    out.push(' jmp frame_tick_done');
+    out.push('frame_tick_commit_147');
+  }
   out.push(' jsr commit_hidden_frame');
   out.push(' rts');
   out.push('frame_tick_timer');
@@ -2458,9 +2668,15 @@ function buildSource(d){
   emitNumericTable(out,'frame_ptr_hi',ptrhi);
   // TEST130: LVLLVL's built-in assembler rejects forward label expressions
   // in !byte (<frame_color_0 / >frame_color_0). The color data follows
-  // all 1000-byte screen frames and the optional 10-byte native-animation
-  // records plus one terminating zero. Compute the real addresses directly.
-  var animRecordsSize=d.nativeAnimations.length?(d.nativeAnimations.length*10+1):0;
+  // all 1000-byte screen frames and the optional emitted BANK-specific native
+  // animation records (5 bytes each) plus the terminating zero. TEST141
+  // counts exact records to avoid shifting C64 color pointers.
+  var animRecordCount=0;
+  for(var ra=0;ra<d.nativeAnimations.length;ra++){
+    if(d.nativeAnimations[ra].runtimeBankMask&1)animRecordCount++;
+    if(d.nativeAnimations[ra].runtimeBankMask&2)animRecordCount++;
+  }
+  var animRecordsSize=animRecordCount?(animRecordCount*5+1):0;
   var firstColorAddr=0x4000+f.length*1000+animRecordsSize;
   var colorPtrLo=[],colorPtrHi=[];
   for(var ci=0;ci<f.length;ci++){
@@ -2476,7 +2692,7 @@ function buildSource(d){
   // This fixes the false classification of normal space ($20) as visible when
   // blank_char is the reserved scroller character ($ff).
   var animatedCharCodes={};
-  for(var avi=0;avi<d.nativeAnimations.length;avi++)animatedCharCodes[d.nativeAnimations[avi].charCode&255]=true;
+  for(var avi=0;avi<allAnimatedCodes.length;avi++)animatedCharCodes[allAnimatedCodes[avi]]=true;
   var charVisible=[];
   for(var code=0;code<256;code++){
     var visible=!!animatedCharCodes[code];
@@ -2487,6 +2703,9 @@ function buildSource(d){
   }
   emitNumericTable(out,'character_visibility_table',charVisible);
   out.push('');
+  // TEST142: always record the end of generated code so accidental overflow
+  // into VIC charset $3000 cannot corrupt custom glyphs silently.
+  out.push('test142_code_end');
   out.push('*=$3000');
   out.push('charset_bank1');emitBytes(out,d.bank1);
   out.push('*=$3800');
@@ -2502,6 +2721,7 @@ function buildSource(d){
     for(var ai=0;ai<d.nativeAnimations.length;ai++){
       var an=d.nativeAnimations[ai];
       for(var bi=0;bi<2;bi++){
+        if(!(an.runtimeBankMask&(1<<bi)))continue;
         var charAddr=(bi?0x3800:0x3000)+(an.charCode*8);
         out.push(bytesLine([an.ticks,an.ticks,charAddr&255,(charAddr>>>8)&255,an.type]));
       }
@@ -2519,6 +2739,11 @@ function assemblePRG(self,source){
   if(!result||!result.success){
     var msgs=[];if(result&&result.errors)for(var i=0;i<result.errors.length;i++)msgs.push(result.errors[i].message||String(result.errors[i]));
     throw new Error('Error ensamblando runtime TEST75'+(msgs.length?': '+msgs.join(' | '):'.'));
+  }
+  // TEST142: protecting the $3000 charset is mandatory if runtime jobs grow.
+  if(assembler.labels&&assembler.labels.test142_code_end&&assembler.labels.test142_code_end.value>0x3000){
+    var fastOverflow=new Error('TEST142: runtime no entra antes de $3000 (limite charset).');
+    fastOverflow.fastCodeOverflow=true;throw fastOverflow;
   }
   var mem=assembler.getMemory(),start=result.start,end=result.end;
   var prg=new Uint8Array(2+(end-start));prg[0]=start&255;prg[1]=(start>>8)&255;
@@ -2562,15 +2787,23 @@ ToPRGAdv.prototype.createPRG=function(args){
   args=args||{};
   if(!supports(this,args))return prev.apply(this,arguments);
   try{
-    var d=collect(this,args),source=buildSource(d),bytes=assemblePRG(this,source);
+    var d=collect(this,args),source=buildSource(d),bytes;
+    try{bytes=assemblePRG(this,source);}catch(ex){
+      // Fall back to the last verified TEST141 runtime when fast unrolling
+      // would intrude on the charset $3000. Never export corrupted glyphs.
+      if(!ex.fastCodeOverflow)throw ex;
+      console.warn('[RICO TEST143] Code space exhausted; using proven per-char fallback.');
+      source=buildSource(d,{disableFastGroups:true});
+      bytes=assemblePRG(this,source);
+    }
     var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
-    console.log('[RICO TEST138 MAP-DRIVEN CHAR GEAR] MAP SCROLL + Ping Pong exported: '+d.frames.map(function(f,i){return 'F'+(i+1)+' '+(f.type||'No')+' '+f.duration+'t';}).join(' | '));
+    console.log('[RICO TEST143 NATIVE CHAR 8x8 FAST IRQ] '+(d.hasScroll?'MAP SCROLL':'NO MAP SCROLL')+' '+d.nativeAnimations.length+' configured glyphs; exported '+d.frames.length+' frame(s).');
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
     throw new Error('download() missing');
   }catch(e){
     console.error('[RICO TEST77]',e);
-    alert('RICO TEST76: '+e.message);
+    alert('RICO TEST143: '+e.message);
     return false;
   }
 };
@@ -2586,5 +2819,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST138 MAP-DRIVEN CHAR GEAR] MAP SCROLL exporter: Scroll Area guard row + axis-safe VIC geometry.');
+console.log('[RICO TEST143 NATIVE CHAR 8x8] no-map export fast UP/DOWN; TEST138 scroll gear unchanged.');
 })();

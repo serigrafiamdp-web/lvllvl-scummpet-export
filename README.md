@@ -1,5 +1,14 @@
 # LVLLVL SCUMMPET EXPORT — RICO MOD
 
+## MASTER ACTUAL — 19 OCTUBRE 2026
+**MASTER LVLLVL 256 CARACTERES / 1 TICK — TEST149 PASS.**
+PASS confirmado por el usuario en la barra divisoria editor/tileset y en la exportación
+de 256 animaciones a 1 tick visualizada en VICE (no certificación instrumental de 50 Hz).
+**Web:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/
+**Local:** `MASTER_LVLLVL_256_1_TICK_19_OCTUBRE_2026.zip`.
+Documentación unificada: `log.txt` y `mapaconceptual.txt` (sin TXT individuales ni PRG).
+El milestone TEST138 SCUMM Pixel Gear permanece conservado en su rama.
+### Historial: anterior MASTER TEST138 (18 OCTUBRE)
 **MASTER ACTUAL (18/10/2026): TEST138 — SCUMM PIXEL GEAR — PASS VICE.**
 Scroll horizontal perfecto en 40 columnas y vertical perfecto en 24 de 25 filas, confirmado por usuario. Sincronizacion de Animated Char y Map Scroll a 1 tick sin movimiento lateral intermitente. El motor SCUMM-PET-C64 aporta el principio de scheduler/IRQ maestro; no es un port completo del motor.
 
