@@ -286,9 +286,9 @@ function buildSource(d){
   out.push(' cli');
   out.push('main_loop');
   out.push(' lda prep_request');
-  out.push(' beq main_loop');
+  out.push(d.anim175&&d.anim175.records.length?' beq main176_background':' beq main_loop');
   out.push(' lda prep_ready');
-  out.push(' bne main_loop');
+  out.push(d.anim175&&d.anim175.records.length?' bne main176_background':' bne main_loop');
   out.push(' lda #$01');
   out.push(' sta main_busy');
   out.push(' lda pixels_per_step');
@@ -308,16 +308,30 @@ function buildSource(d){
   out.push(' lda #$01');
   out.push(' sta prep_ready');
   out.push(' jmp main_loop');
+  if(d.anim175&&d.anim175.records.length){
+    out.push('main176_background');
+    out.push(' lda anim175_pending');
+    out.push(' beq main_loop');
+    out.push(' jsr anim175_tick');  // exactly one record, then yield to map loop
+    out.push(' jmp main_loop');
+  }
   out.push('');
   out.push('irq');
   out.push(' pha');out.push(' txa');out.push(' pha');out.push(' tya');out.push(' pha');
   out.push(' lda #$01');out.push(' sta $d019');
-  // TEST175: both charsets progress at their OWN ticks even while the map
-  // prepares its rear screen. Hardware charset selection advances separately.
-  if(d.anim175&&d.anim175.records.length)out.push(' jsr anim175_tick');
-  if(d.anim175)out.push(' jsr anim175_switch_tick');
+  // TEST176: Map Scroll always has first priority inside the raster IRQ.
+  // Character animation is serviced incrementally by main_loop, not inside
+  // an unbounded IRQ loop that could starve Map Scroll and cause ghost fetches.
   out.push(' lda main_busy');out.push(' bne irq_done_tick');out.push(' jsr frame_tick');
   out.push('irq_done_tick');
+  if(d.anim175)out.push(' jsr anim175_switch_tick');
+  if(d.anim175&&d.anim175.records.length){
+    out.push(' lda anim175_pending');
+    out.push(' cmp #$ff');
+    out.push(' beq anim176_pending_full');
+    out.push(' inc anim175_pending');
+    out.push('anim176_pending_full');
+  }
   out.push(' pla');out.push(' tay');out.push(' pla');out.push(' tax');out.push(' pla');out.push(' rti');
   out.push('');
   out.push('frame_tick');
@@ -545,14 +559,21 @@ function buildSource(d){
   }
   if(d.anim175&&d.anim175.records.length){
     out.push('anim175_tick');
+    out.push(' lda anim175_active');
+    out.push(' bne anim175_loop');
     out.push(' lda #<anim175_table');
     out.push(' sta anim175_ptr_lo');
     out.push(' lda #>anim175_table');
     out.push(' sta anim175_ptr_hi');
+    out.push(' lda #$01');
+    out.push(' sta anim175_active');
     out.push('anim175_loop');
     out.push(' ldy #$00');
     out.push(' lda (anim175_ptr_lo),y');
     out.push(' bne anim175_next_record');
+    out.push(' dec anim175_pending');
+    out.push(' lda #$00');
+    out.push(' sta anim175_active');
     out.push(' rts');
     out.push('anim175_next_record');
     out.push(' ldy #$01');
@@ -604,7 +625,7 @@ function buildSource(d){
     out.push(' lda anim175_ptr_hi');
     out.push(' adc #$00');
     out.push(' sta anim175_ptr_hi');
-    out.push(' jmp anim175_loop');
+    out.push(' rts'); // one glyph at a time; main_loop prioritizes map preparation
     out.push('');
     out.push('anim175_left');
     out.push(' ldy #$07');
@@ -674,6 +695,10 @@ function buildSource(d){
       var g175=d.anim175.records[a175];
       emitBytes(out,[g175.ticks,g175.ticks,g175.address&255,(g175.address>>8)&255,g175.type]);
     }
+    out.push('!byte $00');
+    out.push('anim175_pending');
+    out.push('!byte $00');
+    out.push('anim175_active');
     out.push('!byte $00');
     out.push('');
   }

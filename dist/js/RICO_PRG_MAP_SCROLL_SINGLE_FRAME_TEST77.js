@@ -502,6 +502,7 @@ function buildSource(d,options){
   // TEST138: the gear is active only for fast 1T scroll with animated glyphs.
   // Preserve the prior assembly byte for byte in every other mode.
   var gearCoupled=fastColorOnePass && hasAnyAnim && !switchNative172; // TEST175: do not gate dual-bank native clocks on map pixels
+  var asyncNative176=switchNative172 && d.nativeAnimations.length>0;
   if(gearCoupled){
     out.push('gear_previous_fine=$47');
     out.push('gear_advanced_count=$48');
@@ -562,7 +563,7 @@ function buildSource(d,options){
   out.push(' lda transition_request');
   out.push(' beq main_check_prep');
   out.push(' lda transition_ready');
-  out.push(' bne main_loop');
+  out.push(asyncNative176?' bne main176_background':' bne main_loop');
   out.push(' lda #$01');
   out.push(' sta main_busy');
   out.push(' jsr load_frame_hidden');
@@ -576,9 +577,9 @@ function buildSource(d,options){
   out.push(' lda patch_pending');
   out.push(' bne main_loop');
   out.push(' lda prep_request');
-  out.push(' beq main_loop');
+  out.push(asyncNative176?' beq main176_background':' beq main_loop');
   out.push(' lda prep_ready');
-  out.push(' bne main_loop');
+  out.push(asyncNative176?' bne main176_background':' bne main_loop');
   out.push(' lda #$01');
   out.push(' sta main_busy');
   out.push(' jsr prepare_requested');
@@ -589,6 +590,13 @@ function buildSource(d,options){
   out.push(' lda #$01');
   out.push(' sta prep_ready');
   out.push(' jmp main_loop');
+  if(asyncNative176){
+    out.push('main176_background');
+    out.push(' lda anim176_pending');
+    out.push(' beq main_loop');
+    out.push(' jsr animate_chars_native');
+    out.push(' jmp main_loop');
+  }
   out.push('');
   out.push('irq');
   out.push(' pha');
@@ -611,7 +619,7 @@ function buildSource(d,options){
     out.push(' sta gear_previous_fine');
   } else if(hasAnyAnim){
     if(d.fastGroups.length)out.push(' jsr animate_chars_fast_groups');
-    if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
+    if(d.nativeAnimations.length&&!asyncNative176)out.push(' jsr animate_chars_native');
   }
   // TEST155: group update once per PAL raster IRQ, independent of Map Scroll.
   if(d.group155 && !d.group155.switchBank){
@@ -644,6 +652,13 @@ function buildSource(d,options){
   out.push('irq_normal_tick');
   out.push(' jsr frame_tick');
   out.push('irq_skip_tick');
+  if(asyncNative176){
+    out.push(' lda anim176_pending');
+    out.push(' cmp #$ff');
+    out.push(' beq anim176_pending_full');
+    out.push(' inc anim176_pending');
+    out.push('anim176_pending_full');
+  }
   if(gearCoupled){
     out.push(' lda fine_pos');
     out.push(' cmp gear_previous_fine');
@@ -681,6 +696,10 @@ function buildSource(d,options){
     out.push(' rts');
     out.push('bank171_counter');
     out.push('!byte $'+hex(d.group155.ticksPerFrame));
+    if(asyncNative176){
+      out.push('anim176_pending'); out.push('!byte $00');
+      out.push('anim176_active'); out.push('!byte $00');
+    }
     out.push('');
   }
   // TEST142: one countdown per contiguous run; direct absolute indexed
@@ -846,10 +865,18 @@ function buildSource(d,options){
   // in parallel so changing charset bank doesn't reset animation phase.
   if(d.nativeAnimations.length){
     out.push('animate_chars_native');
+    if(asyncNative176){
+      out.push(' lda anim176_active');
+      out.push(' bne anim_char_start');
+    }
     out.push(' lda #<animated_chars_native_table');
     out.push(' sta anim_ptr_lo');
     out.push(' lda #>animated_chars_native_table');
     out.push(' sta anim_ptr_hi');
+    if(asyncNative176){
+      out.push(' lda #$01');
+      out.push(' sta anim176_active');
+    }
     out.push('anim_char_start');
     out.push(' ldy #$00');
     out.push(' lda (anim_ptr_lo),y');
@@ -901,8 +928,13 @@ function buildSource(d,options){
     out.push(' lda anim_ptr_hi');
     out.push(' adc #$00');
     out.push(' sta anim_ptr_hi');
-    out.push(' jmp anim_char_start');
+    out.push(asyncNative176?' rts':' jmp anim_char_start');
     out.push('animate_chars_native_done');
+    if(asyncNative176){
+      out.push(' dec anim176_pending');
+      out.push(' lda #$00');
+      out.push(' sta anim176_active');
+    }
     out.push(' rts');
     out.push('');
     out.push('blink_char_native');
