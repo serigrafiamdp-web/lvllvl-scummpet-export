@@ -200,7 +200,7 @@ function readGroup155(ts,frames,nativeAnimations){
   if(!groups.length)return null;
   if(groups.length!==1)throw new Error('TEST155: usar UN SOLO Group Animate en BANK 1 o BANK 2.');
   var one=groups[0],g=one.group,bank=one.bank;
-  if(frames.length!==1 || frames[0].typeCode!==0 || (g.type!=='switch-bank' && frames[0].bank!==bank))
+  if(frames.length!==1 || (g.type!=='switch-bank' && (frames[0].typeCode!==0 || frames[0].bank!==bank)))
     throw new Error('TEST155: una sola frame SIN Map Scroll y BANK correspondiente al grupo.');
   // TEST172: Switch Bank only selects $D018; unlike bitmap group scroll
   // it is fully compatible with independent native animations in both banks.
@@ -501,7 +501,7 @@ function buildSource(d,options){
   out.push('fast_prefetch=$46');
   // TEST138: the gear is active only for fast 1T scroll with animated glyphs.
   // Preserve the prior assembly byte for byte in every other mode.
-  var gearCoupled=fastColorOnePass && hasAnyAnim;
+  var gearCoupled=fastColorOnePass && hasAnyAnim && !switchNative172; // TEST175: do not gate dual-bank native clocks on map pixels
   if(gearCoupled){
     out.push('gear_previous_fine=$47');
     out.push('gear_advanced_count=$48');
