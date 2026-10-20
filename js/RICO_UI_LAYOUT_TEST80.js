@@ -32,7 +32,16 @@ function layoutBottom80(){
   try{
     if(!UI.exists('textModeEditor'))return;
     var root=UI('textModeEditor');
-    if(root.resizeThePanel)root.resizeThePanel({panel:'south',size:BOTTOM_H});
+    // TEST149: a layout refresh is NOT a user drag. The native splitter keeps
+    // resizePanel as its active mouse-drag direction (east/west/north/south).
+    // TEST80 previously changed this to 'south' every ~700 ms or whenever the
+    // east panel resized, hijacking the live east drag into moving Frames.
+    // Save/restore the selector so only the requested south geometry changes.
+    if(root.resizeThePanel){
+      var userDragPanel149 = root.resizePanel;
+      try { root.resizeThePanel({panel:'south',size:BOTTOM_H}); }
+      finally { root.resizePanel = userDragPanel149; }
+    }
     var rootEl=root.getElement(),south=document.getElementById(root.id+'south');
     var east=document.getElementById(root.id+'east'),eastbar=document.getElementById(root.id+'eastbar');
     if(!rootEl||!south)return;

@@ -222,14 +222,20 @@ function buildSource(d,options){
   for(var ai=0;ai<d.nativeAnimations.length;ai++){
     var anim=d.nativeAnimations[ai],cc=anim.charCode&255, used=usedBankMask[cc];
     if(!used)continue;
-    // Rotating an all-zero glyph is always a no-op. Blink ($type 4) is
-    // intentionally not filtered (its all-zero bitmap alternates with $FF).
     var bankMask=0;
-    for(var bank=0;bank<2;bank++)if(used&(1<<bank)){
-      var bytes=bank?d.bank2:d.bank1, visible=anim.type===4;
-      for(var y=0;y<8&&!visible;y++)if(bytes[cc*8+y])visible=true;
-      if(visible)bankMask|=1<<bank;
-      else skippedEmptyRows++;
+    if(hasRealScroll){
+      // TEST138 SCUMM scroll: preserve the entire previously approved workset.
+      for(var bank=0;bank<2;bank++)if(used&(1<<bank)){
+        var bytes=bank?d.bank2:d.bank1, visible=anim.type===4;
+        for(var y=0;y<8&&!visible;y++)if(bytes[cc*8+y])visible=true;
+        if(visible)bankMask|=1<<bank;
+        else skippedEmptyRows++;
+      }
+    }else{
+      // TEST147 no-scroll: a glyph is still animated even if its SHAPE
+      // conceals the movement. Never classify it as inactive by pixels.
+      // This also keeps 0..255 contiguous, so all can use the fast UP loop.
+      bankMask=used;
     }
     if(bankMask)emittedAnimations.push({charCode:cc,ticks:anim.ticks,type:anim.type,runtimeBankMask:bankMask});
   }
@@ -534,7 +540,15 @@ function buildSource(d,options){
       var total=gr.count*8;
       out.push('fast_group_tick_'+qg);
       out.push(' dec fast_group_counter_'+qg);
-      out.push(' bne fast_group_done_'+qg);
+      // TEST147: a 240+ char group may exceed the 6502 relative-branch range.
+      if(hasRealScroll){
+        out.push(' bne fast_group_done_'+qg); // unchanged TEST138 code
+      }else{
+        // TEST147: compact early return, avoids long relative jumps.
+        out.push(' beq fast_group_run_'+qg);
+        out.push(' rts');
+        out.push('fast_group_run_'+qg);
+      }
       out.push(' lda #$'+hex(gr.ticks));
       out.push(' sta fast_group_counter_'+qg);
       for(var chOff=0,piece=0;chOff<total;piece++){
@@ -806,7 +820,14 @@ function buildSource(d,options){
   out.push(' lda transition_request');
   out.push(' beq frame_tick_timer');
   out.push(' lda transition_ready');
-  out.push(' beq frame_tick_done');
+  if(hasRealScroll){
+    out.push(' beq frame_tick_done'); // byte-identical TEST138 path
+  } else {
+    // TEST147: avoid relative-branch overflow in the grouped no-scroll player.
+    out.push(' bne frame_tick_commit_147');
+    out.push(' jmp frame_tick_done');
+    out.push('frame_tick_commit_147');
+  }
   out.push(' jsr commit_hidden_frame');
   out.push(' rts');
   out.push('frame_tick_timer');
