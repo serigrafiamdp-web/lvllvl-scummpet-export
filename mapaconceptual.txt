@@ -1,0 +1,1893 @@
+MASTER LVLLVL RICO — 256 CARACTERES / 1 TICK — 19 DE OCTUBRE DE 2026
+=============================================================================
+ESTADO: MASTER APROBADO DESDE TEST149 (PASS).
+- Interfaz: divisor vertical editor/tileset libre, sin mover frames.
+- Exportación: 256 caracteres NORMAL UP, 8 frames, 1 tick, aprobada
+  VISUALMENTE en VICE. No es medición instrumental exacta de 50 Hz.
+- Mantener TODAS las animaciones activadas aunque su forma no muestre movimiento.
+- TEST147 optimiza rutina rapida ASM y preview; TEST149 arregla divisor.
+- Ruta SCUMM/Map Scroll de TEST138 no modificada en TEST149.
+- WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/
+- Local: MASTER_LVLLVL_256_1_TICK_19_OCTUBRE_2026.zip
+- Documentos activos: solamente log.txt y mapaconceptual.txt.
+- PRG, SID y TXT de pruebas no forman parte del MASTER.
+- Fuentes originales en el historial de Git y ramas backup del 19/10/2026.
+
+MAPA CONCEPTUAL / MILESTONES
+===========================
+MASTER 19/10/2026
+ |-- WEB y LOCAL: index.html, css, js, servidor_local.ps1, BAT
+ |-- Dual charset: BANK1/BANK2 (256 codigos cada uno)
+ |-- Preview PAL, redraw agrupado TEST147
+ |-- Exportador PRG: 256 char animados a 1 tick, PASS VISUAL en VICE
+ |-- Divisor editor/tileset: TEST149 PASS
+ |-- SCUMM Map Scroll: TEST138 PASS, sin cambios en esta consolidacion
+ |-- Documentacion: log.txt + mapaconceptual.txt
+MILESTONES: TEST19,25,28,32,33,34,55,58,80,120,134,138,
+            142,143,145,147,148 FAIL,149 PASS.
+REGLA: conservar todos los caracteres activos, aunque algunos dibujos
+aparenten estar quietos por simetria o ausencia de pixels.
+CAMBIOS FUTUROS: en TEST aislado, no sobrescribir el MASTER sin PASS visual.
+
+MILESTONES Y NOTAS TECNICAS HISTORICAS INTEGRADAS A CONTINUACION
+================================================================
+
+
+===== ORIGEN HISTORICO: dist/RICO_FEATURES_MILESTONES_14_OCT_2026.txt =====
+RICO / LVLLVL - FEATURES Y MILESTONES
+=====================================
+Fecha de consolidacion: 14 de octubre de 2026
+Estado actual validado: TEST 19 = PASS
+Base ejecutable validada: LVLLVL_TEST19_ACTIVE_FRAME_BANK_RENDER.zip
+SHA256 base PASS: d8137c661c0340de7619f1002f227bad3bddb0dad28011d5228dc46fae9f2d2e
+Repositorio: serigrafiamdp-web/lvllvl-scummpet-export
+
+OBJETIVO GENERAL
+================
+Extender LVLLVL para el flujo RICO/SCUMM/C64 sin romper el modelo nativo de
+screen codes de la C64. El editor debe poder trabajar con dos charsets de
+256 glifos, seleccionar por frame cual banco esta activo y mantener los
+screen codes siempre en 0..255.
+
+ARQUITECTURA ACTUAL APROBADA
+============================
+1. CHARSET BANK 1
+   - 256 slots.
+   - Es el tileset nativo de LVLLVL.
+   - En configuracion C64 nueva, por defecto contiene C64 normal.
+
+2. CHARSET BANK 2
+   - 256 slots independientes.
+   - Se guarda con el proyecto en el campo ricoCharsetBank2.
+   - En configuracion C64 nueva, por defecto se inicializa con C64 Shifted.
+   - Puede ser reemplazado/modificado con Rico's Remix.
+
+3. SCREEN CODES
+   - La pantalla nunca usa indices 256..511.
+   - Cada celda conserva siempre un codigo 0..255.
+   - El banco activo de la frame decide si el codigo N dibuja BANK 1[N]
+     o BANK 2[N].
+
+4. DATO POR FRAME
+   - Campo interno: charsetBank: 1 | 2
+   - Frames nuevas: BANK 1 por defecto.
+   - Frames viejas sin este dato: BANK 1 por compatibilidad.
+   - Duplicate conserva el banco de la frame origen.
+   - Al navegar entre frames, el selector se refresca leyendo el valor
+     guardado en esa frame.
+
+5. PRINCIPIO DE RUNTIME C64
+   - El concepto final es alternar entre dos charsets de 256 sin reescribir
+     los screen codes.
+   - La implementacion/export C64 definitiva del cambio de puntero de charset
+     queda para una milestone posterior.
+
+FEATURES RICO YA VALIDADAS
+==========================
+
+RICO-ECM-01 - LIVE REPACK TEXTMODE -> C64 ECM
+Estado: PASS
+- Escanea las frames antes de activar ECM.
+- Prioriza los glifos realmente usados.
+- Reorganiza los usados dentro de los 64 slots fisicos ECM.
+- Reescribe screen codes preservando bits 6-7 como selector de background.
+- Cancela si la conversion no puede hacerse sin perdida.
+
+RICO-ECM-02 - SELECTOR MANUAL DE 64 GLIFOS
+Estado: PASS
+- En proyectos vacios permite elegir manualmente los 64 glifos ECM.
+- Fuente: tileset cargado, normal o custom, hasta 256 glifos.
+- Los elegidos pasan a slots fisicos 0..63.
+
+RICO-ECM-03 - RESELECCION ECM -> ECM
+Estado: PASS
+- Conserva el tileset fuente original.
+- Permite reabrir la seleccion de glifos.
+- Protege slots ya usados por el artwork.
+
+RICO-ECM-04 - UI NATIVA EDIT TILE PALETTE
+Estado: PASS
+- Dialogo estilo LVLLVL.
+- Fuente a la izquierda, 64 glifos ECM a la derecha.
+- OK / Cancel.
+- Sin paneles diagnosticos agregados.
+
+BUG FIX 07 - CHOOSE A TILE SET
+Estado: PASS
+- Preview vuelve a cambiar al seleccionar presets.
+- OK aplica el tileset elegido.
+- Fix aislado en capa RICO, sin modificar el chooser original de James.
+
+RICO REMIX TILESET
+==================
+
+MILESTONE TEST 08 - MENU RICO'S REMIX
+Estado: PASS
+- Nueva opcion debajo de Choose A Tile Set.
+- ID independiente: rico-tileset-remix.
+
+MILESTONE TEST 10 - REMIX POR SLOT
+Estado: PASS
+- Variantes C64 reutilizadas desde la libreria original.
+- C64 / C64 Shifted / Swedish / Swedish Shifted / Japanese / Japanese Shifted.
+- El tileset permanece en 256 slots por banco.
+- Click en fuente N reemplaza slot N.
+- Segundo click sobre la misma fuente restaura el estado previo.
+- Cancel descarta; OK confirma.
+
+MILESTONE TEST 14 - UI REMIX 512 CONTINUO
+Estado: PASS
+- Interfaz final actual de Rico's Remix.
+- Izquierda solo familias:
+    C64
+    C64 SWEDISH
+    C64 JAPANESE
+- Cada familia representa 512 glifos continuos:
+    posiciones 0..255   = normal / BANK 1
+    posiciones 256..511 = shifted / BANK 2
+- Derecha: 512 custom en la misma geometria.
+- 32 filas x 16 columnas.
+- Sin titulos BANK 1/BANK 2 dentro de la grilla.
+- Sin separaciones negras internas.
+- Cabecera compacta.
+- Sin scroll interno: los 512 se ven juntos en la ventana Remix.
+- Correspondencia visual 1:1 SOURCE <-> CUSTOM.
+- BANK 2 persiste como ricoCharsetBank2.
+
+SELECTOR DE CHARSET POR FRAME
+=============================
+
+MILESTONE TEST 15 - CHARSET BANK POR FRAME
+Estado: validado dentro del flujo que culmina en TEST 19 PASS
+- Control junto a Frame Duration con estetica nativa:
+    Charset Bank: [1]
+- Valores 1 o 2.
+- El valor pertenece a cada frame.
+- Al navegar por < >, campo numerico, timeline o playback, se refresca.
+- Frames nuevas = BANK 1.
+- Duplicate copia el banco de origen.
+
+PALETA LATERAL DUAL BANK
+========================
+
+MILESTONE TEST 17 - PREVIEW REAL DE BANK 2
+Estado: PASS
+- Vista lateral por defecto: Columns of 16.
+- Se aprovecha el espacio vertical de Tiles.
+- La paleta muestra 512 posiciones continuas:
+    arriba = BANK 1, 256 glifos
+    abajo  = BANK 2, 256 glifos
+- El banco no activo queda grisado/bloqueado.
+- El banco activo acepta seleccion.
+- BANK 2 renderiza preview real; ya no aparece negro.
+- El tileset real de LVLLVL continua siendo de 256 indices.
+- La mitad inferior es una representacion virtual del BANK 2.
+- Al seleccionar BANK 2, un click sobre la posicion visual 256+N se traduce
+  al screen code N, nunca a 256+N.
+- Scrollbar vertical de la paleta queda disponible en Columns of 16.
+- Layers se minimiza al inicio para liberar altura.
+
+MILESTONE TEST 18 - BANK 2 C64 SHIFTED POR DEFECTO
+Estado: integrado y validado como parte de TEST 19 PASS
+- BANK 1 por defecto = C64 normal.
+- BANK 2 por defecto = C64 Shifted.
+- Si BANK 2 ya fue personalizado por Rico's Remix, no se sobrescribe.
+
+MILESTONE TEST 19 - RENDER REAL POR FRAME
+Estado: PASS CONFIRMADO
+- La seleccion BANK 1/BANK 2 deja de ser solo visual.
+- Frame en BANK 1: codigo N usa BANK 1[N].
+- Frame en BANK 2: codigo N usa BANK 2[N].
+- Se puede seleccionar un glifo de BANK 2 y pintar realmente con el glifo
+  BANK 2 correspondiente.
+- Al volver a una frame BANK 1, los mismos screen codes recuperan la forma
+  de BANK 1.
+- Al regresar a una frame BANK 2, recuperan la forma de BANK 2.
+- BANK 2 puede ser el C64 Shifted por defecto o un banco modificado con Remix.
+- No se escriben indices 256..511 en Screen RAM / mapa de LVLLVL.
+
+PERSISTENCIA ACTUAL
+===================
+Tileset:
+  ricoCharsetBank2
+    version: 1
+    width / height
+    tileData[0..255]
+    metadata de origen cuando corresponde
+
+Frame:
+  charsetBank = 1 | 2
+
+REGLAS QUE NO DEBEN ROMPERSE
+============================
+- BANK 1 y BANK 2 contienen 256 slots cada uno.
+- El mapa de pantalla trabaja exclusivamente con 0..255.
+- La posicion visual inferior 256+N representa BANK 2[N], no un screen code
+  mayor a 255.
+- Rico's Remix administra los dos bancos.
+- La frame decide cual banco interpreta sus screen codes.
+- Choose A Tile Set original debe seguir funcionando.
+- Las features ECM RICO existentes no deben degradarse.
+
+ESTADO VISUAL ACTUAL
+====================
+Panel lateral Tiles:
+- Columns of 16 por defecto.
+- BANK 1 arriba.
+- BANK 2 abajo.
+- Banco activo normal.
+- Banco inactivo grisado y no seleccionable.
+
+Barra de Frames:
+- Frame Duration: [ticks]
+- Charset Bank: [1|2]
+- Luego New Frame / Duplicate / Delete / Show Previous Frame.
+
+Rico's Remix:
+- SOURCE 512 a la izquierda.
+- CUSTOM 512 a la derecha.
+- Sin divisiones BANK visibles dentro de la grilla.
+- C64 / C64 SWEDISH / C64 JAPANESE como familias fuente.
+
+PROXIMAS MILESTONES / PENDIENTES
+================================
+1. Tile Editor para BANK 2
+   - Editar pixeles de un glifo BANK 2 sin redirigir accidentalmente a BANK 1.
+
+2. Export de framepack / SCUMM_ANIMATION_V1
+   - Serializar charsetBank por frame.
+   - Exportar ambos charsets de 256 cuando el recurso los necesite.
+
+3. Runtime C64
+   - Cargar/ubicar CHARSET BANK 1 y CHARSET BANK 2 en memoria valida.
+   - Cambiar el charset activo por frame con el mecanismo VIC-II apropiado.
+   - Mantener screen codes sin conversion adicional.
+
+4. Validacion combinada con ECM
+   - El sistema dual-bank normal esta PASS en TEST 19.
+   - La combinacion dual-bank + restricciones ECM de 64 glifos debe probarse
+     como milestone separada antes de considerarla aprobada.
+
+5. Undo/Redo
+   - Verificar explicitamente Undo/Redo del cambio charsetBank por frame y de
+     las operaciones Remix antes de promoverlo como contrato definitivo.
+
+HISTORIAL DE CHECKPOINT
+=====================
+TEST 19 = PASS: primer checkpoint dual-bank por frame dentro del editor.
+Los TEST intermedios quedan como historial de pruebas.
+
+MILESTONE TEST 21 - PALETA BANKS 32 x 8
+Estado: PASS CONFIRMADO
+- Nueva vista lateral `Banks 32 x 8`.
+- BANK 1 se muestra arriba como 32 columnas x 8 filas.
+- BANK 2 se muestra debajo como 32 columnas x 8 filas.
+- Preserva la composicion visual de tilesets importados desde imagenes 32x8.
+- La vista `Columns of 16` continua disponible.
+- El banco inactivo sigue grisado y bloqueado.
+- BANK 2 sigue mapeando posiciones visuales 256..511 a screen codes 0..255.
+
+MILESTONE TEST 23 - EXPORT PRG DUAL BANK POR FRAME
+Estado: PASS CONFIRMADO EN VICE
+- Alcance validado: Standard Character Mode, sin SID/musica y sin ECM/Multicolor.
+- El PRG exporta ambos charsets residentes:
+    BANK 1 -> $3000-$37FF (2048 bytes)
+    BANK 2 -> $3800-$3FFF (2048 bytes)
+- Cada frame conserva screen codes 0..255 y selecciona automaticamente BANK 1 o BANK 2.
+- El marcador de banco se transporta por frame sin duplicar la pantalla.
+- Rutina auxiliar de cambio de charset ubicada en $2FE0.
+- El cambio de banco modifica solo los bits de charset de $D018 y preserva el screen buffer activo.
+- BANK 2 se exporta desde ricoCharsetBank2 real, incluyendo cambios hechos con Rico's Remix.
+- TEST22 fue FAIL por crecimiento del player: la tabla de frames alrededor de $0FFF/$1000 piso codigo y produjo CPU JAM en $1009.
+- TEST23 corrige el problema sin agrandar el player: reemplaza una instruccion STA $D024 de 3 bytes por JSR $2FE0 de 3 bytes.
+- VICE confirma reproduccion correcta Frame BANK 1 <-> Frame BANK 2.
+
+COSTO DE MEMORIA VALIDADO
+=========================
+- BANK 1: 2048 bytes.
+- BANK 2: 2048 bytes.
+- Costo adicional respecto de un solo charset: +2048 bytes.
+- El selector por frame cuesta esencialmente 1 byte de metadata por frame mas una rutina muy pequena.
+- No se duplica Screen RAM ni el frame data por usar dos bancos.
+
+REGLA PARA EL FUTURO EXPORTADOR DE RECURSOS
+===========================================
+El formato de recursos RICO/SCUMM debe conservar esta misma arquitectura:
+- screen codes 0..255;
+- metadata charsetBank por frame;
+- exportar BANK 2 solo cuando el recurso realmente lo necesite;
+- el runtime cambia el puntero de charset y no reescribe la pantalla para cambiar de banco.
+
+CHECKPOINT ACTUAL
+=================
+TEST 23 = PASS CONFIRMADO EN VICE.
+Checkpoint estable actual: editor dual-bank + seleccion por frame + export PRG Standard dual-bank.
+Este es el punto seguro para continuar los proximos experimentos.
+
+TEST54 (15 OCT 2026) - MAP SCROLL Ping Pong PRG exporter prepared: 4 ping-pong directions, non-wrapping background gaps, clean 38x24 viewport. STATUS: PENDING PASS/FAIL.
+
+MILESTONE TEST 56 - MAP SCROLL MOVE OUT
+Estado: PASS CONFIRMADO EN VICE
+- Salida no-wrap Left / Right / Up / Down.
+- Queda fuera hasta terminar Frame Duration.
+
+MILESTONE TEST 57 - MAP SCROLL MOVE IN
+Estado: PASS CONFIRMADO EN VICE
+- MOVE pasa a llamarse MOVE OUT.
+- Move In Left / Right / Up / Down entra desde fuera y queda en posicion normal.
+
+MILESTONE TEST 58 - MAP SCROLL PREVIEW SYNC
+Estado: PENDING USER PASS/FAIL
+- Preview temporal PAL 50 Hz independiente del g_tick irregular del editor.
+- Pixels / Step calculado en pixeles C64 antes de aplicar zoom.
+- Border Color nativo restaurado durante MAP SCROLL.
+- Runtime PRG TEST57 sin cambios.
+
+MILESTONE TEST 65 - PREVIEW VERTICAL 24 ROWS
+Estado: PASS CONFIRMADO
+- LVLLVL Move In/Out vertical preview sincronizado con las 24 filas visibles reales del VIC-II.
+- Timing validado en VICE: 192 ticks, 1 tick/step, 1 px/step.
+
+MILESTONE TEST 67 - WINDOW DIMENSION POR FRAME
+Estado: PASS CONFIRMADO
+- Screen Dimension conserva el mapa real.
+- Window Dimension define X/Y/Width/Height por frame sin destruir datos.
+- Exterior de Window se enmascara negro y se sanea con blank_char al exportar.
+- Geometria VIC derivada de Window: 40x25, 40x24 y 38x24 validadas estructuralmente.
+
+MILESTONE TEST 68 - WINDOW DIMENSION CUATRO LADOS
+Estado: EN DESARROLLO / UI MEJORADA
+- Interfaz Left / Right / Top / Bottom independiente.
+- Conserva metadata de TEST67.
+- Detectado pendiente: el preview de MAP SCROLL aun podia animar datos exteriores al Window.
+
+MILESTONE TEST 69 - WINDOW COMO SUPERFICIE DE MAP SCROLL
+Estado: PENDING PASS/FAIL
+- El preview de LVLLVL recorta primero la fuente al rectangulo Window.
+- MAP SCROLL anima solamente esa superficie recortada.
+- Las filas/columnas exteriores siguen existiendo en Screen pero quedan fuera del movimiento visual.
+- Regla de packaging: los ZIP conservan unicamente LOG.txt y este mapa de milestones como documentacion TXT.
+
+MILESTONE TEST 69 - WINDOW COMO SUPERFICIE DE MAP SCROLL
+Estado: PREVIEW PASS / EXPORT FAIL
+- LVLLVL confirmado correcto: MAP SCROLL anima solo el rectangulo Window.
+- Export PRG no reproducía el mismo comportamiento; se detectaron constantes 40x25 / 319x199 y helpers del doble buffer eliminados accidentalmente en TEST67.
+
+MILESTONE TEST 70 - WINDOW COMO SUPERFICIE REAL DEL RUNTIME PRG
+Estado: PENDING PASS/FAIL
+- Runtime reconstruido desde TEST64 PASS.
+- Recuperados prepare_requested, commit_prepared, request_prepare y request_ping_prepare.
+- Window X/Y/W/H gobierna copias, limites y superficie de Scroll / Ping Pong / Move Out / Move In.
+- Maximo horizontal = W*8-1; maximo vertical = H*8-1.
+- Exterior de Window permanece blank_char y no participa del desplazamiento.
+- Ensamblado ACME validado sin errores antes de empaquetar.
+
+TEST71: Screen is the full scroll source; Window is viewport only. A 40x25 design with Window 40x24 keeps row 25 available to enter during scroll.
+
+
+MILESTONE TEST 71 - SCREEN SOURCE + WINDOW VIEWPORT
+Estado: PASS CONFIRMADO
+- Screen completo sigue siendo la fuente del scroll.
+- Window limita solamente el area visible; contenido fuera de Window puede entrar durante el desplazamiento.
+
+MILESTONE TEST 72 - RICO'S WINDOW DIMENSIONS
+Estado: PENDING PASS/FAIL
+- El editor normal queda completamente libre fuera de Window: dibujar, seleccionar y pegar no se restringen.
+- Window se aplica solamente a visualizacion MAP SCROLL y exportacion.
+- Navegacion de frames integrada en la misma ventana con controles < y >.
+- Los valores de la frame actual se guardan antes de cambiar y los de la nueva frame se cargan sin cerrar la ventana.
+- Convencion UI desde TEST72: las features propias llevan el prefijo "Rico's".
+
+MILESTONE TEST 73 - RICO'S DIMENSIONS CUATRO LADOS
+Estado: PENDING PASS/FAIL
+- Redimension fisica del Screen mediante Left / Right / Top / Bottom con valores firmados.
+- Valor positivo agrega filas/columnas; valor negativo elimina.
+- Left/Top desplazan el contenido existente para modificar fisicamente esos bordes.
+- Right/Bottom modifican el borde correspondiente sin desplazar el origen.
+- Tamano final calculado automaticamente y preview visual incluida.
+- Rico's Window Dimensions y MAP SCROLL quedan sin cambios en este test.
+
+
+MILESTONE TEST 74 - RICO'S DIMENSIONS SUBTRACT FIX
+Estado: PENDING PASS/FAIL
+- Corrige Left/Top negativos en proyectos con varias frames.
+- El offset fuente se calcula una sola vez y se aplica igual a todas las frames.
+- La interfaz de Rico's Dimensions permanece sin cambios.
+
+MILESTONE TEST 75 - WINDOW + SCROLL AREA INDEPENDIENTES
+Estado: PENDING PASS/FAIL
+- Screen = area completa editable.
+- Window = viewport visible.
+- Scroll Area = rectangulo del Screen que participa del MAP SCROLL.
+- Scroll Area es por frame y por defecto ocupa todo el Screen.
+- Rico's Window Dimensions permite alternar Window / Scroll Area usando los mismos cuatro lados y navegar frames con < >.
+- Preview LVLLVL y exportador PRG leen Scroll Area como fuente de movimiento y Window como geometria visible.
+- Caso clave: Screen 40x25 + Window 40x24 + Scroll Area 40x24 excluye fila 25; con Scroll Area 40x25 la fila 25 participa del scroll.
+
+MILESTONE TEST 76 - GUARD CELLS DEL SCROLL AREA
+Estado: PENDING PASS/FAIL
+- Corrige la banda negra de VICE cuando Window/Scroll Area usan 24 filas: el buffer C64 conserva una fila fisica de guarda sin incorporar la fila 25 del Screen al Scroll Area.
+- Scroll continuo vertical usa una fila de guarda wrap; Ping Pong / Move vertical usan guarda en blanco.
+- Scroll Area 25 filas conserva las 25 filas reales sin guarda sintetica.
+- Fine scroll horizontal fuerza CSEL=0 / 38 columnas hardware para ocultar los fetches laterales y evitar caracter cortado/pixel residual en los bordes.
+- La interfaz Rico's Window Dimensions + Scroll Area permanece igual.
+
+MILESTONE TEST 77 - SINGLE-FRAME SCROLL AREA EXPORT
+Estado: PENDING PASS/FAIL
+- Las animaciones de una sola frame con Scroll Up/Down/Left/Right dejan de caer al runtime legado TEST50.
+- Usan el runtime moderno con Window + Scroll Area, igual que el preview de LVLLVL.
+- Vertical conserva la geometria horizontal definida por Window; Scroll Area controla la fuente efectiva.
+
+
+MILESTONE TEST 78 - FAIL PARCIAL
+- Rico's Screen Dimension visible, pero cambios de layout no aparecieron y MAP SCROLL no respondio.
+
+MILESTONE TEST 79 - UI INTEGRATION FIX
+Estado: PENDING PASS/FAIL
+- Parte de TEST77 PASS.
+- Frames nace en el south del textModeEditor principal para llegar al borde izquierdo sin overlays.
+- Paleta C64 compacta 16 colores en la barra izquierda.
+- Colours minimizable/restaurable con -/+.
+- Rico's Screen Dimension.
+- Rico's Map Scroll basado en TEST75 con navegacion < > y PAUSE/PLAY global.
+- Runtime/exporter TEST77 permanece sin cambios.
+
+MILESTONE TEST 79 - UI INTEGRATION FIX
+Estado: PARCIAL / REEMPLAZADO POR TEST80
+- Rico's Map Scroll vuelve a abrir correctamente y conserva < > + PAUSE/PLAY.
+- Layout inferior visualmente incorrecto; TEST80 rehace solo la composicion de interfaz.
+
+MILESTONE TEST 80 - CLEAN UI LAYOUT
+Estado: PASS CONFIRMADO
+- Frames conserva dos filas nativas: controles arriba y timeline abajo, alineadas y compactas.
+- La zona inferior llega desde el borde izquierdo hasta antes del panel derecho; Tiles/Colours mantiene toda la altura lateral.
+- Se oculta el holder inferior vacio de Tile Palette para evitar una banda sin uso.
+- Paleta rapida C64 16 colores en formato 2x8 dentro de la barra izquierda.
+- Colours arranca minimizado y puede restaurarse con + durante la sesion.
+- Tiles abre por defecto en Columns of 16 en inicio/carga de Screen sin bloquear cambios manuales posteriores.
+- Rico's Map Scroll TEST79 y exporter TEST77 se mantienen funcionalmente sin cambios.
+
+
+CHECKPOINT TEST80 PASS
+======================
+- Nuevo checkpoint seguro aprobado por usuario.
+- Mantiene TEST77 PASS como runtime/exporter MAP SCROLL.
+- Consolida Window + Scroll Area, Rico's Screen Dimension, Rico's Map Scroll con navegacion < > y PAUSE/PLAY, layout inferior limpio, paleta rapida C64 2x8, Colours minimizado y Columns of 16 por defecto.
+
+MILESTONE TEST 81 - CLEAN RESTART / BLACK GAP + LARGE VERTICAL MAP
+Estado: PENDING PASS/FAIL
+Base: TEST80 PASS.
+- Cambio visual aislado: el canvas del preview MAP SCROLL recibe fondo negro antes del render; no modifica geometria, Window, Scroll Area ni formulas de movimiento.
+- Exportador grande reintroducido desde la version que ya habia recorrido correctamente mapas verticales: Screen 40x26..40x255, una Frame, Scroll Up/Down.
+- Caso de validacion principal: Screen 40x50 + Window 40x24 + Scroll Area 40x50.
+- El viewport visible sigue siendo 24/25 filas; el mapa fuente completo se recorre desde RAM separada y los buffers VIC siguen siendo $0400/$0800.
+- Exportaciones 40x25 continúan por TEST77 sin cambios.
+- No se heredan TEST82/TEST83.
+
+TEST82 PENDING - LARGE MAP ROW PHASE FIX
+- Base: clean TEST81 from TEST80 PASS.
+- Keeps Screen 40x50 + Window 40x24/25 + Scroll Area 40x50 model.
+- Replaces full backbuffer regeneration at each character boundary with the proven row-shift phase used by the stable vertical 40-column runtime.
+- Only one new source row is injected from the large map per 8-pixel row crossing, preserving design geometry when scroll starts.
+
+MILESTONE TEST 83 - VIEWPORT SOBRE FUENTE COMPLETA 40x50
+Estado: PENDING PASS/FAIL
+- MAP SCROLL OFF conserva la previsualizacion/edicion completa del Screen (ejemplo 40x50).
+- MAP SCROLL ON muestra solamente la Window (ejemplo 40x24) como viewport visible del C64.
+- Scroll Area sigue siendo la fuente completa (ejemplo 40x50): las filas 25..50 no se recortan y entran por debajo durante Scroll Up.
+- La reduccion de altura se aplica solamente a GridView2d; no cambia el documento ni las dimensiones reales del Screen.
+- El exportador grande de la linea limpia se conserva para recorrer el mapa fuente 40xN completo en el PRG.
+
+MILESTONE TEST 83 - PASS CONFIRMADO / VIEWPORT SOBRE FUENTE COMPLETA
+Estado: PASS CONFIRMADO POR USUARIO
+- Screen 40x50 conserva sus 50 filas reales.
+- MAP SCROLL ON muestra solo la Window mientras el Scroll Area 40x50 completo sigue alimentando el recorrido.
+- MAP SCROLL OFF restaura la vista completa de 50 filas.
+- Geometria del arte preservada durante el preview.
+
+MILESTONE TEST 84 - DEFAULT 40x25 + COLORES POR CELDA
+Estado: PARTIAL / REEMPLAZADO POR TEST85
+- Los Screens mayores a la pantalla C64 reciben como default inicial de Window hasta 40x25 al abrir Rico's Window Dimensions; Scroll Area sigue siendo independiente y completo.
+- El default se aplica una sola vez y no bloquea cambios manuales posteriores.
+- El exportador grande vertical conserva el row-phase-safe aprobado y agrega color por celda: mapa chars $4000+, mapa colors $7000+.
+- Color RAM sigue la misma camera_row del mapa, evitando el relleno monocromo/blanco del exportador grande anterior.
+- Caso objetivo: Screen 40x50 / Window 40x25 / Scroll Area 40x50 / Scroll Up o Down.
+
+MILESTONE TEST 85 - SPARSE COLOR COMMIT
+Estado: PENDING PASS/FAIL
+- Base: TEST84 / TEST83 PASS.
+- Mantiene Screen grande completo + viewport Window 40x25 + Scroll Area completo.
+- Corrige el costo de TEST84: no vuelve a copiar las 1000 celdas de Color RAM en cada salto de fila.
+- Color RAM se inicializa con un color dominante seguro y luego solo se actualizan las posiciones de caracteres no vacios del viewport.
+- Objetivo: recuperar la fluidez de TEST83 y eliminar flashes/restos blancos sin volver al exportador monocromo.
+
+TEST86 PENDING PASS/FAIL
+- Fixes TEST85 assembler rejection of sparse color pointer labels.
+- Uses numeric sparse-row addresses; no symbolic <color_update_xxx / >color_update_xxx entries.
+
+TEST87 PENDING
+- Left quick C64 palette: title removed and swatches enlarged to match approved visual reference; same sidebar anchor/position as TEST86 MASTER.
+
+
+===== ORIGEN HISTORICO: RICO_FEATURES_MILESTONES_14_OCT_2026.txt =====
+RICO / LVLLVL - FEATURES Y MILESTONES
+=====================================
+Fecha de consolidacion: 14 de octubre de 2026
+Estado actual validado: TEST 19 = PASS
+Base ejecutable validada: LVLLVL_TEST19_ACTIVE_FRAME_BANK_RENDER.zip
+SHA256 base PASS: d8137c661c0340de7619f1002f227bad3bddb0dad28011d5228dc46fae9f2d2e
+Repositorio: serigrafiamdp-web/lvllvl-scummpet-export
+
+OBJETIVO GENERAL
+================
+Extender LVLLVL para el flujo RICO/SCUMM/C64 sin romper el modelo nativo de
+screen codes de la C64. El editor debe poder trabajar con dos charsets de
+256 glifos, seleccionar por frame cual banco esta activo y mantener los
+screen codes siempre en 0..255.
+
+ARQUITECTURA ACTUAL APROBADA
+============================
+1. CHARSET BANK 1
+   - 256 slots.
+   - Es el tileset nativo de LVLLVL.
+   - En configuracion C64 nueva, por defecto contiene C64 normal.
+
+2. CHARSET BANK 2
+   - 256 slots independientes.
+   - Se guarda con el proyecto en el campo ricoCharsetBank2.
+   - En configuracion C64 nueva, por defecto se inicializa con C64 Shifted.
+   - Puede ser reemplazado/modificado con Rico's Remix.
+
+3. SCREEN CODES
+   - La pantalla nunca usa indices 256..511.
+   - Cada celda conserva siempre un codigo 0..255.
+   - El banco activo de la frame decide si el codigo N dibuja BANK 1[N]
+     o BANK 2[N].
+
+4. DATO POR FRAME
+   - Campo interno: charsetBank: 1 | 2
+   - Frames nuevas: BANK 1 por defecto.
+   - Frames viejas sin este dato: BANK 1 por compatibilidad.
+   - Duplicate conserva el banco de la frame origen.
+   - Al navegar entre frames, el selector se refresca leyendo el valor
+     guardado en esa frame.
+
+5. PRINCIPIO DE RUNTIME C64
+   - El concepto final es alternar entre dos charsets de 256 sin reescribir
+     los screen codes.
+   - La implementacion/export C64 definitiva del cambio de puntero de charset
+     queda para una milestone posterior.
+
+FEATURES RICO YA VALIDADAS
+==========================
+
+RICO-ECM-01 - LIVE REPACK TEXTMODE -> C64 ECM
+Estado: PASS
+- Escanea las frames antes de activar ECM.
+- Prioriza los glifos realmente usados.
+- Reorganiza los usados dentro de los 64 slots fisicos ECM.
+- Reescribe screen codes preservando bits 6-7 como selector de background.
+- Cancela si la conversion no puede hacerse sin perdida.
+
+RICO-ECM-02 - SELECTOR MANUAL DE 64 GLIFOS
+Estado: PASS
+- En proyectos vacios permite elegir manualmente los 64 glifos ECM.
+- Fuente: tileset cargado, normal o custom, hasta 256 glifos.
+- Los elegidos pasan a slots fisicos 0..63.
+
+RICO-ECM-03 - RESELECCION ECM -> ECM
+Estado: PASS
+- Conserva el tileset fuente original.
+- Permite reabrir la seleccion de glifos.
+- Protege slots ya usados por el artwork.
+
+RICO-ECM-04 - UI NATIVA EDIT TILE PALETTE
+Estado: PASS
+- Dialogo estilo LVLLVL.
+- Fuente a la izquierda, 64 glifos ECM a la derecha.
+- OK / Cancel.
+- Sin paneles diagnosticos agregados.
+
+BUG FIX 07 - CHOOSE A TILE SET
+Estado: PASS
+- Preview vuelve a cambiar al seleccionar presets.
+- OK aplica el tileset elegido.
+- Fix aislado en capa RICO, sin modificar el chooser original de James.
+
+RICO REMIX TILESET
+==================
+
+MILESTONE TEST 08 - MENU RICO'S REMIX
+Estado: PASS
+- Nueva opcion debajo de Choose A Tile Set.
+- ID independiente: rico-tileset-remix.
+
+MILESTONE TEST 10 - REMIX POR SLOT
+Estado: PASS
+- Variantes C64 reutilizadas desde la libreria original.
+- C64 / C64 Shifted / Swedish / Swedish Shifted / Japanese / Japanese Shifted.
+- El tileset permanece en 256 slots por banco.
+- Click en fuente N reemplaza slot N.
+- Segundo click sobre la misma fuente restaura el estado previo.
+- Cancel descarta; OK confirma.
+
+MILESTONE TEST 14 - UI REMIX 512 CONTINUO
+Estado: PASS
+- Interfaz final actual de Rico's Remix.
+- Izquierda solo familias:
+    C64
+    C64 SWEDISH
+    C64 JAPANESE
+- Cada familia representa 512 glifos continuos:
+    posiciones 0..255   = normal / BANK 1
+    posiciones 256..511 = shifted / BANK 2
+- Derecha: 512 custom en la misma geometria.
+- 32 filas x 16 columnas.
+- Sin titulos BANK 1/BANK 2 dentro de la grilla.
+- Sin separaciones negras internas.
+- Cabecera compacta.
+- Sin scroll interno: los 512 se ven juntos en la ventana Remix.
+- Correspondencia visual 1:1 SOURCE <-> CUSTOM.
+- BANK 2 persiste como ricoCharsetBank2.
+
+SELECTOR DE CHARSET POR FRAME
+=============================
+
+MILESTONE TEST 15 - CHARSET BANK POR FRAME
+Estado: validado dentro del flujo que culmina en TEST 19 PASS
+- Control junto a Frame Duration con estetica nativa:
+    Charset Bank: [1]
+- Valores 1 o 2.
+- El valor pertenece a cada frame.
+- Al navegar por < >, campo numerico, timeline o playback, se refresca.
+- Frames nuevas = BANK 1.
+- Duplicate copia el banco de origen.
+
+PALETA LATERAL DUAL BANK
+========================
+
+MILESTONE TEST 17 - PREVIEW REAL DE BANK 2
+Estado: PASS
+- Vista lateral por defecto: Columns of 16.
+- Se aprovecha el espacio vertical de Tiles.
+- La paleta muestra 512 posiciones continuas:
+    arriba = BANK 1, 256 glifos
+    abajo  = BANK 2, 256 glifos
+- El banco no activo queda grisado/bloqueado.
+- El banco activo acepta seleccion.
+- BANK 2 renderiza preview real; ya no aparece negro.
+- El tileset real de LVLLVL continua siendo de 256 indices.
+- La mitad inferior es una representacion virtual del BANK 2.
+- Al seleccionar BANK 2, un click sobre la posicion visual 256+N se traduce
+  al screen code N, nunca a 256+N.
+- Scrollbar vertical de la paleta queda disponible en Columns of 16.
+- Layers se minimiza al inicio para liberar altura.
+
+MILESTONE TEST 18 - BANK 2 C64 SHIFTED POR DEFECTO
+Estado: integrado y validado como parte de TEST 19 PASS
+- BANK 1 por defecto = C64 normal.
+- BANK 2 por defecto = C64 Shifted.
+- Si BANK 2 ya fue personalizado por Rico's Remix, no se sobrescribe.
+
+MILESTONE TEST 19 - RENDER REAL POR FRAME
+Estado: PASS CONFIRMADO
+- La seleccion BANK 1/BANK 2 deja de ser solo visual.
+- Frame en BANK 1: codigo N usa BANK 1[N].
+- Frame en BANK 2: codigo N usa BANK 2[N].
+- Se puede seleccionar un glifo de BANK 2 y pintar realmente con el glifo
+  BANK 2 correspondiente.
+- Al volver a una frame BANK 1, los mismos screen codes recuperan la forma
+  de BANK 1.
+- Al regresar a una frame BANK 2, recuperan la forma de BANK 2.
+- BANK 2 puede ser el C64 Shifted por defecto o un banco modificado con Remix.
+- No se escriben indices 256..511 en Screen RAM / mapa de LVLLVL.
+
+PERSISTENCIA ACTUAL
+===================
+Tileset:
+  ricoCharsetBank2
+    version: 1
+    width / height
+    tileData[0..255]
+    metadata de origen cuando corresponde
+
+Frame:
+  charsetBank = 1 | 2
+
+REGLAS QUE NO DEBEN ROMPERSE
+============================
+- BANK 1 y BANK 2 contienen 256 slots cada uno.
+- El mapa de pantalla trabaja exclusivamente con 0..255.
+- La posicion visual inferior 256+N representa BANK 2[N], no un screen code
+  mayor a 255.
+- Rico's Remix administra los dos bancos.
+- La frame decide cual banco interpreta sus screen codes.
+- Choose A Tile Set original debe seguir funcionando.
+- Las features ECM RICO existentes no deben degradarse.
+
+ESTADO VISUAL ACTUAL
+====================
+Panel lateral Tiles:
+- Columns of 16 por defecto.
+- BANK 1 arriba.
+- BANK 2 abajo.
+- Banco activo normal.
+- Banco inactivo grisado y no seleccionable.
+
+Barra de Frames:
+- Frame Duration: [ticks]
+- Charset Bank: [1|2]
+- Luego New Frame / Duplicate / Delete / Show Previous Frame.
+
+Rico's Remix:
+- SOURCE 512 a la izquierda.
+- CUSTOM 512 a la derecha.
+- Sin divisiones BANK visibles dentro de la grilla.
+- C64 / C64 SWEDISH / C64 JAPANESE como familias fuente.
+
+PROXIMAS MILESTONES / PENDIENTES
+================================
+1. Tile Editor para BANK 2
+   - Editar pixeles de un glifo BANK 2 sin redirigir accidentalmente a BANK 1.
+
+2. Export de framepack / SCUMM_ANIMATION_V1
+   - Serializar charsetBank por frame.
+   - Exportar ambos charsets de 256 cuando el recurso los necesite.
+
+3. Runtime C64
+   - Cargar/ubicar CHARSET BANK 1 y CHARSET BANK 2 en memoria valida.
+   - Cambiar el charset activo por frame con el mecanismo VIC-II apropiado.
+   - Mantener screen codes sin conversion adicional.
+
+4. Validacion combinada con ECM
+   - El sistema dual-bank normal esta PASS en TEST 19.
+   - La combinacion dual-bank + restricciones ECM de 64 glifos debe probarse
+     como milestone separada antes de considerarla aprobada.
+
+5. Undo/Redo
+   - Verificar explicitamente Undo/Redo del cambio charsetBank por frame y de
+     las operaciones Remix antes de promoverlo como contrato definitivo.
+
+HISTORIAL DE CHECKPOINT
+=====================
+TEST 19 = PASS: primer checkpoint dual-bank por frame dentro del editor.
+Los TEST intermedios quedan como historial de pruebas.
+
+MILESTONE TEST 21 - PALETA BANKS 32 x 8
+Estado: PASS CONFIRMADO
+- Nueva vista lateral `Banks 32 x 8`.
+- BANK 1 se muestra arriba como 32 columnas x 8 filas.
+- BANK 2 se muestra debajo como 32 columnas x 8 filas.
+- Preserva la composicion visual de tilesets importados desde imagenes 32x8.
+- La vista `Columns of 16` continua disponible.
+- El banco inactivo sigue grisado y bloqueado.
+- BANK 2 sigue mapeando posiciones visuales 256..511 a screen codes 0..255.
+
+MILESTONE TEST 23 - EXPORT PRG DUAL BANK POR FRAME
+Estado: PASS CONFIRMADO EN VICE
+- Alcance validado: Standard Character Mode, sin SID/musica y sin ECM/Multicolor.
+- El PRG exporta ambos charsets residentes:
+    BANK 1 -> $3000-$37FF (2048 bytes)
+    BANK 2 -> $3800-$3FFF (2048 bytes)
+- Cada frame conserva screen codes 0..255 y selecciona automaticamente BANK 1 o BANK 2.
+- El marcador de banco se transporta por frame sin duplicar la pantalla.
+- Rutina auxiliar de cambio de charset ubicada en $2FE0.
+- El cambio de banco modifica solo los bits de charset de $D018 y preserva el screen buffer activo.
+- BANK 2 se exporta desde ricoCharsetBank2 real, incluyendo cambios hechos con Rico's Remix.
+- TEST22 fue FAIL por crecimiento del player: la tabla de frames alrededor de $0FFF/$1000 piso codigo y produjo CPU JAM en $1009.
+- TEST23 corrige el problema sin agrandar el player: reemplaza una instruccion STA $D024 de 3 bytes por JSR $2FE0 de 3 bytes.
+- VICE confirma reproduccion correcta Frame BANK 1 <-> Frame BANK 2.
+
+COSTO DE MEMORIA VALIDADO
+=========================
+- BANK 1: 2048 bytes.
+- BANK 2: 2048 bytes.
+- Costo adicional respecto de un solo charset: +2048 bytes.
+- El selector por frame cuesta esencialmente 1 byte de metadata por frame mas una rutina muy pequena.
+- No se duplica Screen RAM ni el frame data por usar dos bancos.
+
+REGLA PARA EL FUTURO EXPORTADOR DE RECURSOS
+===========================================
+El formato de recursos RICO/SCUMM debe conservar esta misma arquitectura:
+- screen codes 0..255;
+- metadata charsetBank por frame;
+- exportar BANK 2 solo cuando el recurso realmente lo necesite;
+- el runtime cambia el puntero de charset y no reescribe la pantalla para cambiar de banco.
+
+CHECKPOINT ACTUAL
+=================
+TEST 23 = PASS CONFIRMADO EN VICE.
+Checkpoint estable actual: editor dual-bank + seleccion por frame + export PRG Standard dual-bank.
+Este es el punto seguro para continuar los proximos experimentos.
+
+TEST54 (15 OCT 2026) - MAP SCROLL Ping Pong PRG exporter prepared: 4 ping-pong directions, non-wrapping background gaps, clean 38x24 viewport. STATUS: PENDING PASS/FAIL.
+
+MILESTONE TEST 56 - MAP SCROLL MOVE OUT
+Estado: PASS CONFIRMADO EN VICE
+- Salida no-wrap Left / Right / Up / Down.
+- Queda fuera hasta terminar Frame Duration.
+
+MILESTONE TEST 57 - MAP SCROLL MOVE IN
+Estado: PASS CONFIRMADO EN VICE
+- MOVE pasa a llamarse MOVE OUT.
+- Move In Left / Right / Up / Down entra desde fuera y queda en posicion normal.
+
+MILESTONE TEST 58 - MAP SCROLL PREVIEW SYNC
+Estado: PENDING USER PASS/FAIL
+- Preview temporal PAL 50 Hz independiente del g_tick irregular del editor.
+- Pixels / Step calculado en pixeles C64 antes de aplicar zoom.
+- Border Color nativo restaurado durante MAP SCROLL.
+- Runtime PRG TEST57 sin cambios.
+
+MILESTONE TEST 65 - PREVIEW VERTICAL 24 ROWS
+Estado: PASS CONFIRMADO
+- LVLLVL Move In/Out vertical preview sincronizado con las 24 filas visibles reales del VIC-II.
+- Timing validado en VICE: 192 ticks, 1 tick/step, 1 px/step.
+
+MILESTONE TEST 67 - WINDOW DIMENSION POR FRAME
+Estado: PASS CONFIRMADO
+- Screen Dimension conserva el mapa real.
+- Window Dimension define X/Y/Width/Height por frame sin destruir datos.
+- Exterior de Window se enmascara negro y se sanea con blank_char al exportar.
+- Geometria VIC derivada de Window: 40x25, 40x24 y 38x24 validadas estructuralmente.
+
+MILESTONE TEST 68 - WINDOW DIMENSION CUATRO LADOS
+Estado: EN DESARROLLO / UI MEJORADA
+- Interfaz Left / Right / Top / Bottom independiente.
+- Conserva metadata de TEST67.
+- Detectado pendiente: el preview de MAP SCROLL aun podia animar datos exteriores al Window.
+
+MILESTONE TEST 69 - WINDOW COMO SUPERFICIE DE MAP SCROLL
+Estado: PENDING PASS/FAIL
+- El preview de LVLLVL recorta primero la fuente al rectangulo Window.
+- MAP SCROLL anima solamente esa superficie recortada.
+- Las filas/columnas exteriores siguen existiendo en Screen pero quedan fuera del movimiento visual.
+- Regla de packaging: los ZIP conservan unicamente LOG.txt y este mapa de milestones como documentacion TXT.
+
+MILESTONE TEST 69 - WINDOW COMO SUPERFICIE DE MAP SCROLL
+Estado: PREVIEW PASS / EXPORT FAIL
+- LVLLVL confirmado correcto: MAP SCROLL anima solo el rectangulo Window.
+- Export PRG no reproducía el mismo comportamiento; se detectaron constantes 40x25 / 319x199 y helpers del doble buffer eliminados accidentalmente en TEST67.
+
+MILESTONE TEST 70 - WINDOW COMO SUPERFICIE REAL DEL RUNTIME PRG
+Estado: PENDING PASS/FAIL
+- Runtime reconstruido desde TEST64 PASS.
+- Recuperados prepare_requested, commit_prepared, request_prepare y request_ping_prepare.
+- Window X/Y/W/H gobierna copias, limites y superficie de Scroll / Ping Pong / Move Out / Move In.
+- Maximo horizontal = W*8-1; maximo vertical = H*8-1.
+- Exterior de Window permanece blank_char y no participa del desplazamiento.
+- Ensamblado ACME validado sin errores antes de empaquetar.
+
+TEST71: Screen is the full scroll source; Window is viewport only. A 40x25 design with Window 40x24 keeps row 25 available to enter during scroll.
+
+
+MILESTONE TEST 71 - SCREEN SOURCE + WINDOW VIEWPORT
+Estado: PASS CONFIRMADO
+- Screen completo sigue siendo la fuente del scroll.
+- Window limita solamente el area visible; contenido fuera de Window puede entrar durante el desplazamiento.
+
+MILESTONE TEST 72 - RICO'S WINDOW DIMENSIONS
+Estado: PENDING PASS/FAIL
+- El editor normal queda completamente libre fuera de Window: dibujar, seleccionar y pegar no se restringen.
+- Window se aplica solamente a visualizacion MAP SCROLL y exportacion.
+- Navegacion de frames integrada en la misma ventana con controles < y >.
+- Los valores de la frame actual se guardan antes de cambiar y los de la nueva frame se cargan sin cerrar la ventana.
+- Convencion UI desde TEST72: las features propias llevan el prefijo "Rico's".
+
+MILESTONE TEST 73 - RICO'S DIMENSIONS CUATRO LADOS
+Estado: PENDING PASS/FAIL
+- Redimension fisica del Screen mediante Left / Right / Top / Bottom con valores firmados.
+- Valor positivo agrega filas/columnas; valor negativo elimina.
+- Left/Top desplazan el contenido existente para modificar fisicamente esos bordes.
+- Right/Bottom modifican el borde correspondiente sin desplazar el origen.
+- Tamano final calculado automaticamente y preview visual incluida.
+- Rico's Window Dimensions y MAP SCROLL quedan sin cambios en este test.
+
+
+MILESTONE TEST 74 - RICO'S DIMENSIONS SUBTRACT FIX
+Estado: PENDING PASS/FAIL
+- Corrige Left/Top negativos en proyectos con varias frames.
+- El offset fuente se calcula una sola vez y se aplica igual a todas las frames.
+- La interfaz de Rico's Dimensions permanece sin cambios.
+
+MILESTONE TEST 75 - WINDOW + SCROLL AREA INDEPENDIENTES
+Estado: PENDING PASS/FAIL
+- Screen = area completa editable.
+- Window = viewport visible.
+- Scroll Area = rectangulo del Screen que participa del MAP SCROLL.
+- Scroll Area es por frame y por defecto ocupa todo el Screen.
+- Rico's Window Dimensions permite alternar Window / Scroll Area usando los mismos cuatro lados y navegar frames con < >.
+- Preview LVLLVL y exportador PRG leen Scroll Area como fuente de movimiento y Window como geometria visible.
+- Caso clave: Screen 40x25 + Window 40x24 + Scroll Area 40x24 excluye fila 25; con Scroll Area 40x25 la fila 25 participa del scroll.
+
+MILESTONE TEST 76 - GUARD CELLS DEL SCROLL AREA
+Estado: PENDING PASS/FAIL
+- Corrige la banda negra de VICE cuando Window/Scroll Area usan 24 filas: el buffer C64 conserva una fila fisica de guarda sin incorporar la fila 25 del Screen al Scroll Area.
+- Scroll continuo vertical usa una fila de guarda wrap; Ping Pong / Move vertical usan guarda en blanco.
+- Scroll Area 25 filas conserva las 25 filas reales sin guarda sintetica.
+- Fine scroll horizontal fuerza CSEL=0 / 38 columnas hardware para ocultar los fetches laterales y evitar caracter cortado/pixel residual en los bordes.
+- La interfaz Rico's Window Dimensions + Scroll Area permanece igual.
+
+MILESTONE TEST 77 - SINGLE-FRAME SCROLL AREA EXPORT
+Estado: PASS CONFIRMADO EN VICE
+- Las animaciones de una sola frame con Scroll Up/Down/Left/Right dejan de caer al runtime legado TEST50.
+- Usan el runtime moderno con Window + Scroll Area, igual que el preview de LVLLVL.
+- Vertical conserva la geometria horizontal definida por Window; Scroll Area controla la fuente efectiva.
+
+
+MILESTONE TEST 78 - FAIL PARCIAL
+- Rico's Screen Dimension visible, pero cambios de layout no aparecieron y MAP SCROLL no respondio.
+
+MILESTONE TEST 79 - UI INTEGRATION FIX
+Estado: PENDING PASS/FAIL
+- Parte de TEST77 PASS.
+- Frames nace en el south del textModeEditor principal para llegar al borde izquierdo sin overlays.
+- Paleta C64 compacta 16 colores en la barra izquierda.
+- Colours minimizable/restaurable con -/+.
+- Rico's Screen Dimension.
+- Rico's Map Scroll basado en TEST75 con navegacion < > y PAUSE/PLAY global.
+- Runtime/exporter TEST77 permanece sin cambios.
+
+MILESTONE TEST 79 - UI INTEGRATION FIX
+Estado: PARCIAL / REEMPLAZADO POR TEST80
+- Rico's Map Scroll vuelve a abrir correctamente y conserva < > + PAUSE/PLAY.
+- Layout inferior visualmente incorrecto; TEST80 rehace solo la composicion de interfaz.
+
+MILESTONE TEST 80 - CLEAN UI LAYOUT
+Estado: PASS CONFIRMADO
+- Frames conserva dos filas nativas: controles arriba y timeline abajo, alineadas y compactas.
+- La zona inferior llega desde el borde izquierdo hasta antes del panel derecho; Tiles/Colours mantiene toda la altura lateral.
+- Se oculta el holder inferior vacio de Tile Palette para evitar una banda sin uso.
+- Paleta rapida C64 16 colores en formato 2x8 dentro de la barra izquierda.
+- Colours arranca minimizado y puede restaurarse con + durante la sesion.
+- Tiles abre por defecto en Columns of 16 en inicio/carga de Screen sin bloquear cambios manuales posteriores.
+- Rico's Map Scroll TEST79 y exporter TEST77 se mantienen funcionalmente sin cambios.
+
+
+CHECKPOINT TEST80 PASS
+======================
+- Nuevo checkpoint seguro aprobado por usuario.
+- Mantiene TEST77 PASS como runtime/exporter MAP SCROLL.
+- Consolida Window + Scroll Area, Rico's Screen Dimension, Rico's Map Scroll con navegacion < > y PAUSE/PLAY, layout inferior limpio, paleta rapida C64 2x8, Colours minimizado y Columns of 16 por defecto.
+
+
+PROMOCION GITHUB TEST80 PASS
+============================
+- TEST80 confirmado PASS por usuario el 16/10/2026.
+- Se promueve como nuevo checkpoint seguro del repositorio.
+- Runtime/exporter MAP SCROLL aprobado: TEST77.
+- Interfaz aprobada: Screen/Window/Scroll Area, Rico's Map Scroll, layout inferior limpio, paleta C64 2x8, Colours minimizado y Columns of 16 por defecto.
+- ZIP de checkpoint aprobado: LVLLVL_TEST80_RICO_CLEAN_UI_LAYOUT_PASS.zip
+- SHA256 del ZIP aprobado: 77d44844fdf7eccb41f1ce1ee6a75e588024f82f4071e56d9a33d0e8f3e97a1c
+
+
+===== ORIGEN HISTORICO: RICO_FEATURES_MILESTONES_17_OCT_2026.txt =====
+RICO / LVL-RICO — MILESTONES 17 OCT 2026
+=========================================
+
+MASTER ACTUAL
+-------------
+MASTER_LVL-RICO_17_OCTUBRE_2026.zip
+SHA256 7b98cb59532394b99410a9d26c5b90259b04ec21666f0c7ec6006479c96f709d
+VALIDACION: TEST120 ZIP PASS CONFIRMADO.
+
+CADENA RECIENTE
+---------------
+TEST80 PASS
+- Layout limpio.
+- Rico's Map Scroll operativo.
+- Paleta compacta 2x8.
+- Colours inicia minimizado.
+- Tiles inicia Columns of 16.
+
+TEST81-TEST89
+- Ajustes de viewport/large-map y runtime PRG.
+- Large Map source/window/color/timing/max-speed integrados.
+- TEST89 queda dentro del MASTER.
+
+TEST104 / TEST105
+- Recuperada animacion nativa de caracteres en VICE.
+- animate_chars nativo de James trabaja sobre $3800.
+- Mapping validado: BANK1 $3800, BANK2 $3000.
+- TEST105: VICE PASS, UI actual conservada; quedaba flicker en preview.
+
+TEST118
+- Diagnostico: se desactiva TileSet.update() para Animated Chars.
+- Resultado: desaparecen simultaneamente flicker y movimiento.
+- Prueba causal: el problema estaba dentro de la ruta de update/repaint de caracteres.
+
+TEST119
+- Dirty map cells pero aun quedaban redraws de Current Tile / palettes.
+- FAIL: vuelve el flicker.
+
+TEST120
+- Durante el tick se silencian Current Tile, palettes, invalidateAllCells y graphic.redraw.
+- Se detectan glyph IDs realmente modificados comparando currentTileData.
+- Solo se redibujan las celdas del mapa que usan esos IDs.
+- ZIP PASS CONFIRMADO: animacion visible, sin flicker general.
+
+REGLA NUEVA DE WEB
+------------------
+- ZIP = unica fuente de validacion.
+- Cada test futuro reemplaza todo el payload de GitHub Pages desde el ZIP.
+- No se vuelven a reconstruir cambios a mano en gh-pages.
+- TEST120 Pages exact payload commit: 725930f44f3beb84ffee8fe07c771e438ee0546a.
+
+PROMOCION
+---------
+- main/dist = payload exacto TEST120 PASS (622 archivos).
+- Documentacion actualizada.
+- Checkpoint: promotion/lvl-rico-master-17-oct-2026.
+
+
+===== ORIGEN HISTORICO: RICO_TEST30_DOUBLE_HEIGHT_VERTICAL_NOTES.txt =====
+RICO TEST30 - DOUBLE HEIGHT AUTO VERTICAL PAIRS
+
+Correction over TEST29:
+- A tall 8x14/8x16 source glyph is split into two real C64 8x8 chars.
+- The two sister chars are stored as a VERTICAL pair in the standard 16-column C64 palette.
+- Pair 0 = TOP slot 0 + BOTTOM slot 16; pair 1 = 1 + 17; ...
+- 128 vertical pairs consume the full 256 slots of one bank.
+- Clicking a source glyph imports BOTH halves immediately at the insertion cursor and advances to the next pair.
+- Clicking the CUSTOM tileset only moves the next insertion cursor; it is no longer required for every glyph.
+- 8x16 splits 8+8 exactly.
+- 8x14 splits 8+6 and pads the final two BOTTOM rows with black.
+- BANK defaults to the active frame bank when entering DOUBLE HEIGHT mode.
+
+Goal: the adapted C64 tileset visibly shows TOP directly above BOTTOM for every imported glyph.
+
+
+===== ORIGEN HISTORICO: RICO_TEST31_16X16_MODULE_NOTES.txt =====
+RICO TEST31 - REMIX 16x16 -> C64 2x2 MODULES
+==============================================
+Base: TEST30 PASS.
+
+Goal
+----
+Integrate the native LVLLVL 16x16 source presets into Rico's Remix while preserving
+a real C64 destination charset of 256 independent 8x8 characters per bank.
+
+Contract
+--------
+One selected 16x16 source module consumes FOUR C64 character slots:
+
+  TOP LEFT      TOP RIGHT
+  BOTTOM LEFT   BOTTOM RIGHT
+
+The normal 16-column C64 tile palette is partitioned into 8 x 8 module cells.
+Each module occupies a physically adjacent 2x2 block.
+
+Module 0:  slots 0,1 / 16,17
+Module 1:  slots 2,3 / 18,19
+...
+Maximum: 64 modules per BANK = 64 x 4 = 256 character slots.
+
+Source split
+------------
+TL = source x 0..7,  y 0..7
+TR = source x 8..15, y 0..7
+BL = source x 0..7,  y 8..15
+BR = source x 8..15, y 8..15
+
+No scaling and no padding are needed for true 16x16 sources.
+
+UI
+--
+New Remix category: MODULE 2x2 · 16x16.
+Current presets include Kenny 1 Bit Pack and Patterns and Tiles.
+Each source glyph is drawn at native 16x16 with an 8/8 crosshair guide.
+Clicking a source glyph immediately writes all four C64 tiles into the selected
+2x2 destination block and advances the insertion cursor to the next module.
+Clicking any of the four destination tiles selects its whole 2x2 module.
+
+Validation target
+-----------------
+Select a visually obvious 16x16 source module and verify that CUSTOM shows exactly
+that image reconstructed from four adjacent 8x8 characters in a 2x2 square.
+Confirm repeated source clicks append to the next 2x2 module and do not disturb the
+previous four tiles.
+
+
+===== ORIGEN HISTORICO: RICO_TEST32_LOCAL_TILESET_LIBRARY_NOTES.txt =====
+RICO TEST32 - LOCAL TILESET LIBRARY
+===================================
+Base: TEST31 PASS.
+
+Objetivo
+--------
+Permitir que un Tile Set importado quede guardado localmente en el navegador,
+aparezca en Custom Text Mode Sets y pueda utilizarse como SOURCE dentro de
+Rico's Remix a Tileset.
+
+Flujo
+-----
+1. Tiles -> Choose A Tile Set -> Load/Import Tile Set.
+2. Importar PNG/BIN/JSON/etc con el importador normal de LVLLVL.
+3. Dejar marcado "Save to RICO Local Library" y elegir nombre.
+4. OK: se importa normalmente y se guarda una copia local.
+5. Custom Text Mode Sets -> RICO LOCAL LIBRARY muestra los sets guardados.
+6. Export JSON genera RICO_TILESET_LIBRARY.json.
+7. Import JSON restaura/mezcla una biblioteca exportada.
+8. Rico's Remix -> RICO LOCAL LIBRARY muestra automáticamente los sets locales compatibles.
+
+Persistencia
+------------
+TEST32 usa localStorage con clave ricoLocalTileSetLibraryV1.
+Los sets quedan sólo en el navegador/perfil actual hasta exportarlos a JSON.
+El JSON puede promoverse más adelante al source del fork.
+
+Formato JSON
+------------
+format: RICO_TILESET_LIBRARY_V1
+version: 1
+tileSets: [
+  id, name, width, height, tileCount, type, source,
+  createdAt, updatedAt, tileData
+]
+
+Compatibilidad Rico Remix
+-------------------------
+8x8   -> 1 slot C64 por glyph.
+7x8   -> 1 slot C64 8x8, columna derecha vacía.
+8x14  -> 2 slots verticales, bottom con 2 filas negras.
+8x16  -> 2 slots verticales, split exacto 8+8.
+16x16 -> 4 slots en bloque C64 2x2.
+
+Otros tamaños pueden guardarse y reutilizarse desde Custom Text Mode Sets, pero
+no aparecen todavía como SOURCE de Rico's Remix hasta definir su adaptación C64.
+
+PASS/FAIL
+---------
+Pendiente de validación del usuario.
+
+
+===== ORIGEN HISTORICO: RICO_TEST33_ANIMATED_PALETTE_PREVIEW_NOTES.txt =====
+RICO TEST33 - ANIMATED CHARACTER PALETTE PREVIEW
+================================================
+Base: TEST32 PASS.
+
+Objetivo:
+Restaurar la previsualizacion en movimiento de caracteres animados dentro de las
+paletas de caracteres. Deben animarse aunque el glyph no este usado en pantalla.
+
+Comportamiento esperado:
+- La paleta principal de 256 caracteres anima el BANK activo.
+- La paleta lateral dual-bank anima BANK 1 y BANK 2 simultaneamente.
+- Funciona en Columns of 16 y Banks 32 x 8.
+- Respeta Scroll, Ping Pong, Blink y Frames.
+- No modifica los pixeles base: usa buffers de preview separados.
+- No cambia el renderer del mapa; solo refresca las vistas de paleta.
+
+Prueba recomendada:
+1. Animar un caracter de BANK 1 que NO este colocado en pantalla.
+2. Confirmar que se mueve en la paleta.
+3. Animar otro caracter de BANK 2 con otro modo/timing.
+4. Confirmar que ambos se mueven simultaneamente en la paleta lateral.
+5. Cambiar de BANK y confirmar que la paleta principal muestra el BANK activo.
+
+
+===== ORIGEN HISTORICO: RICO_TEST34_GROUP_ANIMATE_NOTES.txt =====
+RICO TEST34 - GROUP ANIMATE
+==========================
+Base: TEST33 PASS.
+
+Goal
+----
+Add a second animation control under Tile Editor > Animated named "Group Animate".
+Unlike normal Animated, Group Animate treats the complete 2D tile selection as ONE
+large bitmap and only then slices the animated result back into its 8x8 C64 tiles.
+
+Example: a 2x2 selection is animated as one 16x16 bitmap, not four independent 8x8
+animations. Scroll Up therefore lets pixels leave the top edge of the whole 16x16
+surface and wrap back through the bottom edge of the whole 16x16 surface.
+
+Implemented
+-----------
+- New Group Animate dropdown below normal Animated.
+- Same animation choices as the normal RICO animation menu:
+  No, Scroll Left/Right/Up/Down, Ping Pong Left/Right/Up/Down, Blink, Frames.
+- Independent Group Ticks/Frame.
+- Preserves the 2D geometry of the Tile Editor selection.
+- Standard Scroll wraps at the OUTER boundary of the entire selected group.
+- Ping Pong clips/moves the entire group surface globally.
+- Blink works over the complete group surface.
+- Frames advances the member tiles synchronously.
+- Group metadata is stored per BANK in document data: ricoGroupAnimationsV1.
+- BANK1/BANK2 remain independent.
+- Group members are removed from ordinary per-character animation to avoid double animation.
+- Selecting a normal Animated mode on member tiles removes the intersecting Group Animate.
+- Group animation is propagated to the screen and to TEST33 palette previews.
+
+Important test
+--------------
+Select a recognizable multi-tile image (for example 2x2), choose Group Animate > Scroll Up,
+and verify that the WHOLE image crosses tile boundaries continuously. Internal 8x8 borders
+must not behave as independent wrap boundaries.
+
+Status: PENDING USER PASS/FAIL.
+
+
+===== ORIGEN HISTORICO: RICO_TEST35_MAP_SCROLL_NOTES.txt =====
+RICO TEST35 - MAP SCROLL
+Base: TEST34 PASS.
+
+- MAP SCROLL button beside Frame Duration.
+- Visible word "ticks" removed beside Frame Duration to gain room; duration is still ticks.
+- Per-frame dialog: No / Scroll L-R-U-D / Ping Pong L-R-U-D + Ticks/Step.
+- Standard scroll wraps the complete rendered map as one surface.
+- Ping Pong moves the complete map out and back without wrap.
+- Frame Duration and MAP SCROLL Ticks/Step are independent.
+- Entering a frame restarts its map-scroll phase at 0.
+- Duplicate Frame copies the MAP SCROLL setting; new frame defaults to No.
+- Character animation and Group Animate remain independent inside the moving map.
+
+TEST STATUS: PASS confirmado por usuario.
+
+
+===== ORIGEN HISTORICO: RICO_TEST36_MAP_SCROLL_BACKGROUND_FIX_NOTES.txt =====
+RICO TEST36 - MAP SCROLL PING PONG BACKGROUND FIX
+Base: TEST35 PASS.
+
+Cambio unico:
+- En MAP SCROLL Ping Pong, el area que queda expuesta al desplazar el mapa ya no muestra transparencia/checkerboard del editor.
+- Esa zona se rellena con el Background Color C64 de la frame actual.
+- Scroll normal con wrap, velocidad, metadata por frame, Frame Duration, Character Animate y Group Animate no se modifican.
+
+TEST STATUS: awaiting PASS/FAIL.
+
+
+===== ORIGEN HISTORICO: RICO_TEST37_MAP_SCROLL_SPEED_NOTES.txt =====
+RICO TEST37 - MAP SCROLL: PIXELS PER STEP
+
+Base: TEST36 PASS.
+
+Cambio unico:
+- La ventana MAP SCROLL suma un control Pixels / Step (1..8).
+- Ticks / Step conserva el intervalo temporal.
+- Pixels / Step controla cuantos pixels avanza el mapa en cada step.
+- Ejemplos:
+  Ticks/Step=1, Pixels/Step=1 -> 1 px por tick.
+  Ticks/Step=1, Pixels/Step=8 -> 8 px por tick.
+  Ticks/Step=4, Pixels/Step=2 -> salto de 2 px cada 4 ticks.
+- Compatible con Scroll y Ping Pong en las cuatro direcciones.
+- Configuraciones TEST35/36 existentes migran implicitamente con Pixels/Step=1.
+- El fix TEST36 de rellenar con Background Color C64 en Ping Pong se conserva.
+
+PENDIENTE: PASS/FAIL del usuario.
+
+
+===== ORIGEN HISTORICO: RICO_TEST38_TILE_PALETTE_EDIT_REFRESH_NOTES.txt =====
+RICO TEST38 - TILE PALETTE EDIT REFRESH
+14 OCT 2026
+
+Base: TEST37 PASS.
+
+Bug fixed:
+- Editing a character changed the real glyph and its use on the map,
+  but the visible charset/tile palette index could keep showing the old glyph.
+
+Cause:
+- TEST33 intentionally caches palette-only preview pixels so animated unused
+  characters keep animating in the palette. Manual Tile Editor edits did not
+  invalidate that cache immediately.
+
+Fix:
+- TileEditorGrid.updateCharacter now invalidates the active BANK preview cache
+  for the edited character(s).
+- Forces the TEST33/TEST34 preview pipeline to rebuild on the current tick.
+- Forces Group Animate composites to rebuild when a member glyph was edited.
+- Redraws both the main palette and the dual BANK side palette immediately.
+- BANK 2 side indices use the virtual +256 mapping.
+
+No MAP SCROLL, animation timing, PRG export, or glyph pixel logic changed.
+
+
+===== ORIGEN HISTORICO: RICO_TEST48_PRG_MAP_SCROLL_REFERENCE_NOTES.txt =====
+RICO TEST48 - LVLLVL PRG MAP SCROLL via proven standalone runtime
+
+Base: TEST38 PASS + reference vertical MAP SCROLL PRG confirmed PASS in VICE.
+
+This test deliberately stops patching the legacy LVLLVL frame player for the supported case.
+When LVLLVL exports a PRG and the project is:
+- 1 frame
+- 40x25
+- 8x8 character set
+- MAP SCROLL = Scroll Up
+
+ToPRGAdv exports with the known-good standalone scroll runtime instead. The user still exports normally from LVLLVL.
+
+Imported from the current project at export time:
+- 1000 screen codes from frame 1
+- active frame charset bank (BANK1/BANK2) copied into $3000
+- C64 background color
+- border color
+- dominant per-cell foreground color (Color RAM is uniform in this first integration test)
+- Ticks / Step
+- Pixels / Step (1..8; very aggressive settings can be naturally limited by hidden-buffer preparation)
+
+Runtime:
+- BASIC: SYS8192
+- engine: $2000
+- screen buffers: $0400/$0800
+- charset: $3000
+- source map: $4000
+- fine vertical scroll: $D011
+- screen swap: $D018
+- hidden screen prepared in 8 IRQ phases
+
+Unsupported cases fall back to the existing LVLLVL/TEST23 exporter unchanged.
+
+TEST: export normally from LVLLVL, then run the resulting PRG in VICE.
+
+
+===== ORIGEN HISTORICO: RICO_TEST49_PRG_MAP_SCROLL_DIRECTIONS_NOTES.txt =====
+RICO TEST49 - PRG MAP SCROLL WRAP DIRECTIONS
+
+Base: TEST48 PASS for Scroll Up.
+
+Export path for a single 40x25 / 8x8 frame:
+- Scroll Up: exact proven TEST48 runtime retained.
+- Scroll Down: standalone double-buffer VIC-II runtime.
+- Scroll Left: standalone double-buffer VIC-II runtime using $D016.
+- Scroll Right: standalone double-buffer VIC-II runtime using $D016.
+- Ticks/Step and Pixels/Step exported.
+- BANK1/BANK2 charset selection preserved.
+- Color RAM remains uniform/dominant-color as in TEST48; per-cell color scrolling postponed until direction runtimes are validated.
+- Ping Pong is not enabled in this test.
+
+TEST ORDER:
+1. Reconfirm Up did not regress.
+2. Down.
+3. Left.
+4. Right.
+Use Pixels/Step=1 initially.
+
+
+===== ORIGEN HISTORICO: RICO_TEST50_VERTICAL_SCROLL_BORDER_MASK_NOTES.txt =====
+RICO TEST50 - VERTICAL MAP SCROLL BORDER MASK
+
+Base: TEST49.
+
+Problem observed in VICE/video:
+- Up/Down fine scroll is smooth inside the 8-pixel phase.
+- At the top/bottom display edge a partial glyph / 1-line seam is visible during the wrap transition.
+
+Fix:
+- For vertical MAP SCROLL only, export uses VIC-II 24-row mode (D011 RSEL=0) during scrolling.
+- Up keeps YSCROLL 7..0 but base bits use $10 instead of $18.
+- Down keeps YSCROLL 0..7 but base bits use $10 instead of $18.
+- This is the classic C64 smooth vertical-scroll masking technique: the slightly larger top/bottom border hides the row replacement transition.
+- Left/Right runtimes are unchanged.
+
+Tradeoff:
+- Vertical visible text area is 24 rows while scrolling, with 4 extra border pixels at top and bottom.
+- A future advanced 25-row edge-to-edge mode would require raster/border tricks and is intentionally out of scope for this isolated fix.
+
+
+===== ORIGEN HISTORICO: RICO_TEST51_MAP_SCROLL_38X24_NOTES.txt =====
+RICO TEST51 - MAP SCROLL CLEAN VIEWPORT 38x24
+
+Base: TEST50 PASS.
+
+Goal:
+- Hide the VIC-II seam on all four wrap directions.
+- Keep the logical screen/map data at 40x25 characters.
+- During MAP SCROLL, render in VIC-II 38-column + 24-row mode.
+
+VIC-II:
+- $D011 RSEL=0 => 24 visible rows.
+- $D016 CSEL=0 => 38 visible columns.
+- Fine Y scroll remains in $D011 bits 0..2.
+- Fine X scroll remains in $D016 bits 0..2.
+
+Directions:
+- Scroll Up: TEST50 vertical seam fix retained + CSEL=0.
+- Scroll Down: TEST50 vertical seam fix retained + CSEL=0.
+- Scroll Left: RSEL=0, CSEL=0; horizontal fine-scroll values no longer re-enable 40-column mode.
+- Scroll Right: RSEL=0, CSEL=0; horizontal fine-scroll values no longer re-enable 40-column mode.
+
+Important:
+The exported screen data remains 40x25. The reduced 38x24 viewport is only the visible VIC-II window used to hide row/column turnover at the borders.
+
+Pending user PASS/FAIL in VICE.
+
+
+===== ORIGEN HISTORICO: RICO_TEST52_FRAME_TIMING_NOTES.txt =====
+RICO TEST52 - MAP SCROLL FRAME TIMING
+
+Goal:
+- Export 2+ LVLLVL frames with the standalone MAP SCROLL runtime.
+- The runtime reads each LVLLVL Frame Duration (ticks).
+- When the assigned ticks finish, it loads the next LVLLVL frame and its own MAP SCROLL settings.
+- The sequence loops back to Frame 1 after the last frame.
+
+Supported in this test:
+- C64 Standard / 8x8 / 40x25.
+- 2..32 frames.
+- MAP SCROLL: No, Up, Down, Left, Right.
+- Ticks / Step and Pixels / Step independently per frame.
+- Frame Duration independently per frame.
+- 38x24 clean VIC-II viewport from TEST51.
+- BANK1/BANK2 charset selection per frame.
+- Per-frame background / border / dominant foreground color.
+
+Still intentionally postponed:
+- Ping Pong MAP SCROLL in PRG.
+- Full per-cell Color RAM scrolling (uniform dominant foreground is retained).
+- Character/group animation integration into this standalone runtime.
+
+Suggested validation:
+Frame 1: Scroll Left, Duration 150, Ticks/Step 4, Pixels/Step 1.
+Frame 2: Scroll Right, Duration 150, Ticks/Step 4, Pixels/Step 1.
+Export PRG normally. It should alternate F1 Left -> F2 Right -> F1 Left indefinitely.
+
+
+===== ORIGEN HISTORICO: RICO_TEST53_FRAME_DURATION_512_NOTES.txt =====
+RICO TEST53 - FRAME DURATION 512 TICKS
+
+Base: TEST52 PASS.
+
+Changes:
+- Frame Duration UI range expanded from 1..255 to 1..512 ticks.
+- Graphic.setFrameDuration clamps to 1..512.
+- MAP SCROLL multi-frame PRG runtime now uses a 16-bit frame countdown.
+- Duration is exported as low/high byte tables, so values 256..512 are represented correctly.
+- MAP SCROLL Ticks / Step remains 1..255; this test changes Frame Duration only.
+- Keeps TEST52 behaviour: multi-frame, per-frame scroll direction/speed, 38x24 clean viewport, Up/Down/Left/Right.
+
+Suggested validation:
+Frame 1: Scroll Left, Frame Duration 512, Ticks/Step 4, Pixels/Step 1.
+Frame 2: Scroll Right, Frame Duration 512, Ticks/Step 4, Pixels/Step 1.
+Export PRG and verify each frame remains active for the longer duration before switching.
+
+
+===== ORIGEN HISTORICO: RICO_TEST54_MAP_SCROLL_PINGPONG_NOTES.txt =====
+RICO / LVLLVL TEST54 - MAP SCROLL PING PONG
+
+Base: TEST53 (Frame Duration 16-bit up to 512) + validated TEST51 clean 38x24 viewport.
+
+Goal
+----
+Export the four MAP SCROLL Ping Pong modes already present in the LVLLVL editor:
+- Ping Pong Left
+- Ping Pong Right
+- Ping Pong Up
+- Ping Pong Down
+
+Runtime behavior
+----------------
+- Non-wrapping movement: exposed area is background, not wrapped map data.
+- Horizontal range: 0..319 px (40 chars * 8 - 1).
+- Vertical range: 0..199 px (25 chars * 8 - 1).
+- At the far end the direction reverses pixel-perfectly and returns toward origin.
+- Uses the clean VIC-II viewport: 38 columns x 24 rows.
+- Ticks / Step and Pixels / Step remain per frame.
+- Frame Duration remains per frame and can change to a different scroll type on the next frame.
+- Existing wrap Scroll Up/Down/Left/Right remains unchanged.
+
+Implementation detail
+---------------------
+At each 8-pixel character boundary, Ping Pong rebuilds the hidden screen buffer from the original frame data plus blank cells instead of rotating/wrapping the current screen. This preserves the original map data for the return trip. A character code unused by all exported frame maps is reserved and zeroed in both charset banks to guarantee truly blank exposed background.
+
+Test suggestion
+---------------
+Start with one or two frames using Ping Pong Left / Right, Ticks=1, Pixels=1. With Frame Duration max 512, horizontal Ping Pong will reach the far end at 319 ticks and visibly reverse, but a full out-and-back cycle would need 638 ticks at 1 px/tick. For a full cycle within 512, use Pixels / Step = 2.
+
+STATUS: PENDING USER PASS/FAIL.
+
+
+===== ORIGEN HISTORICO: RICO_TEST55_PINGPONG_CONTINUOUS_NOTES.txt =====
+RICO TEST55 - MAP SCROLL PING PONG CONTINUOUS
+15 OCT 2026
+
+Base: TEST54 + TEST53/TEST51 validated chain.
+
+Reason for TEST55:
+TEST54 could appear to reach the end of a Ping Pong travel and jump directly back to the original position. The Ping Pong direction state was not necessarily the cause: when a one-frame PRG reached Frame Duration, next_frame -> load_frame reloaded the same frame, clearing ping_pos/ping_reverse and restoring the original screen.
+
+Changes:
+1. Single-frame MAP SCROLL no longer reloads its screen/config at Frame Duration rollover. Only the 16-bit frame timer is reloaded. Scroll/Ping Pong state continues seamlessly.
+2. Frame Duration UI/storage/export range extended from 1-512 to 1-1024 ticks.
+3. Multi-frame behavior is unchanged: when Frame Duration ends it advances to the next frame and loads that frame's own MAP SCROLL config.
+4. Ping Pong max travel remains TEST54 behavior: horizontal 319 px, vertical 199 px, then reverse.
+5. Clean VIC-II viewport remains 38x24.
+
+Suggested tests:
+A) One frame: Ping Pong Left, Ticks/Step=1, Pixels/Step=1. Any Frame Duration value should no longer reset the image at timer rollover; it should continue and reverse.
+B) Multi-frame: use Frame Duration around 640+ if the intent is to visibly complete a full horizontal out-and-back cycle before advancing.
+
+STATUS: PASS CONFIRMADO EN VICE por la usuaria.
+El Ping Pong vuelve correctamente en sentido contrario sin reiniciar desde el origen.
+
+
+===== ORIGEN HISTORICO: RICO_TEST56_MAP_SCROLL_MOVE_NOTES.txt =====
+RICO TEST56 - MAP SCROLL MOVE
+15 OCT 2026
+
+Base segura: TEST55 PASS confirmado en VICE.
+
+Objetivo
+--------
+Agregar un nuevo tipo de MAP SCROLL llamado MOVE.
+
+Comportamiento
+--------------
+MOVE desplaza la pantalla completa en una sola direccion, con el mismo camino
+no-wrap y fondo expuesto usado por Ping Pong, pero NO invierte la direccion.
+
+Modos nuevos:
+- MOVE Left
+- MOVE Right
+- MOVE Up
+- MOVE Down
+
+Reglas:
+1. Ticks / Step y Pixels / Step funcionan igual que en Scroll/Ping Pong.
+2. La pantalla se desplaza hasta quedar fuera del viewport limpio 38x24.
+3. Al alcanzar el recorrido maximo, MOVE se detiene.
+4. No hace wrap y no vuelve a aparecer durante el resto de Frame Duration.
+5. El timer de Frame Duration sigue corriendo aunque MOVE ya haya terminado.
+6. En multi-frame, cuando vence Frame Duration se carga normalmente la siguiente frame.
+7. En una sola frame, se conserva la regla TEST55: el timer se recarga sin recargar la pantalla,
+   por lo que una MOVE ya terminada permanece fuera y no reaparece.
+8. Scroll normal y Ping Pong conservan su comportamiento previo.
+
+Recorrido runtime:
+- Horizontal: maximo 319 px, igual que Ping Pong TEST55.
+- Vertical: maximo 199 px, igual que Ping Pong TEST55.
+Estos recorridos son suficientes para sacar completamente la imagen del viewport visible 38x24.
+
+Implementacion
+--------------
+- UI/preview: RICO_MAP_SCROLL_MOVE_TEST56.js
+- Runtime PRG: RICO_PRG_MAP_SCROLL_MOVE_TEST56.js
+- Metadata existente ricoMapScrollV1 se conserva; cfg version pasa a 3.
+- Codigos runtime:
+    9  = MOVE Left
+    10 = MOVE Right
+    11 = MOVE Up
+    12 = MOVE Down
+- TEST55 permanece sin modificar como checkpoint seguro.
+
+Prueba sugerida
+---------------
+A) Una frame:
+   MOVE Left
+   Ticks / Step = 1
+   Pixels / Step = 1
+   Frame Duration = 500
+   Esperado: sale hacia la izquierda, queda fuera y NO regresa.
+
+B) Multi-frame:
+   Frame 1 = MOVE Left, duration 500.
+   Frame 2 = imagen distinta / No o cualquier otro MAP SCROLL.
+   Esperado: Frame 1 sale, queda el fondo visible hasta tick 500 y entonces aparece Frame 2.
+
+C) Repetir MOVE Right / Up / Down.
+
+D) Regresion:
+   Confirmar Ping Pong Left/Right/Up/Down sigue regresando.
+   Confirmar Scroll Left/Right/Up/Down sigue haciendo wrap.
+
+STATUS: PASS CONFIRMADO EN VICE por la usuaria.
+
+
+===== ORIGEN HISTORICO: RICO_TEST57_MAP_SCROLL_MOVE_IN_OUT_NOTES.txt =====
+RICO TEST57 - MAP SCROLL MOVE OUT + MOVE IN
+15 OCT 2026
+
+Base segura: TEST56 PASS confirmado en VICE.
+
+Objetivo
+--------
+1. Renombrar visualmente MOVE a MOVE OUT sin romper metadata/proyectos TEST56.
+2. Agregar MOVE IN en las cuatro direcciones.
+
+Opciones
+--------
+MOVE OUT:
+- Move Out Left
+- Move Out Right
+- Move Out Up
+- Move Out Down
+
+MOVE IN:
+- Move In Left
+- Move In Right
+- Move In Up
+- Move In Down
+
+Semantica de direccion
+----------------------
+La direccion indica hacia donde SE MUEVE la imagen.
+
+Ejemplos:
+- Move In Left: empieza fuera por la derecha y entra moviendose hacia la izquierda.
+- Move In Right: empieza fuera por la izquierda y entra moviendose hacia la derecha.
+- Move In Up: empieza fuera por abajo y entra moviendose hacia arriba.
+- Move In Down: empieza fuera por arriba y entra moviendose hacia abajo.
+
+Comportamiento MOVE IN
+----------------------
+1. Al cargar la frame, el viewport visible 38x24 empieza sin caracteres de la imagen.
+2. Se ve solamente el Background Color de la frame.
+3. La imagen entra desde fuera segun la direccion seleccionada.
+4. Ticks / Step y Pixels / Step funcionan igual que en Scroll, Ping Pong y Move Out.
+5. Al completar el recorrido, la imagen queda en su posicion normal.
+6. No vuelve a salir ni reinicia durante el resto de Frame Duration.
+7. Si hay otra frame, se carga al vencer Frame Duration.
+8. En una sola frame, el rollover de Frame Duration no reinicia Move In: queda visible en posicion normal.
+
+Recorrido
+---------
+- Horizontal: 319 px maximos.
+- Vertical: 199 px maximos.
+Se reutilizan los extremos no-wrap validados en TEST55/56, suficientes para ocultar completamente
+la imagen dentro del viewport limpio 38x24 al inicio de Move In.
+
+Compatibilidad
+--------------
+- Los tipos internos TEST56 move-left/right/up/down se conservan.
+- Solo cambia su etiqueta visible a Move Out ...
+- Metadata ricoMapScrollV1 se conserva.
+- Config version: 4.
+- Codigos runtime existentes 0..12 se conservan.
+- Nuevos:
+    13 = Move In Left
+    14 = Move In Right
+    15 = Move In Up
+    16 = Move In Down
+- Alias TEST56 se conserva para compatibilidad.
+
+Prueba sugerida
+---------------
+A) Una frame:
+   Move In Left
+   Ticks / Step = 1
+   Pixels / Step = 1
+   Frame Duration = 500
+   Esperado: empieza vacia, entra desde la derecha hacia la izquierda, queda completa y espera.
+
+B) Repetir Move In Right / Up / Down.
+
+C) Regresion:
+   - Move Out Left/Right/Up/Down debe seguir igual que TEST56 PASS.
+   - Ping Pong debe seguir volviendo.
+   - Scroll debe seguir haciendo wrap.
+
+STATUS: PASS CONFIRMADO EN VICE por la usuaria.
+
+
+===== ORIGEN HISTORICO: RICO_TEST58_MAP_SCROLL_PREVIEW_SYNC_NOTES.txt =====
+RICO TEST58 - MAP SCROLL PREVIEW SYNC + BORDER FIX
+15 OCT 2026
+
+Base segura
+-----------
+TEST57 PASS confirmado en VICE y promovido a main.
+Runtime/exportador PRG TEST57 NO se modifica en este test.
+
+Objetivos
+---------
+1. Corregir la velocidad de preview MAP SCROLL dentro de LVLLVL para que coincida con el PRG exportado.
+2. Evitar que el borde visual de LVLLVL pase a negro al activar MAP SCROLL.
+
+Causa velocidad
+---------------
+LVLLVL usa FRAMERATE = 1000/50, pero el contador global g_tick se incrementa desde requestAnimationFrame
+solo cuando transcurrieron >= 20 ms y luego reinicia lastTickTime al timestamp actual.
+
+En una pantalla de 60 Hz:
+- requestAnimationFrame llega aproximadamente cada 16.67 ms.
+- el primer frame no alcanza 20 ms;
+- el segundo llega a ~33.3 ms, incrementa g_tick una sola vez y reinicia el reloj.
+Resultado practico: g_tick puede avanzar cerca de 30 veces por segundo en vez de 50.
+
+El runtime C64 exportado usa IRQ PAL de 50 Hz, por lo que Ticks / Step se veia mas lento en el editor.
+
+Correccion temporal TEST58
+--------------------------
+- El preview MAP SCROLL deja de basar su tiempo en g_tick.
+- Usa un reloj PAL propio de 20 ms por tick = 50 Hz.
+- Un pump requestAnimationFrame revisa la fase PAL y redibuja solo cuando cambia el step.
+- TileSet.update conserva un fallback, pero consulta el mismo reloj PAL.
+
+Causa escala / zoom
+-------------------
+TEST57 calculaba dist en pixeles C64 pero aplicaba ese valor directamente sobre el canvas escalado.
+Con zoom distinto de 100%, 1 Pixel / Step visual no equivalia a 1 pixel C64.
+
+Correccion escala TEST58
+------------------------
+- El desplazamiento se calcula siempre en coordenadas fuente C64:
+    horizontal modulo 320 px
+    vertical modulo 200 px
+    Ping Pong / Move usan maximo 319 / 199 px
+- Recien al dibujar se multiplica el offset por la escala del editor.
+- Por lo tanto el zoom cambia el tamaño visual, pero NO la velocidad logica.
+
+Causa borde negro
+-----------------
+El hook de MAP SCROLL renderiza la frame en un canvas intermedio para desplazarla.
+El drawFrame nativo normalmente dibuja despues el Border Color alrededor de la pantalla.
+Al interceptar ese flujo, el borde nativo quedaba fuera del canvas intermedio y el fondo negro del editor quedaba visible.
+
+Correccion borde TEST58
+-----------------------
+- Se replica solamente el dibujo nativo del border despues del render scroll.
+- Usa el Border Color real de la capa/frame actual.
+- Respeta la visibilidad nativa del border.
+- No modifica el valor guardado del Border Color.
+- No afecta el PRG exportado.
+
+Archivos activos
+----------------
+UI preview:
+  src/js/rico/RICO_MAP_SCROLL_PREVIEW_SYNC_TEST58.js
+  dist/js/rico/RICO_MAP_SCROLL_PREVIEW_SYNC_TEST58.js
+
+Runtime PRG:
+  RICO_PRG_MAP_SCROLL_MOVE_IN_OUT_TEST57.js (sin cambios)
+
+Prueba sugerida
+---------------
+A) Velocidad
+   Scroll Left
+   Ticks / Step = 1
+   Pixels / Step = 1
+   Comparar LVLLVL vs PRG.
+   Deben tener la misma velocidad logica: 320 ticks = 6.4 segundos por vuelta horizontal PAL.
+
+B) Zoom
+   Repetir con distintos niveles de zoom.
+   La velocidad logica debe permanecer igual.
+
+C) Border
+   Elegir un Border Color claramente distinto de negro.
+   Activar Scroll / Ping Pong / Move Out / Move In.
+   El borde debe conservar ese color.
+
+D) Regresion
+   Exportar PRG y validar que TEST57 sigue identico.
+
+STATUS: PASS CONFIRMADO por la usuaria.
+
+
+===== ORIGEN HISTORICO: RICO_TEST59_MOVE_IN_TRANSITION_STAGING_NOTES.txt =====
+RICO TEST59 - CLEAN MOVE IN TRANSITION STAGING
+15 OCT 2026
+
+Base segura
+-----------
+TEST58 PASS confirmado y promovido a main.
+Preview 50 Hz + zoom sync + border fix se conserva.
+TEST57 MOVE OUT + MOVE IN runtime era PASS salvo un microframe de basura visible
+en transiciones multi-frame hacia una frame MOVE IN.
+
+Sintoma observado
+-----------------
+Secuencia tipica:
+Frame 1: Move Out Left
+Frame 2: Move In Right (entra desde la izquierda)
+
+Cuando la pantalla debia estar vacia entre ambas, aparecia durante una microframe
+una pantalla parcialmente construida: filas superiores con caracteres y parte
+inferior aun vacia.
+
+Diagnostico
+-----------
+No era corrupcion del recurso ni del charset.
+load_frame copiaba los 1000 screen codes de la nueva frame directamente a:
+  $0400-$07E7
+  $0800-$0BE7
+mientras una de esas screen RAM podia seguir seleccionada por VIC-II.
+
+La copia ocurre desde el IRQ y dura suficientes ciclos como para atravesar raster
+visible. El VIC-II podia leer una screen a medio actualizar, produciendo tearing.
+
+Solucion TEST59
+---------------
+Se reserva una tercera screen RAM temporal:
+  $0C00-$0FFF
+
+Al inicio:
+- blank_char se inicializa.
+- $0C00-$0FFF se llena con blank_char.
+- blank_char es glyph 0 en ambos charset banks, por lo que la pantalla staging
+  siempre muestra solamente el Background Color.
+
+Cuando la NUEVA frame es Move In (tipos 13..16):
+1. Se cargan su Background Color, Border Color y charset bank.
+2. $D018 cambia temporalmente a screen $0C00.
+3. VIC-II ve una pantalla completamente vacia.
+4. La CPU puede reconstruir $0400 y $0800 sin que sean visibles.
+5. Se prepara la posicion inicial de Move In.
+6. Solo cuando esta terminada se hace swap hacia la screen real.
+
+No se agrega staging a transiciones normales para evitar introducir flashes vacios
+donde no corresponden.
+
+Memoria
+-------
+$0400-$07E7 = screen A
+$0800-$0BE7 = screen B
+$0C00-$0FFF = blank transition staging
+$2000+       = codigo runtime
+$3000/$3800 = charset banks
+$4000+       = frame data
+
+Prueba principal
+----------------
+Repetir exactamente el caso que revelo el problema:
+- Frame 1: Move Out Left
+- Frame 2: Move In desde la izquierda (Move In Right segun semantica de movimiento)
+- Ticks / Step = 1
+- Pixels / Step = 1
+- observar varias vueltas
+
+Esperado:
+- Frame 1 sale.
+- Pantalla queda limpia.
+- No aparece ninguna microframe con caracteres parciales.
+- Frame 2 comienza a entrar limpiamente desde la izquierda.
+
+Regresion
+---------
+- Move Out sigue igual.
+- Move In en las 4 direcciones sigue igual.
+- Ping Pong y Scroll normal siguen igual.
+- Preview TEST58 no se modifica.
+
+STATUS: TEST59 inicial bloqueado por regresion de integracion UI. TEST59B = PASS CONFIRMADO por la usuaria.
+
+
+TEST59B - MENU RESTORE
+----------------------
+Problema detectado al abrir el paquete TEST59:
+- el menu MAP SCROLL no mostraba las opciones Move Out / Move In.
+
+La UI fuente contenia las opciones, pero el paquete seguia cargando el modulo con
+nombre/cache TEST58 mientras el runtime ya era TEST59.
+
+Correccion:
+- nuevo modulo dedicado RICO_MAP_SCROLL_PREVIEW_SYNC_TEST59.js
+- conserva exactamente las 8 opciones Move:
+  Move Out Left / Right / Up / Down
+  Move In Left / Right / Up / Down
+- conserva preview 50 Hz, zoom sync y border fix de TEST58
+- agrega alias TEST59 y mantiene aliases TEST58/57/56/37 por compatibilidad
+- runtime staging TEST59 sin cambios
+
+
+RESULTADO FINAL TEST59B
+-----------------------
+PASS confirmado.
+
+Validado por la usuaria:
+- las 8 opciones Move Out / Move In vuelven a aparecer en MAP SCROLL;
+- la transicion Move Out -> Move In funciona;
+- desaparece la microframe basura/tearing durante la pantalla vacia;
+- staging $0C00 cumple su funcion sin romper el resto del runtime.
+
+TEST59 inicial queda documentado como intento intermedio con regresion de integracion UI.
+TEST59B es la version aprobada y nuevo MASTER.
