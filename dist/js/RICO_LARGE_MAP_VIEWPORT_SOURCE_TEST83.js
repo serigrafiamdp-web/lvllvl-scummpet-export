@@ -32,13 +32,20 @@ function areaCfg83(g,n){
 }
 function active83(g,n){
   try{
-    var c=mapCfg83(g,n);if(!c||(c.type!=='up'&&c.type!=='down'))return false;
+    var c=mapCfg83(g,n);
+    if(!c||!c.type)return false;
     var gh=g.getGridHeight(),gw=g.getGridWidth(),w=winCfg83(g,n),a=areaCfg83(g,n);
-    if(gh<=25||gw<1)return false;
-    if(!w||!a||w.height>=gh||a.height<=w.height)return false;
-    if(w.width<1||a.width<1)return false;
-    return true;
+    if(gh<=25&&gw<=40)return false; // Regular-size projects retain their approved rendering.
+    if(!w||!a||w.width<1||w.height<1||a.width<1||a.height<1)return false;
+    // Source is larger than its camera; editor remains full-sized when Scroll is OFF.
+    return w.width<gw||w.height<gh;
   }catch(e){return false;}
+}
+function ping83(phase,size){
+  if(size<=1)return 0;
+  var cycle=2*size-2;
+  phase=mod83(phase,cycle);
+  return phase<size?phase:cycle-phase;
 }
 function mod83(v,m){if(!m)return 0;v%=m;if(v<0)v+=m;return v;}
 function bgCSS83(g,n){
@@ -136,21 +143,43 @@ Graphic.prototype.drawFrame=function(args){
     var startX=(wc.x-ac.x)*cellW;
     var startY=(wc.y-ac.y)*cellH;
     var dist=phase83(this)*(parseInt(cfg.pixelsPerStep,10)||1);
-    if(cfg.type==='up')startY+=dist;
-    else if(cfg.type==='down')startY-=dist;
-    startX=mod83(startX,areaW);startY=mod83(startY,areaH);
+    var movementX=0,movementY=0,repeat=false;
+    switch(cfg.type){
+      case'up':startY+=dist;repeat=true;break;
+      case'down':startY-=dist;repeat=true;break;
+      case'left':startX+=dist;repeat=true;break;
+      case'right':startX-=dist;repeat=true;break;
+      case'pingpong-left':movementX=-ping83(dist,areaW);break;
+      case'pingpong-right':movementX=ping83(dist,areaW);break;
+      case'pingpong-up':movementY=-ping83(dist,areaH);break;
+      case'pingpong-down':movementY=ping83(dist,areaH);break;
+      case'move-left':movementX=-Math.min(dist,Math.max(0,areaW-1));break;
+      case'move-right':movementX=Math.min(dist,Math.max(0,areaW-1));break;
+      case'move-up':movementY=-Math.min(dist,Math.max(0,areaH-1));break;
+      case'move-down':movementY=Math.min(dist,Math.max(0,areaH-1));break;
+      case'movein-left':movementX=Math.max(0,areaW-1)-Math.min(dist,Math.max(0,areaW-1));break;
+      case'movein-right':movementX=-Math.max(0,areaW-1)+Math.min(dist,Math.max(0,areaW-1));break;
+      case'movein-up':movementY=Math.max(0,areaH-1)-Math.min(dist,Math.max(0,areaH-1));break;
+      case'movein-down':movementY=-Math.max(0,areaH-1)+Math.min(dist,Math.max(0,areaH-1));break;
+    }
+    if(repeat){startX=mod83(startX,areaW);startY=mod83(startY,areaH);}
 
     var ctx=args.context,tw=viewW*sc,th=viewH*sc;
     ctx.save();
     ctx.beginPath();ctx.rect(baseX,baseY,tw,th);ctx.clip();
     ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.fillStyle=bgCSS83(this,n);ctx.fillRect(baseX,baseY,tw,th);
 
-    var drawX=baseX-startX*sc,drawY=baseY-startY*sc;
-    // Repeat source vertically so rows 25..50 enter naturally through the viewport.
-    for(var yy=-1;yy<=1;yy++){
-      for(var xx=-1;xx<=1;xx++){
-        ctx.drawImage(source,drawX+xx*areaMW,drawY+yy*areaMH);
+    var drawX=baseX-startX*sc+movementX*sc,drawY=baseY-startY*sc+movementY*sc;
+    // Only continuous Scroll repeats source around the selected camera.
+    // Ping Pong and Move keep the naturally exposed background (no phantom wrap).
+    if(repeat){
+      for(var yy=-1;yy<=1;yy++){
+        for(var xx=-1;xx<=1;xx++){
+          ctx.drawImage(source,drawX+xx*areaMW,drawY+yy*areaMH);
+        }
       }
+    }else{
+      ctx.drawImage(source,drawX,drawY);
     }
     ctx.restore();
     nativeBorder83(this,n,ctx,args.canvas,baseX,baseY,viewW,viewH,sc);
@@ -166,7 +195,7 @@ window.RICO_TEST83_LARGE_VIEWPORT={
   viewportOnlyWhenScrollOn:true,
   fullScreenWhenScrollOff:true,
   sourceRowsNotCropped:true,
-  verticalTypes:['up','down']
+  scrollTypes:['left','right','up','down','pingpong-left','pingpong-right','pingpong-up','pingpong-down','move-left','move-right','move-up','move-down','movein-left','movein-right','movein-up','movein-down']
 };
-console.log('[RICO TEST83 UI] MAP SCROLL ON = Window viewport over full Scroll Area; OFF = full Screen editor.');
+console.log('[RICO TEST169 UI] Large Screen stays editable when OFF; all map scroll types use Window viewport when ON.');
 })();

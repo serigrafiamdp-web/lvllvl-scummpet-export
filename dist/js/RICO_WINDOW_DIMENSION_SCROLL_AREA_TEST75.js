@@ -81,6 +81,13 @@ function drawPreview(changed){
     ctx.strokeStyle='#999';ctx.lineWidth=2;ctx.setLineDash([5,3]);
     ctx.strokeRect(ox+a.x*scale+0.5,oy+a.y*scale+0.5,a.width*scale-1,a.height*scale-1);ctx.setLineDash([]);
 
+    // TEST169: physical C64 max as a RED GUIDE, independent from saved Window.
+    // Locate this guide at the effective Window origin; do not alter user art.
+    var gx=Math.min(Math.max(0,w.x),Math.max(0,s.width-Math.min(40,s.width)));
+    var gy=Math.min(Math.max(0,w.y),Math.max(0,s.height-Math.min(25,s.height)));
+    ctx.strokeStyle='#ff3535';ctx.lineWidth=2;ctx.setLineDash([]);
+    ctx.strokeRect(ox+gx*scale+0.5,oy+gy*scale+0.5,Math.min(40,s.width)*scale-1,Math.min(25,s.height)*scale-1);
+    // Actual configured Window is separate (white), including narrower viewports.
     ctx.strokeStyle='#eee';ctx.lineWidth=2;
     ctx.strokeRect(ox+w.x*scale+0.5,oy+w.y*scale+0.5,w.width*scale-1,w.height*scale-1);
   }
@@ -133,11 +140,12 @@ function ensureDialog(){
   html+='<div id="ricoGeomSummary75" style="text-align:center;color:#aaa;font-size:11px;margin-bottom:12px"></div>';
   html+='<div style="display:flex;justify-content:center;gap:8px;margin-bottom:10px"><div class="ui-button" id="ricoGeomWindow75">Window</div><div class="ui-button" id="ricoGeomScroll75">Scroll Area</div></div>';
   html+='<div id="ricoGeomEditing75" style="text-align:center;font-weight:bold;margin-bottom:8px"></div>';
+  html+='<div style="font-size:11px;text-align:center;margin-bottom:6px"><span style="color:#ff3535">&#9632; C64 MAX 40x25</span> &nbsp; <span style="color:#eee">&#9632; WINDOW elegida</span> &nbsp; <span style="color:#aaa">&#9632; SCROLL AREA</span></div>';
   html+='<div style="text-align:center;margin-bottom:8px"><label style="display:inline-block;width:62px">Top:</label><input id="ricoGeomTop75" type="number" min="0" value="0" style="width:72px"></div>';
   html+='<div style="display:flex;align-items:center;justify-content:center;gap:12px"><div style="width:92px;text-align:right"><label>Left:</label><br><input id="ricoGeomLeft75" type="number" min="0" value="0" style="width:72px;margin-top:4px"></div><canvas id="ricoGeomCanvas75" width="260" height="200" style="display:block"></canvas><div style="width:92px;text-align:left"><label>Right:</label><br><input id="ricoGeomRight75" type="number" min="0" value="0" style="width:72px;margin-top:4px"></div></div>';
   html+='<div style="text-align:center;margin-top:8px"><label style="display:inline-block;width:62px">Bottom:</label><input id="ricoGeomBottom75" type="number" min="0" value="0" style="width:72px"></div>';
   html+='<div style="text-align:center;margin-top:12px"><div class="ui-button" id="ricoGeomReset75">Reset selected to Screen</div></div>';
-  html+='<div style="margin-top:16px;color:#aaa;font-size:11px;line-height:1.4"><b>Window</b> = visible viewport. <b>Scroll Area</b> = the part of the Screen that participates in MAP SCROLL. The normal LVLLVL editor always keeps the full Screen editable.</div>';
+  html+='<div style="margin-top:16px;color:#aaa;font-size:11px;line-height:1.4"><b>Screen</b> = mapa completo editable. <b>Window</b> = vista C64 al activar MAP SCROLL. <b>Scroll Area</b> = superficie fuente (puede ser 40x50 o mas). Marco rojo = maximo C64 40x25. Dibujar nunca reduce el Screen.</div>';
   html+='</div>';
   dialog.add(UI.create('UI.HTMLPanel',{html:html}));
   var ok=UI.create('UI.Button',{text:'OK',color:'primary'});dialog.addButton(ok);ok.on('click',function(){saveDialogFrame75();UI.closeDialog();});
