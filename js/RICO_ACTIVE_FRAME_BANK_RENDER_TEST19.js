@@ -82,12 +82,15 @@
 
   // Activate the selected frame bank for every normal LVLLVL renderer.
   // Screen codes remain 0..255; only currentTileData changes underneath them.
-  function applyActiveBank(forceRedraw) {
+  function applyActiveBank(forceRedraw, screenOnly) {
     var editor = getEditor();
     var tileSet = getTileSet(editor);
     if(!editor || !tileSet || !tileSet.tileData || tileSet.tileData.length < BANK_SIZE) return false;
 
     var requestedBank = getActiveBank(editor);
+    // TEST171 preview-only override. Frame's saved charsetBank remains unchanged.
+    if(tileSet.__ricoSwitchBankPreview171 === 1 || tileSet.__ricoSwitchBankPreview171 === 2)
+      requestedBank = tileSet.__ricoSwitchBankPreview171;
     var stored = getBank2Record(tileSet);
     var effectiveBank = (requestedBank === 2 && stored) ? 2 : 1;
     var sourceRef = effectiveBank === 2 ? stored.tileData : tileSet.tileData;
@@ -112,7 +115,9 @@
     if(changed || forceRedraw) {
       refreshCurrentTilePreview(editor);
       redrawGraphic(editor);
-      redrawSideSelection(editor);
+      // TEST171: hardware bank FX must not redraw the static side tile palettes
+      // 25 times per second. Regular frame BANK selection remains unchanged.
+      if(!screenOnly) redrawSideSelection(editor);
     }
     return true;
   }

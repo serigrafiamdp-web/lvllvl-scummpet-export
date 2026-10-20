@@ -184,6 +184,14 @@ function readGroup155(ts,frames,nativeAnimations){
   // runtime supports any rectangular UP group made of distinct C64 codes.
   var width=Number(g.widthTiles),height=Number(g.heightTiles);
   var ticks164=Number(g.ticksPerFrame);
+  // TEST171 bank switch selects the charset pointer in $D018; unlike Scroll Up,
+  // it never modifies any charset bytes. Group geometry is only UI metadata.
+  if(g.type === 'switch-bank') {
+    var switchTicks = Number(g.ticksPerFrame);
+    if(!Number.isInteger(switchTicks) || switchTicks<1 || switchTicks>255)
+      throw new Error('TEST171: ticks de cambio entre BANK 1 y BANK 2 deben ser 1..255.');
+    return {bank:bank,switchBank:true,ticksPerFrame:switchTicks,ids:(g.cells||[]).map(function(c){return Number(c.tile);})};
+  }
   if(g.type!=='up')throw new Error('TEST164: la exportacion grupal actualmente implementa Scroll Up. Otras direcciones aun no tienen rutina PRG.');
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||width*height>256||width>256||height>32||!g.cells||g.cells.length!==width*height)
     throw new Error('TEST164: el grupo debe ser un rectangulo con hasta 256 caracteres distintos (sin huecos).');
@@ -337,7 +345,7 @@ function buildSource(d,options){
   d=Object.assign({},d,{nativeAnimations:maskedAnimations,fastGroups:animFastGroups});
   var hasAnyAnim=(maskedAnimations.length>0||animFastGroups.length>0);
   // TEST164: only the exact legacy TEST155 2x8 1T and protected groups need immutable sources.
-  if(d.group155 && ((d.group155.widthTiles===2&&d.group155.heightTiles===8&&d.group155.ticksPerFrame===1)||d.group155.hasProtected)){
+  if(d.group155 && !d.group155.switchBank && ((d.group155.widthTiles===2&&d.group155.heightTiles===8&&d.group155.ticksPerFrame===1)||d.group155.hasProtected)){
     var grp155=d.group155,buf155=(grp155.bank===2?d.bank2:d.bank1);
     grp155.columns=Array.from({length:grp155.widthTiles},function(){return []; });
     for(var cx155=0;cx155<grp155.widthTiles;cx155++)for(var cy155=0;cy155<grp155.heightTiles;cy155++){
@@ -495,7 +503,7 @@ function buildSource(d,options){
   out.push(' sta current_frame');
   out.push(' sta color_mode');
   out.push(' sta patch_pending');
-  if(d.group155){
+  if(d.group155 && !d.group155.switchBank){
     // TEST163 C64 monitor: $C000/$C001 = IRQ events, $C002/$C003 = steps, $C004 = pixel phase (2 px per step for 32+ glyphs).
     for(var diag162=0;diag162<5;diag162++) out.push(' sta $'+hex(0xC000+diag162,4));
   }
@@ -557,7 +565,7 @@ function buildSource(d,options){
   out.push(' pha');
   out.push(' lda #$01');
   out.push(' sta $d019');
-  if(d.group155){
+  if(d.group155 && !d.group155.switchBank){
     out.push(' inc $c000');
     out.push(' bne group162_irq_no_carry');
     out.push(' inc $c001');
@@ -573,7 +581,7 @@ function buildSource(d,options){
     if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
   }
   // TEST155: group update once per PAL raster IRQ, independent of Map Scroll.
-  if(d.group155){
+  if(d.group155 && !d.group155.switchBank){
     out.push(' jsr group155_tick');
     out.push(' inc $c002');
     out.push(' bne group162_group_no_carry');
@@ -586,6 +594,9 @@ function buildSource(d,options){
     out.push(' and #$3f');
     out.push(' sta $c004');
   }
+  // TEST171: O(1) hardware bank flip, no charset RAM rewrites.
+  // This is a screen-wide VIC-II effect; $D018 screen pointer bits are preserved.
+  if(d.group155 && d.group155.switchBank) out.push(' jsr bank171_tick');
   // Remaining color updates are spread over subsequent raster IRQs.
   out.push(' lda patch_pending');
   out.push(' beq irq_color_idle');
@@ -621,6 +632,24 @@ function buildSource(d,options){
   out.push(' pla');
   out.push(' rti');
   out.push('');
+  // TEST171: $3000/$3800 charset selection (bank bits $0c/$0e).
+  // IRQ runs once per PAL frame; the first switch happens after exactly N ticks.
+  if(d.group155 && d.group155.switchBank){
+    out.push('bank171_tick');
+    out.push(' dec bank171_counter');
+    out.push(' bne bank171_done');
+    out.push(' lda #$'+hex(d.group155.ticksPerFrame));
+    out.push(' sta bank171_counter');
+    out.push(' lda charset_bits');
+    out.push(' eor #$02');
+    out.push(' sta charset_bits');
+    out.push(' jsr update_d018');
+    out.push('bank171_done');
+    out.push(' rts');
+    out.push('bank171_counter');
+    out.push('!byte $'+hex(d.group155.ticksPerFrame));
+    out.push('');
+  }
   // TEST142: one countdown per contiguous run; direct absolute indexed
   // charset bytes. The loop always rotates a byte identically to the stock
   // code, but avoids the 5-byte record dispatcher and per-row indirection.
@@ -709,7 +738,7 @@ function buildSource(d,options){
   }
   // TEST164: all other rectangular UP groups use the compact one-charset engine.
   // The exact TEST155 2x8/1T legacy path remains byte-for-byte unchanged.
-  if(d.group155 && !(d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1)){
+  if(d.group155 && !d.group155.switchBank && !(d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1)){
     out.push('group155_tick');
     // TEST164: positive speed values >1 count PAL IRQs; 1T is the old fast path.
     if(d.group155.ticksPerFrame>1){
@@ -748,7 +777,7 @@ function buildSource(d,options){
   // TEST155: dynamic scroll UP across both 8-character columns (16x64 pixels).
   // Y holds the current 0..63 phase. Two duplicated 64-byte source columns
   // allow absolute-indexed loads with NO per-row modulo calculations.
-  if(d.group155 && d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1){
+  if(d.group155 && !d.group155.switchBank && d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1){
     var gg155=d.group155,bb155=(gg155.bank===2?0x3800:0x3000);
     out.push('group155_tick');
     out.push(' inc group155_phase');
@@ -2895,14 +2924,14 @@ function buildSource(d,options){
   for(var fi=0;fi<f.length;fi++){
     out.push('frame_color_'+fi);emitBytes(out,f[fi].colors);
   }
-  if(d.group155 && d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1){
+  if(d.group155 && !d.group155.switchBank && d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1){
     // Approved TEST155 2x8 source and assembly unchanged.
     for(var cx155=0;cx155<2;cx155++){
       out.push('group155_col'+cx155+'_source');
       emitBytes(out,d.group155.columns[cx155].concat(d.group155.columns[cx155]));
     }
   }
-  if(d.group155 && !(d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1)){
+  if(d.group155 && !d.group155.switchBank && !(d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1)){
     // TEST161: single visible charset, 6502 direct operations. No copies of
     // full fonts, and no character-bank switching or main-loop synchronization.
     var g161=d.group155,base161=g161.bank===2?0x3800:0x3000;
@@ -3038,7 +3067,7 @@ ToPRGAdv.prototype.createPRG=function(args){
       source=buildSource(d,{disableFastGroups:true});
       bytes=assemblePRG(this,source);
     }
-    var fn=args.filename||(d.group155?'rico-test164-group-scroll-up-'+(d.group155.widthTiles*8)+'chars-1tick.prg':'rico-map-scroll-frames.prg');if(!/\.prg$/i.test(fn))fn+='.prg';
+    var fn=args.filename||(d.group155?(d.group155.switchBank?'rico-test171-switch-bank-'+d.group155.ticksPerFrame+'ticks.prg':'rico-test164-group-scroll-up-'+(d.group155.widthTiles*8)+'chars-1tick.prg'):'rico-map-scroll-frames.prg');if(!/\.prg$/i.test(fn))fn+='.prg';
     console.log('[RICO TEST143 NATIVE CHAR 8x8 FAST IRQ] '+(d.hasScroll?'MAP SCROLL':'NO MAP SCROLL')+' '+d.nativeAnimations.length+' configured glyphs; exported '+d.frames.length+' frame(s).');
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
@@ -3049,6 +3078,7 @@ ToPRGAdv.prototype.createPRG=function(args){
     return false;
   }
 };
+window.RICO_TEST171_SWITCH_BANK = {buildSource:buildSource,readGroup:readGroup155};
 window.RICO_TEST164_COLUMNS_UP = {buildSource:buildSource,readGroup:readGroup155};
 window.RICO_TEST163_COLUMNS_UP = window.RICO_TEST164_COLUMNS_UP;
 window.RICO_TEST162_COLUMNS_UP = {buildSource:buildSource,readGroup:readGroup155};
