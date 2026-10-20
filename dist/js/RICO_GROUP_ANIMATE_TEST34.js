@@ -1,7 +1,7 @@
 (function() {
   'use strict';
 
-  if(typeof TileSet === 'undefined' || typeof TileEditor === 'undefined') {
+  if(typeof TileSet === 'undefined' || typeof TileEditor === 'undefined' || typeof TilePaletteDisplay === 'undefined') {
     console.error('[RICO TEST34] TileSet/TileEditor not found.');
     return;
   }
@@ -12,6 +12,8 @@
   var BANK_SIZE = 256;
   var TILE_W = 8;
   var TILE_H = 8;
+  // TEST152: 'empty' is determined only by the glyph's CURRENT BASE PIXELS.
+  // No special character index: $20 can become animated when its bitmap is drawn.
 
   var OPTIONS = [
     { value: '', label: 'No' },
@@ -86,7 +88,7 @@
     if(!record || !record.data) return null;
     var store = record.data[GROUP_FIELD];
     if((!store || store.version !== 1) && create) {
-      store = { version: 1, nextId: 1, bank1: [], bank2: [] };
+      store = { version: 1, nextId: 1, bank1: [], bank2: [], animateEmptyCharacters: false };
       record.data[GROUP_FIELD] = store;
     }
     if(store) {
@@ -95,6 +97,22 @@
       if(!store.nextId) store.nextId = 1;
     }
     return store || null;
+  }
+
+  // Global/project-level switch, identical across BANK 1 / BANK 2 and all groups.
+  // Missing setting in old projects is OFF. TEST150's group.animateEmptyChar
+  // is legacy metadata, left intact but no longer controls the renderer.
+  function getAnimateEmptyCharacters(tileSet) {
+    var store = getStore(tileSet, false);
+    return !!(store && store.animateEmptyCharacters === true);
+  }
+
+  function isEmptyGroupTile(tileSet, bank, id) {
+    var tile = getTile(tileSet, bank, id);
+    var base = tile && tile.data && tile.data[0];
+    if(!base || !base.length) return false;
+    for(var i=0;i<base.length;i++) if(base[i]) return false;
+    return true;
   }
 
   function getGroups(tileSet, bank, create) {
@@ -371,6 +389,12 @@
     return base;
   }
 
+  function samePixels(a, b) {
+    if(!a || !b || a.length !== b.length) return false;
+    for(var i = 0; i < a.length; i++) if((a[i] || 0) !== (b[i] || 0)) return false;
+    return true;
+  }
+
   function splitComposite(tileSet, bank, group, composite, writeCurrent, writePreview) {
     var width = group.widthTiles * TILE_W;
     var preview = tileSet.__ricoPalettePreview33;
@@ -378,6 +402,28 @@
 
     for(var c = 0; c < group.cells.length; c++) {
       var cell = group.cells[c];
+      // TEST152: when OFF, protect all base bitmaps with ZERO set pixels, regardless of tile index.
+      // Group geometry stays unchanged. This is a global preference, not per group.
+      if(!getAnimateEmptyCharacters(tileSet) && isEmptyGroupTile(tileSet, bank, cell.tile)) {
+        var emptyTile = getTile(tileSet, bank, cell.tile);
+        var original = emptyTile && emptyTile.data && emptyTile.data[0];
+        if(original) {
+          var restored = false;
+          if(writeCurrent && !samePixels(tileSet.currentTileData[cell.tile], original)) {
+            tileSet.currentTileData[cell.tile] = copyPixels(original);
+            restored = true;
+          }
+          if(writePreview && preview && preview.pixels && preview.pixels[bank]) {
+            if(!samePixels(preview.pixels[bank][cell.tile], original)) {
+              preview.pixels[bank][cell.tile] = copyPixels(original);
+              restored = true;
+            }
+            if(preview.phase && preview.phase[bank]) preview.phase[bank][cell.tile] = undefined;
+          }
+          if(restored) changed.push(cell.tile);
+        }
+        continue;
+      }
       var pixels = new Array(TILE_W * TILE_H);
       for(var y = 0; y < TILE_H; y++) {
         for(var x = 0; x < TILE_W; x++) {
@@ -387,10 +433,15 @@
         }
       }
       if(writeCurrent) tileSet.currentTileData[cell.tile] = pixels;
+      // TEST153: group animation changes only the SCREEN glyph buffer.
+      // Tileset previews always retain the original bitmap (frame 0), rather
+      // than rendering a misleading cropped section of a moving group.
       if(writePreview && preview && preview.pixels && preview.pixels[bank]) {
-        preview.pixels[bank][cell.tile] = copyPixels(pixels);
-        // Keep TEST33's phase undefined so it does not replace group pixels with
-        // static frame 0 on the next palette-preview pass.
+        var sourceTile = getTile(tileSet, bank, cell.tile);
+        var basePixels = sourceTile && sourceTile.data && sourceTile.data[0];
+        if(basePixels && !samePixels(preview.pixels[bank][cell.tile], basePixels)) {
+          preview.pixels[bank][cell.tile] = copyPixels(basePixels);
+        }
         if(preview.phase && preview.phase[bank]) preview.phase[bank][cell.tile] = undefined;
       }
       changed.push(cell.tile);
@@ -429,13 +480,21 @@
           if(typeof editor.graphic.redraw === 'function') editor.graphic.redraw({ animatedTilesOnly: true });
         }
       } catch(e) {}
-      redrawPalette(editor.tools && editor.tools.drawTools ? editor.tools.drawTools.tilePalette : null, activeChanged);
+      // TEST153: NO palette redraw on group ticks; only the working canvas moves.
     }
+    // Never redraw the side tileset for group frames, even for BANK 2.
+    // Normal individual-character palette previews still use TEST33/139.
+  }
 
-    var side = [];
-    for(var i = 0; i < changed1.length; i++) side.push(changed1[i]);
-    for(var j = 0; j < changed2.length; j++) side.push(BANK_SIZE + changed2[j]);
-    redrawPalette(editor.sideTilePalette, side);
+  // Detect an empty<->drawn transition even when group phase has not advanced.
+  // Read the source bitmap tile.data[0], NOT currentTileData (which is animated).
+  function groupEmptySignature(tileSet, bank, group) {
+    if(getAnimateEmptyCharacters(tileSet)) return 'allowed';
+    var signature = '';
+    for(var i=0;i<group.cells.length;i++) {
+      signature += isEmptyGroupTile(tileSet, bank, group.cells[i].tile) ? '0' : '1';
+    }
+    return signature;
   }
 
   function ensurePhaseState(tileSet) {
@@ -443,9 +502,40 @@
     return tileSet.__ricoGroupPhase34;
   }
 
+  // TEST165: Preview only. Match the exporter's PAL-based group Scroll Up:
+  // 2 pixels per 20-ms C64 IRQ for the TEST163/164 compact path.
+  // The legacy TEST155 2x8/1T PRG advances only 1 px/IRQ.
+  // NEVER change g_tick, group.ticksPerFrame, metadata, other animations or PRG.
+  // Time-based phase skips missed browser frames instead of slowing the scroll.
+  function previewPhase165(phaseState, bank, group, ticks, count, tick) {
+    if(group.type !== 'up') return Math.floor(tick / ticks) % count;
+    var clocks = phaseState.__ricoPalPreview165;
+    if(!clocks) clocks = phaseState.__ricoPalPreview165 = {};
+    var key = bank + ':' + group.id;
+    var signature = group.widthTiles + 'x' + group.heightTiles + ':' + ticks + ':' + group.type;
+    var now = (typeof performance !== 'undefined' && performance && typeof performance.now === 'function')
+      ? performance.now() : Date.now();
+    var clock = clocks[key];
+    if(!clock || clock.signature !== signature || now < clock.started) {
+      clock = { started: now, signature: signature, lastTick: null, phase: 0 };
+      clocks[key] = clock;
+    }
+    // Explicit redraws at the same LVLLVL tick do not advance the clock.
+    // A real browser animation update always has a fresh g_tick.
+    if(clock.lastTick === tick) return clock.phase;
+    clock.lastTick = tick;
+    var elapsedPalTicks = Math.floor((now - clock.started) / 20);
+    var steps = Math.floor(elapsedPalTicks / ticks);
+    var legacy155 = (group.widthTiles === 2 && group.heightTiles === 8 && ticks === 1);
+    clock.phase = (steps * (legacy155 ? 1 : 2)) % count;
+    return clock.phase;
+  }
+
   function updateGroupBank(tileSet, bank, tick, writeCurrent, force) {
     var groups = getGroups(tileSet, bank, false);
     var phaseState = ensurePhaseState(tileSet);
+    if(!tileSet.__ricoGroupEmptySignature152) tileSet.__ricoGroupEmptySignature152 = { 1: {}, 2: {} };
+    var emptyStates = tileSet.__ricoGroupEmptySignature152[bank];
     var changed = [];
     if(!groups || !groups.length) return changed;
 
@@ -455,9 +545,11 @@
       if(isNaN(ticks) || ticks < 1) ticks = 6;
       var count = groupFrameCount(tileSet, bank, group);
       if(count < 1) count = 1;
-      var frame = Math.floor(tick / ticks) % count;
-      if(force || phaseState[bank][group.id] !== frame) {
+      var frame = previewPhase165(phaseState, bank, group, ticks, count, tick);
+      var emptySignature = groupEmptySignature(tileSet, bank, group);
+      if(force || phaseState[bank][group.id] !== frame || emptyStates[group.id] !== emptySignature) {
         phaseState[bank][group.id] = frame;
+        emptyStates[group.id] = emptySignature;
         var composite = renderGroup(tileSet, bank, group, frame);
         changed = changed.concat(splitComposite(tileSet, bank, group, composite, writeCurrent, true));
       }
@@ -489,6 +581,55 @@
     return result;
   };
 
+  // TEST153: During tile-PALETTE rendering, temporarily expose the original
+  // unanimated frame-0 glyphs for every Group Animate member. The active
+  // currentTileData (used by the working canvas) is restored synchronously,
+  // preventing side and tool palettes from inheriting group motion.
+  var previousPaletteDraw153 = TilePaletteDisplay.prototype.drawTilePalette;
+  TilePaletteDisplay.prototype.drawTilePalette = function(args) {
+    var tileSet = this.editor && this.editor.tileSetManager &&
+                  this.editor.tileSetManager.getCurrentTileSet ?
+                  this.editor.tileSetManager.getCurrentTileSet() : null;
+    if(!isDual8x8(tileSet) || !tileSet.currentTileData) {
+      return previousPaletteDraw153.apply(this, arguments);
+    }
+    var bank = getActiveBank(tileSet);
+    var groups = getGroups(tileSet, bank, false);
+    if(!groups || !groups.length) return previousPaletteDraw153.apply(this, arguments);
+    var saved = {}, seen = {};
+    try {
+      for(var g=0;g<groups.length;g++) {
+        var cells=groups[g].cells || [];
+        for(var c=0;c<cells.length;c++) {
+          var id=cells[c].tile;
+          if(id<0 || id>=BANK_SIZE || seen[id]) continue;
+          seen[id]=true;
+          var tile = getTile(tileSet, bank, id);
+          if(!tile || !tile.data || !tile.data[0]) continue;
+          saved[id]=tileSet.currentTileData[id];
+          tileSet.currentTileData[id]=tile.data[0];
+        }
+      }
+      return previousPaletteDraw153.apply(this, arguments);
+    } finally {
+      for(var id in saved) if(Object.prototype.hasOwnProperty.call(saved,id)) {
+        tileSet.currentTileData[id]=saved[id];
+      }
+    }
+  };
+
+  // One-off static refresh after editing a group, never on animation ticks.
+  function refreshGroupSelection153(tileSet, desc) {
+    var editor=tileSet && tileSet.editor;
+    if(!editor || !desc || !desc.cells) return;
+    var ids=unique(desc.cells.map(function(c){return c.tile;}));
+    if(desc.bank===getActiveBank(tileSet)) {
+      redrawPalette(editor.tools && editor.tools.drawTools ? editor.tools.drawTools.tilePalette : null, ids);
+    }
+    var sideIds=ids.map(function(id){return desc.bank===2 ? BANK_SIZE+id : id;});
+    redrawPalette(editor.sideTilePalette, sideIds);
+  }
+
   // -------------------------------------------------------------------------
   // UI
   // -------------------------------------------------------------------------
@@ -517,6 +658,12 @@
             '<input size="2" class="number" min="1" max="64" value="6" id="ricoGroupTicks34"/>' +
           '</div>' +
         '</div>' +
+        '<div id="ricoGroupEmptyRow151" style="margin-top:9px;">' +
+          '<label for="ricoGroupEmptyChar151" style="cursor:pointer; color:#bbb;">' +
+          '<input type="checkbox" id="ricoGroupEmptyChar151" style="vertical-align:middle; margin-right:5px;"/>' +
+          'Animar caracteres vacíos</label>' +
+          '<div style="font-size:10px;color:#888;margin-left:19px;">Todos los índices: vacío = 0 píxeles; al dibujar 1 píxel vuelve a animarse. BANK 1 + BANK 2.</div>' +
+        '</div>' +
         '<div id="ricoGroupInfo34" style="margin-top:5px; font-size:11px; color:#aaa;"></div>' +
       '</div>';
     outer.after(html);
@@ -527,12 +674,17 @@
     $('#ricoGroupTicks34').off('change.rico34 keyup.rico34').on('change.rico34 keyup.rico34', function() {
       updateGroupTicksFromUI(tileEditor);
     });
+    $('#ricoGroupEmptyChar151').off('change.rico151').on('change.rico151', function() {
+      updateGlobalEmptyCharactersFromUI(tileEditor);
+    });
   }
 
   function syncGroupUI(tileEditor) {
     injectGroupUI(tileEditor);
     var select = $('#ricoGroupAnimatedType34');
     if(!select.length || !tileEditor || !tileEditor.tileSet) return;
+    // Visible and editable regardless of the selected group (global setting).
+    $('#ricoGroupEmptyChar151').prop('checked', getAnimateEmptyCharacters(tileEditor.tileSet));
     var desc = selectionDescriptor(tileEditor);
     if(!desc || desc.cells.length < 2) {
       select.html(optionsHtml('', false)).val('').prop('disabled', true);
@@ -569,11 +721,33 @@
     tileEditor.tileSet.__ricoGroupPhase34 = null;
     tileEditor.tileSet.__ricoGroupActiveBank34 = 0;
     tileEditor.tileSet.update(typeof g_tick !== 'undefined' ? g_tick : 0);
+    refreshGroupSelection153(tileEditor.tileSet, desc);
     syncGroupUI(tileEditor);
     try {
       if(tileEditor.tileEditorGrid) tileEditor.tileEditorGrid.updateCharacter();
       if(tileEditor.editor && tileEditor.editor.currentTile) tileEditor.editor.currentTile.refresh();
     } catch(e) {}
+  }
+
+  function updateGlobalEmptyCharactersFromUI(tileEditor) {
+    if(!tileEditor || !tileEditor.tileSet) return;
+    var tileSet = tileEditor.tileSet;
+    var store = getStore(tileSet, true);
+    if(!store) return;
+    var enabled = $('#ricoGroupEmptyChar151').prop('checked') === true;
+    if(store.animateEmptyCharacters === enabled) return;
+    store.animateEmptyCharacters = enabled;
+    markModified(tileSet);
+    // Force both banks and every group to recompute on the next tick.
+    // This also immediately restores the base glyphs when the option is OFF.
+    tileSet.__ricoGroupPhase34 = null;
+    tileSet.__ricoGroupActiveBank34 = 0;
+    tileSet.update(typeof g_tick !== 'undefined' ? g_tick : 0);
+    try {
+      if(tileEditor.tileEditorGrid) tileEditor.tileEditorGrid.updateCharacter();
+      if(tileEditor.editor && tileEditor.editor.currentTile) tileEditor.editor.currentTile.refresh();
+    } catch(e) {}
+    syncGroupUI(tileEditor);
   }
 
   function updateGroupTicksFromUI(tileEditor) {
@@ -635,5 +809,9 @@
   });
 
   window.RICO_TEST34_GROUP_ANIMATE = true;
-  console.log('[RICO TEST34] Group Animate loaded: selected tiles animate as one composite bitmap.');
+  window.RICO_TEST151_GLOBAL_EMPTY_CHARACTERS = { get: getAnimateEmptyCharacters, isEmpty: isEmptyGroupTile };
+  window.RICO_TEST153_STATIC_GROUP_PALETTE = true;
+  window.RICO_TEST165_PAL_GROUP_PREVIEW = true;
+  window.RICO_TEST152_PIXEL_BASED_EMPTY_CHARACTERS = true;
+  console.log('[RICO TEST165] Group Scroll Up preview PAL-paced (2 px/IRQ, legacy TEST155 1 px), unchanged exports and static tileset.');
 })();

@@ -1,3 +1,17 @@
+MASTER LVL RICO — 20 DE OCTUBRE DE 2026 — VICE PASS
+Estado: MASTER aprobado por usuario. Base aprobada TEST165 + TEST167.
+Se corrige la linea inferior de bloques negros VIC-II (idle graphics / $3FFF) usando
+$D011=$1B solo para Window=25, Map Scroll=No (antes $18). GROUP e INDIVIDUAL PASS.
+No se borra ni se pisa $3FFF; no se tapan pixeles ni se pierden filas.
+TEST165 PASS: preview Scroll Up grupal acompasada al motor PRG rapido 2 px/IRQ.
+TEST164: motor Scroll Up compacto hasta 256 chars, ticks variables; preserva TEST155.
+Exclusion explicita: TEST166 cambio IRQ $FA->$FB NO es parte del MASTER.
+ZIP MASTER_LVL_RICO_20_DE_OCTUBRE_2026.zip, 627 archivos, sin PRG de diagnostico.
+SHA256: 7fe4195336b818f46cf91216a0c7f3f1240b4fe989f560dbefb2dc582b69d8fb
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/
+Documentacion detallada: releases/MASTER_LVL_RICO_20_OCTUBRE_2026/README.md
+----------------------------------------------------------
+
 MASTER LVLLVL RICO — 256 CARACTERES / 1 TICK — 19 DE OCTUBRE DE 2026
 =============================================================================
 ESTADO: MASTER APROBADO DESDE TEST149 (PASS).

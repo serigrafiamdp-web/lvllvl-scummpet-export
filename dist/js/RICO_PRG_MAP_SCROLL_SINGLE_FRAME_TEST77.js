@@ -106,10 +106,12 @@ function colorData(layer,frame){
 // If all 256 codes are in use, a true blank glyph can still be reused safely.
 // For a one-frame cardinal *wrap* no blank pixels are ever exposed: the
 // staging buffer is not displayed, so no glyph must be sacrificed.
-function chooseBlankChar(frames,bank1,bank2,animated){
+function chooseBlankChar(frames,bank1,bank2,animated,groupCodes){
   var used=new Uint8Array(256);
   for(var f=0;f<frames.length;f++)for(var i=0;i<frames[f].screen.length;i++)used[frames[f].screen[i]&255]=1;
   for(var a=0;a<animated.length;a++)used[animated[a].charCode&255]=1;
+  // A Group Animate member is not a spare glyph even when not placed on screen.
+  for(var gc=0;gc<(groupCodes||[]).length;gc++)used[groupCodes[gc]&255]=1;
   // Preserve the historical TEST138 path byte-for-byte for every project
   // that could already export: reserve the highest truly unused code.
   for(var c=255;c>=0;c--)if(!used[c]){
@@ -120,6 +122,7 @@ function chooseBlankChar(frames,bank1,bank2,animated){
   // and can be used even if already drawn on screen (it is already empty).
   var animatedCode=new Uint8Array(256);
   for(var a=0;a<animated.length;a++)animatedCode[animated[a].charCode&255]=1;
+  for(var gc=0;gc<(groupCodes||[]).length;gc++)animatedCode[groupCodes[gc]&255]=1;
   for(var n=255;n>=0;n--){
     if(animatedCode[n])continue;
     var isEmpty=true;
@@ -157,6 +160,58 @@ function collectNativeAnimations(ts){
   }
   return result;
 }
+// TEST155: Group Animate Scroll Up across TWO full columns of EIGHT tiles.
+// A 16x64 px area uses one circular 64-row scroll. Animation tables in RAM
+// duplicate each 64-row *column* just once, not 64 complete 128-byte frames.
+// Other layouts/directions fail explicitly. No changes to the original exporter
+// without Group Animate.
+function readGroup155(ts,frames,nativeAnimations){
+  var rec=ts && ts.getDocRecord && ts.getDocRecord();
+  var store=rec && rec.data && rec.data.ricoGroupAnimationsV1;
+  var groups=[];
+  if(store){
+    (store.bank1||[]).forEach(function(g){groups.push({bank:1,group:g});});
+    (store.bank2||[]).forEach(function(g){groups.push({bank:2,group:g});});
+  }
+  if(!groups.length)return null;
+  if(groups.length!==1)throw new Error('TEST155: usar UN SOLO Group Animate en BANK 1 o BANK 2.');
+  var one=groups[0],g=one.group,bank=one.bank;
+  if(frames.length!==1 || frames[0].typeCode!==0 || frames[0].bank!==bank)
+    throw new Error('TEST155: una sola frame SIN Map Scroll y BANK correspondiente al grupo.');
+  if(nativeAnimations.length)
+    throw new Error('TEST155: desactivar animaciones individuales para aislar el grupo.');
+  // TEST164: no arbitrary width, height or tick whitelist. The compact
+  // runtime supports any rectangular UP group made of distinct C64 codes.
+  var width=Number(g.widthTiles),height=Number(g.heightTiles);
+  var ticks164=Number(g.ticksPerFrame);
+  if(g.type!=='up')throw new Error('TEST164: la exportacion grupal actualmente implementa Scroll Up. Otras direcciones aun no tienen rutina PRG.');
+  if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||width*height>256||width>256||height>32||!g.cells||g.cells.length!==width*height)
+    throw new Error('TEST164: el grupo debe ser un rectangulo con hasta 256 caracteres distintos (sin huecos).');
+  if(!Number.isInteger(ticks164)||ticks164<1||ticks164>255)
+    throw new Error('TEST164: Ticks/Frame debe estar entre 1 y 255.');
+  var codes=Array.from({length:width},function(){return []; }),occupied={},ids={};
+  for(var i=0;i<g.cells.length;i++){
+    var cell=g.cells[i],x=Number(cell.x),y=Number(cell.y),id=Number(cell.tile);
+    if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||x>=width||y<0||y>=height||!Number.isInteger(id)||id<0||id>255||ids[id]||occupied[x+','+y])
+      throw new Error('TEST161: cada posicion requiere indice de caracter diferente.');
+    ids[id]=true;occupied[x+','+y]=true;codes[x][y]=id;
+  }
+  for(var xx=0;xx<width;xx++)for(var yy=0;yy<height;yy++)if(typeof codes[xx][yy]==='undefined')
+    throw new Error('TEST164: falta una posicion dentro del grupo '+width+'x'+height+'.');
+  var bankTiles=bank===1?ts.tileData:(rec&&rec.data&&rec.data.ricoCharsetBank2&&rec.data.ricoCharsetBank2.tileData);
+  if(!bankTiles)throw new Error('TEST155: no se encontro el banco de caracteres del grupo.');
+  var protectedCells=Array.from({length:width},function(){return []; }),protect=store.animateEmptyCharacters!==true;
+  for(var cx=0;cx<width;cx++)for(var cy=0;cy<height;cy++){
+    var tile=bankTiles[codes[cx][cy]],pixels=tile&&tile.data&&tile.data[0];
+    if(!pixels||pixels.length!==64)throw new Error('TEST155: faltan los pixeles originales de un caracter del grupo.');
+    var empty=true;for(var pp=0;pp<64;pp++)if(pixels[pp]){empty=false;break;}
+    protectedCells[cx][cy]=protect&&empty;
+  }
+  return {bank:bank,widthTiles:width,heightTiles:height,ticksPerFrame:ticks164,codes:codes,protectedCells:protectedCells,hasProtected:protectedCells.some(function(col){return col.some(Boolean);}),ids:Object.keys(ids).map(function(v){return Number(v);})};
+}
+function hasGroups155(ts){
+  try{var r=ts.getDocRecord(),v=r&&r.data&&r.data.ricoGroupAnimationsV1;return !!(v&&((v.bank1&&v.bank1.length)||(v.bank2&&v.bank2.length)));}catch(e){return false;}
+}
 function collect(self,args){
   var ed=self.editor,fc=frameCount(ed),layer=ed.layers.getSelectedLayerObject(),ts=getTileSet(ed),frames=[],hasScroll=false;
   var b2=getBank2(ts),bank1=charsetBytes(ts.tileData,ts.tileData),bank2=b2?charsetBytes(b2,ts.tileData):bank1;
@@ -182,8 +237,9 @@ function collect(self,args){
       scrollArea:{x:ax,y:ay,width:aw,height:ah}
     });
   }
-  var blankChar=chooseBlankChar(frames,bank1,bank2,nativeAnimations);
-  return {editor:ed,layer:layer,tileSet:ts,frames:frames,bank1:bank1,bank2:bank2,hasScroll:hasScroll,blankChar:blankChar,nativeAnimations:nativeAnimations};
+  var group155=readGroup155(ts,frames,nativeAnimations);
+  var blankChar=chooseBlankChar(frames,bank1,bank2,nativeAnimations,group155?group155.ids:[]);
+  return {editor:ed,layer:layer,tileSet:ts,frames:frames,bank1:bank1,bank2:bank2,hasScroll:hasScroll,blankChar:blankChar,nativeAnimations:nativeAnimations,group155:group155};
 }
 function supports(self,args){
   var ed=self.editor;if(!ed)return false;
@@ -199,7 +255,7 @@ function supports(self,args){
   // TEST143: Character Animation NORMAL is valid WITHOUT Map Scroll.
   // Keep multi-frame no-scroll projects on their former exporter until tested.
   // Group Animate data is not inspected or changed here.
-  return any || (fc===1 && collectNativeAnimations(ts).length>0);
+  return any || hasGroups155(ts) || (fc===1 && collectNativeAnimations(ts).length>0);
 }
 function buildSource(d,options){
   options=options||{};
@@ -280,6 +336,15 @@ function buildSource(d,options){
   // in code below $3000, so frame_color pointers still follow ONLY records.
   d=Object.assign({},d,{nativeAnimations:maskedAnimations,fastGroups:animFastGroups});
   var hasAnyAnim=(maskedAnimations.length>0||animFastGroups.length>0);
+  // TEST164: only the exact legacy TEST155 2x8 1T and protected groups need immutable sources.
+  if(d.group155 && ((d.group155.widthTiles===2&&d.group155.heightTiles===8&&d.group155.ticksPerFrame===1)||d.group155.hasProtected)){
+    var grp155=d.group155,buf155=(grp155.bank===2?d.bank2:d.bank1);
+    grp155.columns=Array.from({length:grp155.widthTiles},function(){return []; });
+    for(var cx155=0;cx155<grp155.widthTiles;cx155++)for(var cy155=0;cy155<grp155.heightTiles;cy155++){
+      var code155=grp155.codes[cx155][cy155];
+      for(var ry155=0;ry155<8;ry155++)grp155.columns[cx155].push(buf155[code155*8+ry155]);
+    }
+  }
 
   // TEST136: compile a single-pass color scan ONLY for the isolated 1T/1px
   // one-frame cardinal-scroll path. No added overhead in slower PASS modes.
@@ -306,7 +371,12 @@ function buildSource(d,options){
     // Vertical scroll may keep all 40 columns. Horizontal fine scroll must use
     // CSEL=0 (38-column hardware window) so the hidden edge columns absorb the shift.
     guardRows.push((area.y+area.height)<25?1:0);
-    d011bases.push(win.height<=24?0x10:0x18);
+    // TEST167: In 25-row displays WITHOUT hardware Map Scroll, use the
+    // VIC-II's native centered fine-Y phase 3 ($1B). The old base $18
+    // (fine-Y = 0) exposes $3FFF idle-state graphics on the bottom lines.
+    // Preserve $18 for real hardware Y-scroll and 24-row legacy geometry.
+    // Never overwrite $3FFF: it is also byte 7 of glyph $FF in BANK 2.
+    d011bases.push(win.height<=24?0x10:(f[i].typeCode===0?0x1b:0x18));
     d016bases.push(win.width<=38?0x00:0x08);
     d016HorizontalBases.push(0x00);
     var a=0x4000+i*1000;ptrlo.push(a&255);ptrhi.push((a>>8)&255);
@@ -425,6 +495,10 @@ function buildSource(d,options){
   out.push(' sta current_frame');
   out.push(' sta color_mode');
   out.push(' sta patch_pending');
+  if(d.group155){
+    // TEST163 C64 monitor: $C000/$C001 = IRQ events, $C002/$C003 = steps, $C004 = pixel phase (2 px per step for 32+ glyphs).
+    for(var diag162=0;diag162<5;diag162++) out.push(' sta $'+hex(0xC000+diag162,4));
+  }
   if(gearCoupled){
     out.push(' sta gear_previous_fine');
     out.push(' sta gear_advanced_count');
@@ -483,6 +557,12 @@ function buildSource(d,options){
   out.push(' pha');
   out.push(' lda #$01');
   out.push(' sta $d019');
+  if(d.group155){
+    out.push(' inc $c000');
+    out.push(' bne group162_irq_no_carry');
+    out.push(' inc $c001');
+    out.push('group162_irq_no_carry');
+  }
   if(gearCoupled){
     // Save map position at start of this IRQ. The glyph must only count
     // a tick after the map actually advances a pixel, including busy IRQs.
@@ -491,6 +571,20 @@ function buildSource(d,options){
   } else if(hasAnyAnim){
     if(d.fastGroups.length)out.push(' jsr animate_chars_fast_groups');
     if(d.nativeAnimations.length)out.push(' jsr animate_chars_native');
+  }
+  // TEST155: group update once per PAL raster IRQ, independent of Map Scroll.
+  if(d.group155){
+    out.push(' jsr group155_tick');
+    out.push(' inc $c002');
+    out.push(' bne group162_group_no_carry');
+    out.push(' inc $c003');
+    out.push('group162_group_no_carry');
+    out.push(' inc $c004');
+    // TEST163: $C004 reports pixel phase, not just the number of IRQ updates.
+    if(d.group155.widthTiles>2)out.push(' inc $c004');
+    out.push(' lda $c004');
+    out.push(' and #$3f');
+    out.push(' sta $c004');
   }
   // Remaining color updates are spread over subsequent raster IRQs.
   out.push(' lda patch_pending');
@@ -612,6 +706,76 @@ function buildSource(d,options){
       out.push('!byte $'+hex(gr.ticks));
       out.push('');
     }
+  }
+  // TEST164: all other rectangular UP groups use the compact one-charset engine.
+  // The exact TEST155 2x8/1T legacy path remains byte-for-byte unchanged.
+  if(d.group155 && !(d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1)){
+    out.push('group155_tick');
+    // TEST164: positive speed values >1 count PAL IRQs; 1T is the old fast path.
+    if(d.group155.ticksPerFrame>1){
+      out.push(' dec group164_tick_counter');
+      out.push(' beq group164_do_step');
+      out.push(' rts');
+      out.push('group164_do_step');
+      out.push(' lda #$'+hex(d.group155.ticksPerFrame));
+      out.push(' sta group164_tick_counter');
+    }
+    if(d.group155.hasProtected){
+      // TEST164: phase 0,2,4... modulo the actual height in scanlines.
+      var lines164=d.group155.heightTiles*8;
+      out.push(' inc group161_phase');
+      out.push(' inc group161_phase');
+      if(lines164!==256){
+        if((lines164&(lines164-1))===0){
+          out.push(' lda group161_phase');
+          out.push(' and #$'+hex(lines164-1));
+          out.push(' sta group161_phase');
+        }else{
+          out.push(' lda group161_phase');
+          out.push(' cmp #$'+hex(lines164));
+          out.push(' bne group164_phase_done');
+          out.push(' lda #$00');
+          out.push(' sta group161_phase');
+          out.push('group164_phase_done');
+        }
+      }
+    }
+    out.push(' jmp group161_tick_external');
+    if(d.group155.ticksPerFrame>1){out.push('group164_tick_counter');out.push('!byte $'+hex(d.group155.ticksPerFrame));}
+    if(d.group155.hasProtected){out.push('group161_phase');out.push('!byte $00');}
+    out.push('');
+  }
+  // TEST155: dynamic scroll UP across both 8-character columns (16x64 pixels).
+  // Y holds the current 0..63 phase. Two duplicated 64-byte source columns
+  // allow absolute-indexed loads with NO per-row modulo calculations.
+  if(d.group155 && d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1){
+    var gg155=d.group155,bb155=(gg155.bank===2?0x3800:0x3000);
+    out.push('group155_tick');
+    out.push(' inc group155_phase');
+    out.push(' lda group155_phase');
+    out.push(' and #$3f');
+    out.push(' sta group155_phase');
+    out.push(' tay');
+    for(var cx155=0;cx155<2;cx155++)for(var cy155=0;cy155<8;cy155++){
+      if(gg155.protectedCells[cx155][cy155])continue;
+      var code155=gg155.codes[cx155][cy155],dst155=bb155+code155*8;
+      // Reuse the original 64-byte source doubled to 128 bytes. Load 8
+      // adjacent bytes via Y while writing the destination tile via X.
+      // Source offset (phase 0..63)+(row*8 0..56)+7 <=126; no overflow.
+      out.push(' lda group155_phase');
+      if(cy155){out.push(' clc');out.push(' adc #$'+hex(cy155*8));}
+      out.push(' tay');
+      out.push(' ldx #$00');
+      out.push('group155_loop_'+cx155+'_'+cy155);
+      out.push(' lda group155_col'+cx155+'_source,y');
+      out.push(' sta $'+hex(dst155,4)+',x');
+      out.push(' iny');
+      out.push(' inx');
+      out.push(' cpx #$08');
+      out.push(' bne group155_loop_'+cx155+'_'+cy155);
+    }
+    out.push(' rts');
+    out.push('group155_phase');out.push('!byte $00');out.push('');
   }
   // TEST128: native LVLLVL / JAMES character animation, executed once per IRQ,
   // independently from TEST77's frame_tick and main_busy. No changes to scroll.
@@ -2731,6 +2895,82 @@ function buildSource(d,options){
   for(var fi=0;fi<f.length;fi++){
     out.push('frame_color_'+fi);emitBytes(out,f[fi].colors);
   }
+  if(d.group155 && d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1){
+    // Approved TEST155 2x8 source and assembly unchanged.
+    for(var cx155=0;cx155<2;cx155++){
+      out.push('group155_col'+cx155+'_source');
+      emitBytes(out,d.group155.columns[cx155].concat(d.group155.columns[cx155]));
+    }
+  }
+  if(d.group155 && !(d.group155.widthTiles===2 && d.group155.heightTiles===8 && d.group155.ticksPerFrame===1)){
+    // TEST161: single visible charset, 6502 direct operations. No copies of
+    // full fonts, and no character-bank switching or main-loop synchronization.
+    var g161=d.group155,base161=g161.bank===2?0x3800:0x3000;
+    var rows164=g161.heightTiles*8, colBytes164=rows164*2;
+    // Protected blank tiles require the immutable 64-row original column:
+    // their destination must remain blank, but the source must keep moving.
+    // Only in this case reserve 128 bytes per column (64 rows duplicated).
+    if(g161.hasProtected){
+      out.push('*=$4800');
+      for(var c161=0;c161<g161.widthTiles;c161++){
+        out.push('group161_col'+c161);
+        emitBytes(out,g161.columns[c161].concat(g161.columns[c161]));
+      }
+      // TEST164: place executable code exactly after variable-size source tables.
+      out.push('*=$'+hex(0x4800+g161.widthTiles*colBytes164,4));
+    }else{
+      // Fast in-place rotation: no original source tables at all.
+      out.push('*=$4800');
+    }
+    out.push('group161_tick_external');
+    if(g161.hasProtected){
+      out.push(' ldx group161_phase');
+      for(var cx161=0;cx161<g161.widthTiles;cx161++)for(var cy161=0;cy161<g161.heightTiles;cy161++){
+        if(g161.protectedCells[cx161][cy161])continue;
+        var dst161=base161+g161.codes[cx161][cy161]*8;
+        for(var row161=0;row161<8;row161++){
+          out.push(' lda $'+hex(0x4800+cx161*colBytes164+cy161*8+row161,4)+',x');
+          out.push(' sta $'+hex(dst161+row161,4));
+        }
+      }
+    }else{
+      // For each vertical column: preserve the first byte, shift all 64
+      // in-place (including tile boundaries), then wrap the saved byte.
+      // 8 cycles per byte moved. No phase LUT and zero runtime scratch buffers.
+      for(var cx161=0;cx161<g161.widthTiles;cx161++){
+        var first161=base161+g161.codes[cx161][0]*8;
+        // TEST163: cache first TWO scanlines, then rotate each column UP 2 px.
+        // Every one of 1024 destination bytes is written exactly once; no LUTs.
+        out.push(' lda $'+hex(first161,4));
+        out.push(' sta group161_temp');
+        out.push(' lda $'+hex(first161+1,4));
+        out.push(' sta group163_temp1');
+        for(var cy161=0;cy161<g161.heightTiles;cy161++){
+          var dst161=base161+g161.codes[cx161][cy161]*8;
+          for(var row161=0;row161<6;row161++){
+            out.push(' lda $'+hex(dst161+row161+2,4));
+            out.push(' sta $'+hex(dst161+row161,4));
+          }
+          if(cy161<g161.heightTiles-1){
+            var next161=base161+g161.codes[cx161][cy161+1]*8;
+            out.push(' lda $'+hex(next161,4));
+            out.push(' sta $'+hex(dst161+6,4));
+            out.push(' lda $'+hex(next161+1,4));
+            out.push(' sta $'+hex(dst161+7,4));
+          }else{
+            out.push(' lda group161_temp');
+            out.push(' sta $'+hex(dst161+6,4));
+            out.push(' lda group163_temp1');
+            out.push(' sta $'+hex(dst161+7,4));
+          }
+        }
+      }
+    }
+    out.push(' rts');
+    if(!g161.hasProtected){out.push('group161_temp');out.push('!byte $00');out.push('group163_temp1');out.push('!byte $00');}
+    out.push('group161_code_end');
+  }
+
   return out.join('\n');
 }
 function assemblePRG(self,source){
@@ -2745,6 +2985,8 @@ function assemblePRG(self,source){
     var fastOverflow=new Error('TEST142: runtime no entra antes de $3000 (limite charset).');
     fastOverflow.fastCodeOverflow=true;throw fastOverflow;
   }
+  if(assembler.labels&&assembler.labels.group161_code_end&&assembler.labels.group161_code_end.value>=0xC000)
+    throw new Error('TEST164: el codigo del grupo supera la RAM segura disponible. Reducir caracteres o desactivar animacion de vacios.');
   var mem=assembler.getMemory(),start=result.start,end=result.end;
   var prg=new Uint8Array(2+(end-start));prg[0]=start&255;prg[1]=(start>>8)&255;
   for(var a=start,p=2;a<end;a++,p++)prg[p]=mem[a]&255;
@@ -2796,7 +3038,7 @@ ToPRGAdv.prototype.createPRG=function(args){
       source=buildSource(d,{disableFastGroups:true});
       bytes=assemblePRG(this,source);
     }
-    var fn=args.filename||'rico-map-scroll-frames.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
+    var fn=args.filename||(d.group155?'rico-test164-group-scroll-up-'+(d.group155.widthTiles*8)+'chars-1tick.prg':'rico-map-scroll-frames.prg');if(!/\.prg$/i.test(fn))fn+='.prg';
     console.log('[RICO TEST143 NATIVE CHAR 8x8 FAST IRQ] '+(d.hasScroll?'MAP SCROLL':'NO MAP SCROLL')+' '+d.nativeAnimations.length+' configured glyphs; exported '+d.frames.length+' frame(s).');
     if(args.download===false)return bytes;
     if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}
@@ -2807,6 +3049,11 @@ ToPRGAdv.prototype.createPRG=function(args){
     return false;
   }
 };
+window.RICO_TEST164_COLUMNS_UP = {buildSource:buildSource,readGroup:readGroup155};
+window.RICO_TEST163_COLUMNS_UP = window.RICO_TEST164_COLUMNS_UP;
+window.RICO_TEST162_COLUMNS_UP = {buildSource:buildSource,readGroup:readGroup155};
+window.RICO_TEST161_COLUMNS_UP = window.RICO_TEST162_COLUMNS_UP;
+window.RICO_TEST155_COLUMNS_UP = {buildSource:buildSource,readGroup:readGroup155};
 window.RICO_TEST77_PRG_MAP_SCROLL={buildSource:buildSource,maxFrames:MAX_FRAMES,pingPong:true,moveOut:true,moveIn:true,strictDoubleBuffer:true,generalFrameTransitions:true,phaseCorrected:true,windowIsViewport:true,scrollAreaIsSource:true,editorScreenPreserved:true,verticalGuardRow:true,horizontalCsel38:true,blankTransitionStage:true,continuousSingleFrame:true,maxDuration:1024};
 window.RICO_TEST76_PRG_MAP_SCROLL=window.RICO_TEST77_PRG_MAP_SCROLL;
 window.RICO_TEST75_PRG_MAP_SCROLL=window.RICO_TEST77_PRG_MAP_SCROLL;
@@ -2819,5 +3066,5 @@ window.RICO_TEST60_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST59_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST57_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
 window.RICO_TEST56_PRG_MAP_SCROLL=window.RICO_TEST76_PRG_MAP_SCROLL;
-console.log('[RICO TEST143 NATIVE CHAR 8x8] no-map export fast UP/DOWN; TEST138 scroll gear unchanged.');
+console.log('[RICO TEST155 GROUP UP 2x8 1T + RICO TEST143 NATIVE CHAR 8x8] no-map export fast UP/DOWN; TEST138 scroll gear unchanged.');
 })();

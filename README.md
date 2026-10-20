@@ -1,6 +1,21 @@
 # LVLLVL SCUMMPET EXPORT — RICO MOD
 
-## MASTER ACTUAL — 19 OCTUBRE 2026
+## MASTER ACTUAL — 20 OCTUBRE 2026
+**MASTER LVL RICO 20 DE OCTUBRE — TEST167 PASS EN VICE.**
+
+- Congelado a partir de **TEST165 PASS + TEST167 PASS**; no se incorpora TEST166 (IRQ $FB, prueba descartada).
+- **TEST164:** exportador Scroll Up grupal para formas rectangulares hasta 256 caracteres y ticks variables; motor rapido de **2 px por IRQ PAL** en grupos grandes. El caso legado TEST155 de 2×8 conserva 1 px/IRQ.
+- **TEST165:** Group Animate Preview Scroll Up sincronizada aproximadamente a la exportacion (reloj PAL 20 ms / 2 px); no cambia el PRG.
+- **TEST167:** corrige la franja inferior de **VIC-II idle graphics** sin taparla: 25 filas sin Map Scroll usan `$D011=$1B`, antes `$18`. Con Map Scroll real o ventanas de 24 filas se preservan sus rutinas antiguas. No se escribe `$3FFF` ni se altera el glifo 255.
+- El usuario confirmó **PASS visual en VICE con GROUP e INDIVIDUAL** y la preview TEST165. BANK 1/2, animacion de caracteres, SCUMM Map Scroll y controles existentes se preservan.
+- **Archivo:** `MASTER_LVL_RICO_20_DE_OCTUBRE_2026.zip` (Biblioteca del usuario, NO incluido en este repositorio).
+- **SHA256 del ZIP:** `7fe4195336b818f46cf91216a0c7f3f1240b4fe989f560dbefb2dc582b69d8fb`.
+- **WEB:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/
+- **Detalles y limites:** [release MASTER 20 OCT](releases/MASTER_LVL_RICO_20_OCTUBRE_2026/README.md). Proxima prueba: TEST168+; MASTER protegido.
+
+### Historial del MASTER anterior
+
+## MASTER ANTERIOR — 19 OCTUBRE 2026
 **MASTER LVLLVL 256 CARACTERES / 1 TICK — TEST149 PASS.**
 PASS confirmado por el usuario en la barra divisoria editor/tileset y en la exportación
 de 256 animaciones a 1 tick visualizada en VICE (no certificación instrumental de 50 Hz).

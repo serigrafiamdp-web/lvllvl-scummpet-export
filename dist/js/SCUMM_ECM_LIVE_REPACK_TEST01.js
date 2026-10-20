@@ -202,12 +202,7 @@
 
   window.LVLLVL_TEST01_ECM_LIVE_REPACK = true;
 
-  window.addEventListener('load', function() {
-    var badge = document.createElement('div');
-    badge.textContent = 'TEST01 · ECM LIVE REPACK';
-    badge.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:999999;padding:6px 9px;background:rgba(0,0,0,.78);color:#fff;font:12px monospace;border:1px solid #888;pointer-events:none';
-    document.body.appendChild(badge);
-  });
+  // TEST164: remove the intrusive test label; ECM conversion stays active.
 
   console.log('[LVLLVL TEST01] ECM LIVE REPACK instalado.');
 })();
