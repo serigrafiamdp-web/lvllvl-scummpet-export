@@ -66,6 +66,37 @@ function isLargeCandidate(self){
   var ed=self&&self.editor;if(!ed)return false;var s=gridSize(ed);
   return s.width===40&&s.height>25;
 }
+// TEST175: a large Screen with active Map Scroll has its own runtime.
+// Keep both independent native-charset clocks and the $D018 Switch clock.
+// The configured group selects the global bank toggle; individual metadata
+// is read separately from each physical charset bank ($3000 and $3800).
+function collectAnimations175(ts,data){
+  var rec=ts&&ts.getDocRecord&&ts.getDocRecord();
+  var store=rec&&rec.data||{};
+  var groups=store.ricoGroupAnimationsV1||{};
+  var switches=[].concat(groups.bank1||[],groups.bank2||[]).filter(function(g){return g&&g.type==='switch-bank';});
+  if(!switches.length)return null; // preserve all previously approved non-switch map PRGs
+  var sw=switches[0];
+  var bank2=store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData;
+  if(!bank2||bank2.length<256)throw new Error('Switch Bank necesita el BANK 2 completo.');
+  var tiles=[ts.tileData,bank2],types={left:0,right:1,up:2,down:3,blink:4},records=[];
+  // Only codes that occur anywhere in the map can appear in the scroll viewport.
+  // Nothing is touched in the source index/Bank 1 or Bank 2 definitions.
+  var used=new Uint8Array(256);
+  for(var cell=0;cell<data.length;cell++)used[data[cell]&255]=1;
+  for(var bank=0;bank<2;bank++)for(var code=0;code<256;code++){
+    if(!used[code])continue;
+    var props=tiles[bank]&&tiles[bank][code]&&tiles[bank][code].props||{};
+    var type=props.animated;
+    if(type===null||type===false||type===undefined||type==='')continue;
+    if(!Object.prototype.hasOwnProperty.call(types,type))
+      throw new Error('TEST175: tipo de animacion '+type+' no soportado para BANK '+(bank+1));
+    var ticks=clamp(props.ticksPerFrame,1,255,1);
+    records.push({bank:bank+1,code:code,ticks:ticks,type:types[type],address:(bank?0x3800:0x3000)+code*8});
+  }
+  return {switchTicks:clamp(sw.ticksPerFrame,1,255,1),records:records};
+}
+
 function collect(self){
   var ed=self.editor,s=gridSize(ed),fc=frameCount(ed);
   if(s.width!==40)throw new Error('TEST84 grande vertical requiere Screen de 40 columnas.');
@@ -91,7 +122,7 @@ function collect(self){
   var data=mapData(layer,0,s.width,s.height),colors=mapColorData(layer,0,s.width,s.height);
   if(MAP_DATA_BASE+data.length>=COLOR_DATA_BASE)throw new Error('Mapa demasiado grande: invade el banco de color de TEST84.');
   if(COLOR_DATA_BASE+colors.length>=0xd000)throw new Error('Mapa de colores demasiado grande para el banco RAM seguro de TEST84.');
-  return{editor:ed,width:s.width,height:s.height,type:type,typeCode:type==='up'?1:2,ticks:clamp(cfg&&cfg.ticksPerStep,1,255,6),pixels:clamp(cfg&&cfg.pixelsPerStep,1,8,1),duration:duration,bg:bg,border:border,bank:bank,window:win,area:area,initialRow:initialRow,bank1:bank1,bank2:bank2,map:data,colors:colors};
+  return{editor:ed,width:s.width,height:s.height,type:type,typeCode:type==='up'?1:2,ticks:clamp(cfg&&cfg.ticksPerStep,1,255,6),pixels:clamp(cfg&&cfg.pixelsPerStep,1,8,1),duration:duration,bg:bg,border:border,bank:bank,window:win,area:area,initialRow:initialRow,bank1:bank1,bank2:bank2,map:data,colors:colors,anim175:collectAnimations175(ts,data)};
 }
 
 
@@ -183,6 +214,13 @@ function buildSource(d){
   out.push('color_tbl_hi=$19');
   out.push('color_updates=$1a');
   if(colorMode==='dynamic')out.push('color_row=$1b');
+  if(d.anim175&&d.anim175.records.length){
+    out.push('anim175_ptr_lo=$30');
+    out.push('anim175_ptr_hi=$31');
+    out.push('anim175_dest_lo=$32');
+    out.push('anim175_dest_hi=$33');
+    out.push('anim175_temp=$34');
+  }
   out.push('');
   out.push('start');
   out.push(' sei');
@@ -274,6 +312,10 @@ function buildSource(d){
   out.push('irq');
   out.push(' pha');out.push(' txa');out.push(' pha');out.push(' tya');out.push(' pha');
   out.push(' lda #$01');out.push(' sta $d019');
+  // TEST175: both charsets progress at their OWN ticks even while the map
+  // prepares its rear screen. Hardware charset selection advances separately.
+  if(d.anim175&&d.anim175.records.length)out.push(' jsr anim175_tick');
+  if(d.anim175)out.push(' jsr anim175_switch_tick');
   out.push(' lda main_busy');out.push(' bne irq_done_tick');out.push(' jsr frame_tick');
   out.push('irq_done_tick');
   out.push(' pla');out.push(' tay');out.push(' pla');out.push(' tax');out.push(' pla');out.push(' rti');
@@ -481,6 +523,160 @@ function buildSource(d){
   out.push(' lda front_hi');out.push(' cmp #$04');out.push(' bne d018_screen_0800');out.push(' lda #$10');out.push(' jmp d018_charset');out.push('d018_screen_0800');out.push(' lda #$20');out.push('d018_charset');out.push(' ora charset_bits');out.push(' sta $d018');out.push(' rts');
   out.push('apply_scroll_regs');
   out.push(' lda fine_pos');out.push(' and #$07');out.push(' ora #$'+hex2(d011base));out.push(' sta $d011');out.push(' lda #$08');out.push(' sta $d016');out.push(' rts');
+  // TEST175: a single PAL IRQ schedules Map Scroll, independent native
+  // character scroll in BOTH charsets, and global hardware Bank Switch.
+  // Routines and their mutable countdowns stay below $3000 so $3000/$3800
+  // charsets remain the exact user artwork, never a temporary frame copy.
+  if(d.anim175){
+    out.push('anim175_switch_tick');
+    out.push(' dec anim175_switch_counter');
+    out.push(' beq anim175_do_switch');
+    out.push(' rts');
+    out.push('anim175_do_switch');
+    out.push(' lda #$'+hex2(d.anim175.switchTicks));
+    out.push(' sta anim175_switch_counter');
+    out.push(' lda charset_bits');
+    out.push(' eor #$02');
+    out.push(' sta charset_bits');
+    out.push(' jmp update_d018');
+    out.push('anim175_switch_counter');
+    out.push('!byte $'+hex2(d.anim175.switchTicks));
+    out.push('');
+  }
+  if(d.anim175&&d.anim175.records.length){
+    out.push('anim175_tick');
+    out.push(' lda #<anim175_table');
+    out.push(' sta anim175_ptr_lo');
+    out.push(' lda #>anim175_table');
+    out.push(' sta anim175_ptr_hi');
+    out.push('anim175_loop');
+    out.push(' ldy #$00');
+    out.push(' lda (anim175_ptr_lo),y');
+    out.push(' bne anim175_next_record');
+    out.push(' rts');
+    out.push('anim175_next_record');
+    out.push(' ldy #$01');
+    out.push(' lda (anim175_ptr_lo),y');
+    out.push(' sec');
+    out.push(' sbc #$01');
+    out.push(' sta (anim175_ptr_lo),y');
+    out.push(' beq anim175_run');
+    out.push(' jmp anim175_advance');
+    out.push('anim175_run');
+    out.push(' ldy #$00');
+    out.push(' lda (anim175_ptr_lo),y');
+    out.push(' iny');
+    out.push(' sta (anim175_ptr_lo),y');
+    out.push(' iny');
+    out.push(' lda (anim175_ptr_lo),y');
+    out.push(' sta anim175_dest_lo');
+    out.push(' iny');
+    out.push(' lda (anim175_ptr_lo),y');
+    out.push(' sta anim175_dest_hi');
+    out.push(' iny');
+    out.push(' lda (anim175_ptr_lo),y');
+    out.push(' cmp #$00');
+    out.push(' bne anim175_type_right');
+    out.push(' jsr anim175_left');
+    out.push(' jmp anim175_advance');
+    out.push('anim175_type_right');
+    out.push(' cmp #$01');
+    out.push(' bne anim175_type_up');
+    out.push(' jsr anim175_right');
+    out.push(' jmp anim175_advance');
+    out.push('anim175_type_up');
+    out.push(' cmp #$02');
+    out.push(' bne anim175_type_down');
+    out.push(' jsr anim175_up');
+    out.push(' jmp anim175_advance');
+    out.push('anim175_type_down');
+    out.push(' cmp #$03');
+    out.push(' bne anim175_type_blink');
+    out.push(' jsr anim175_down');
+    out.push(' jmp anim175_advance');
+    out.push('anim175_type_blink');
+    out.push(' jsr anim175_blink');
+    out.push('anim175_advance');
+    out.push(' clc');
+    out.push(' lda anim175_ptr_lo');
+    out.push(' adc #$05');
+    out.push(' sta anim175_ptr_lo');
+    out.push(' lda anim175_ptr_hi');
+    out.push(' adc #$00');
+    out.push(' sta anim175_ptr_hi');
+    out.push(' jmp anim175_loop');
+    out.push('');
+    out.push('anim175_left');
+    out.push(' ldy #$07');
+    out.push('anim175_left_loop');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' asl');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' rol');
+    out.push(' sta (anim175_dest_lo),y');
+    out.push(' dey');
+    out.push(' bpl anim175_left_loop');
+    out.push(' rts');
+    out.push('anim175_right');
+    out.push(' ldy #$07');
+    out.push('anim175_right_loop');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' lsr');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' ror');
+    out.push(' sta (anim175_dest_lo),y');
+    out.push(' dey');
+    out.push(' bpl anim175_right_loop');
+    out.push(' rts');
+    out.push('anim175_up');
+    out.push(' ldy #$00');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' sta anim175_temp');
+    out.push(' ldx #$07');
+    out.push('anim175_up_loop');
+    out.push(' iny');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' dey');
+    out.push(' sta (anim175_dest_lo),y');
+    out.push(' iny');
+    out.push(' dex');
+    out.push(' bne anim175_up_loop');
+    out.push(' lda anim175_temp');
+    out.push(' sta (anim175_dest_lo),y');
+    out.push(' rts');
+    out.push('anim175_down');
+    out.push(' ldy #$07');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' sta anim175_temp');
+    out.push(' ldx #$07');
+    out.push('anim175_down_loop');
+    out.push(' dey');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' iny');
+    out.push(' sta (anim175_dest_lo),y');
+    out.push(' dey');
+    out.push(' dex');
+    out.push(' bne anim175_down_loop');
+    out.push(' lda anim175_temp');
+    out.push(' sta (anim175_dest_lo),y');
+    out.push(' rts');
+    out.push('anim175_blink');
+    out.push(' ldy #$07');
+    out.push('anim175_blink_loop');
+    out.push(' lda (anim175_dest_lo),y');
+    out.push(' eor #$ff');
+    out.push(' sta (anim175_dest_lo),y');
+    out.push(' dey');
+    out.push(' bpl anim175_blink_loop');
+    out.push(' rts');
+    out.push('anim175_table');
+    for(var a175=0;a175<d.anim175.records.length;a175++){
+      var g175=d.anim175.records[a175];
+      emitBytes(out,[g175.ticks,g175.ticks,g175.address&255,(g175.address>>8)&255,g175.type]);
+    }
+    out.push('!byte $00');
+    out.push('');
+  }
   out.push('*=$3000');out.push('charset_bank1');emitBytes(out,d.bank1);
   out.push('*=$3800');out.push('charset_bank2');emitBytes(out,d.bank2);
   out.push('*=$4000');out.push('large_map_data');emitBytes(out,d.map);
