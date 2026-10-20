@@ -147,9 +147,33 @@ function chooseBlankChar(frames,bank1,bank2,animated,groupCodes){
 // getTileProperties().ticksPerFrame. Each entry uses the stock player's
 // [ticks, counter, character offset, animation type] semantics. No invented
 // frames, inversion, diagnostic effects, or remapping of character numbers.
-function collectNativeAnimations(ts){
+function collectNativeAnimations(ts, switchMode){
   var result=[], types={left:0,right:1,up:2,down:3,blink:4};
   if(!ts||typeof ts.getAnimatedType!=='function'||typeof ts.getTileProperties!=='function')return result;
+  // TEST172: both banks have independent native animation settings. Read
+  // actual BANK 1 and BANK 2 tile.props without changing the editor's
+  // selected bank, frame, or preview. This path is ONLY used by Switch Bank;
+  // all legacy projects keep the original collector below, byte for byte.
+  if(switchMode){
+    var rec=ts.getDocRecord&&ts.getDocRecord();
+    var store=rec&&rec.data&&rec.data.ricoCharsetBank2;
+    if(!store||!store.tileData||store.tileData.length<256)
+      throw new Error('TEST172: Switch Bank necesita BANK 1 y BANK 2 disponibles.');
+    for(var bank=1;bank<=2;bank++){
+      var tiles=bank===1?ts.tileData:store.tileData;
+      for(var code=0;code<256;code++){
+        var props=tiles&&tiles[code]&&tiles[code].props||{},type=props.animated;
+        if(type===false||type===null||typeof type==='undefined'||type==='')continue;
+        // The C64 native bitmap engine supports left, right, up, down and
+        // blink. Do not silently mis-export pingpong/frames as left motion.
+        if(!Object.prototype.hasOwnProperty.call(types,type))
+          throw new Error('TEST172: animacion individual '+type+' del BANK '+bank+
+            ' no tiene rutina PRG nativa para Switch Bank.');
+        result.push({charCode:code,ticks:clamp(props.ticksPerFrame,1,255,1),type:types[type],bank:bank});
+      }
+    }
+    return result;
+  }
   for(var c=0;c<256;c++){
     var t=ts.getAnimatedType(c);
     if(t===false||t===null||typeof t==='undefined'||t==='')continue;
@@ -176,9 +200,11 @@ function readGroup155(ts,frames,nativeAnimations){
   if(!groups.length)return null;
   if(groups.length!==1)throw new Error('TEST155: usar UN SOLO Group Animate en BANK 1 o BANK 2.');
   var one=groups[0],g=one.group,bank=one.bank;
-  if(frames.length!==1 || frames[0].typeCode!==0 || frames[0].bank!==bank)
+  if(frames.length!==1 || frames[0].typeCode!==0 || (g.type!=='switch-bank' && frames[0].bank!==bank))
     throw new Error('TEST155: una sola frame SIN Map Scroll y BANK correspondiente al grupo.');
-  if(nativeAnimations.length)
+  // TEST172: Switch Bank only selects $D018; unlike bitmap group scroll
+  // it is fully compatible with independent native animations in both banks.
+  if(nativeAnimations.length && g.type!=='switch-bank')
     throw new Error('TEST155: desactivar animaciones individuales para aislar el grupo.');
   // TEST164: no arbitrary width, height or tick whitelist. The compact
   // runtime supports any rectangular UP group made of distinct C64 codes.
@@ -223,7 +249,11 @@ function hasGroups155(ts){
 function collect(self,args){
   var ed=self.editor,fc=frameCount(ed),layer=ed.layers.getSelectedLayerObject(),ts=getTileSet(ed),frames=[],hasScroll=false;
   var b2=getBank2(ts),bank1=charsetBytes(ts.tileData,ts.tileData),bank2=b2?charsetBytes(b2,ts.tileData):bank1;
-  var nativeAnimations=collectNativeAnimations(ts);
+  // TEST172: choose bank-aware extraction only for an active switch group.
+  // Keep all non-switch projects byte-identical to TEST171.
+  var rec172=ts&&ts.getDocRecord&&ts.getDocRecord(), stored172=rec172&&rec172.data&&rec172.data.ricoGroupAnimationsV1;
+  var switchMode172=!!(stored172&&[...(stored172.bank1||[]),...(stored172.bank2||[])].some(function(g){return g.type==='switch-bank';}));
+  var nativeAnimations=collectNativeAnimations(ts,switchMode172);
   for(var i=0;i<fc;i++){
     var c=getCfg(ed,i),type=(c&&c.type)||'';
     if(typeof TYPE_CODE[type]==='undefined')throw new Error('TEST75 no reconoce '+type+'.');
@@ -278,13 +308,16 @@ function buildSource(d,options){
   // ALL exported frames. Preserve editable tiles and their animation metadata.
   // Never skip a visible blinking glyph, even when its original pixels are zero.
   var usedBankMask=new Uint8Array(256);
+  var switchNative172=!!(d.group155&&d.group155.switchBank);
   for(var vf=0;vf<f.length;vf++){
-    var screen=f[vf].screen, mask=(f[vf].bank===2)?2:1;
+    // Both charsets are shown alternately, so both must keep animating.
+    var screen=f[vf].screen, mask=switchNative172?3:((f[vf].bank===2)?2:1);
     for(var vi=0;vi<screen.length;vi++)usedBankMask[screen[vi]&255]|=mask;
   }
   var emittedAnimations=[], skippedEmptyRows=0;
   for(var ai=0;ai<d.nativeAnimations.length;ai++){
     var anim=d.nativeAnimations[ai],cc=anim.charCode&255, used=usedBankMask[cc];
+    if(switchNative172 && anim.bank) used&=1<<(anim.bank-1);
     if(!used)continue;
     var bankMask=0;
     if(hasRealScroll){
@@ -3078,6 +3111,7 @@ ToPRGAdv.prototype.createPRG=function(args){
     return false;
   }
 };
+window.RICO_TEST172_DUAL_NATIVE_SWITCH = {buildSource:buildSource,readGroup:readGroup155,collect:collect,collectNativeAnimations:collectNativeAnimations};
 window.RICO_TEST171_SWITCH_BANK = {buildSource:buildSource,readGroup:readGroup155};
 window.RICO_TEST164_COLUMNS_UP = {buildSource:buildSource,readGroup:readGroup155};
 window.RICO_TEST163_COLUMNS_UP = window.RICO_TEST164_COLUMNS_UP;
