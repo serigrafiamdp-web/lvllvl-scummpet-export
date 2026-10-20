@@ -513,6 +513,64 @@ function assemblePRG(self,source){
   var mem=assembler.getMemory(),start=result.start,end=result.end,prg=new Uint8Array(2+(end-start));prg[0]=start&255;prg[1]=(start>>8)&255;for(var a=start,p=2;a<end;a++,p++)prg[p]=mem[a]&255;self.prg=prg;return prg;
 }
 
+// TEST173: A large Screen is NOT evidence that Map Scroll is active.
+// Rico's Window selects a still-image viewport when ALL Map Scroll types are OFF.
+// Project ONLY for export; never mutate the artwork or the real frame rectangles.
+function hasActiveMapScroll(self){
+  var ed=self&&self.editor,fc=ed?frameCount(ed):0;
+  for(var n=0;n<fc;n++) {
+    var cfg=getCfg(ed,n);
+    if(cfg&&cfg.type&&String(cfg.type).trim()!=='')return true;
+  }
+  return false;
+}
+function exportRicoWindowOnly(self,args){
+  var ed=self.editor,oldGraphic=ed.graphic,oldLayer=ed.layers.getSelectedLayerObject();
+  if(!oldLayer||typeof oldLayer.getCell!=='function')throw new Error('No se encontro la capa Grid para exportar Rico\'s Window.');
+  var oldSize=gridSize(ed),originalFrames=oldGraphic.frames||[];
+  // Read effective Window coordinates BEFORE constructing the virtual graphic.
+  // Capture a separate geometry for each frame (does not change original data).
+  var windows=originalFrames.map(function(fr,n){
+    var w=getWindowCfg(ed,n)||{};
+    var x=clamp(w.x,0,oldSize.width-1,0),y=clamp(w.y,0,oldSize.height-1,0);
+    return {x:x,y:y,width:clamp(w.width,1,Math.min(40,oldSize.width-x),Math.min(40,oldSize.width-x)),
+                 height:clamp(w.height,1,Math.min(25,oldSize.height-y),Math.min(25,oldSize.height-y))};
+  });
+  var virtualFrames=originalFrames.map(function(fr,n){
+    var w=windows[n],f=Object.assign({},fr);
+    f.ricoWindowDimensionV1={version:1,x:0,y:0,width:w.width,height:w.height,clearOutside:false};
+    f.ricoScrollAreaV1={version:1,x:0,y:0,width:40,height:25,clearOutside:false};
+    return f;
+  });
+  var graphic=Object.create(oldGraphic);
+  graphic.frames=virtualFrames;
+  graphic.getGridWidth=function(){return 40;};
+  graphic.getGridHeight=function(){return 25;};
+  var layer=Object.create(oldLayer);
+  layer.getCell=function(pos){
+    var n=Number(pos.frame)||0,w=windows[n]||windows[0];
+    if(!w || pos.x<0||pos.y<0||pos.x>=w.width||pos.y>=w.height) {
+      // Empty out-of-Window positions in the temporary export only; this is
+      // distinct from modifying the original Screen or its tileset.
+      return {t:0,fc:0,bc:0};
+    }
+    var point=Object.assign({},pos,{x:pos.x+w.x,y:pos.y+w.y});
+    return oldLayer.getCell.call(oldLayer,point);
+  };
+  var layers=Object.create(ed.layers);
+  layers.getSelectedLayerObject=function(){return layer;};
+  var editor=Object.create(ed);
+  editor.graphic=graphic;editor.layers=layers;
+  var orig=self.editor,nativeExport=window.RICO_TEST168_NATIVE_EXPORT;
+  if(typeof nativeExport!=='function')throw new Error('No se encontro el exportador nativo TEST77.');
+  var opts=Object.assign({},args,{gridWidth:40,gridHeight:25});
+  self.editor=editor;
+  try{
+    console.log('[RICO TEST173] Screen '+oldSize.width+'x'+oldSize.height+' -> static Rico Window '+windows.map(function(w){return w.width+'x'+w.height+' @ '+w.x+','+w.y;}).join(' / '));
+    return nativeExport.call(self,opts);
+  }finally{self.editor=orig;}
+}
+
 // TEST168 lateral maps: export the requested 25-row viewport using the existing
 // tested 40x25 horizontal player. No changed editor state or user artwork.
 function isHorizontalProject(self){
@@ -564,6 +622,9 @@ ToPRGAdv.prototype.createPRG=function(args){
   args=args||{};
   if(!isLargeCandidate(this))return prev.apply(this,arguments);
   try{
+    // TEST173: no Map Scroll selected => export the configured Rico's Window
+    // through the native character-animation/bank-switch runtime.
+    if(!hasActiveMapScroll(this))return exportRicoWindowOnly(this,args);
     if(isHorizontalProject(this))return exportHorizontalProject(this,args);
     var d=collect(this),source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
     console.log('[RICO TEST168 LARGE MAP] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
@@ -571,6 +632,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   }catch(e){console.error('[RICO TEST168 LARGE MAP]',e);alert('No se pudo exportar el mapa: '+e.message);return false;}
 };
 
+window.RICO_TEST173_WINDOW_STATIC_EXPORT={hasActiveMapScroll:hasActiveMapScroll,exportRicoWindowOnly:exportRicoWindowOnly};
 window.RICO_TEST168_PRG_LARGE_MAP={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],sourceMapSeparateFromVIC:true,colorMapBase:COLOR_DATA_BASE,perCellColors:true,sparseColorCommit:true,blankCellsUseDominantVisibleColor:true,doubleBuffer:true,pipelined8px:true,maxPalSpeed:'8px/frame'};
 console.log('[RICO TEST168 LARGE MAP] Large vertical map exporter loaded with pipelined 8px/frame PAL max-speed path.');
 })();
