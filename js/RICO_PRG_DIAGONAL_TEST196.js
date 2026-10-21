@@ -126,7 +126,7 @@ function build(d){
    ' lda #$08',' sta dst_hi',' jsr render_to_dst');
  if(!d.uniformColor)e(' jsr commit_colors199');
  e(' jsr update_d018',' jsr apply_fine',
-   ' lda #$01',' sta $d01a',' lda #$fa',' sta $d012',
+   ' lda #$01',' sta $d01a',' lda #'+h(d.uniformColor?0xfa:0),' sta $d012',
    ' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
    'main_loop',' lda prep_request',' beq main_group',' lda prep_ready',' bne main_group',
    ' lda #$01',' sta main_busy',
@@ -347,5 +347,5 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST196_DIAGONAL={collect:collect,build:build,directions:DIRECTIONS};
-console.log('[RICO TEST199] Diagonal Map Scroll: stage multicolor Color RAM at $0C00 and commit on raster swap, preserving TEST198 speed path.');
+console.log('[RICO TEST201] Diagonal multicolor Color RAM commit at frame-start raster 0; mono and speed preserve TEST198.');
 })();
