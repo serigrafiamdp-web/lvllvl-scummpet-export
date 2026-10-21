@@ -1,7 +1,9 @@
-/* RICO TEST179 — opaque C64 border around any active large Map Scroll.
- * Extends TEST178 PASS to horizontal movement without changing vertical logic.
- * Only editor canvas presentation.  Never edits Screen/Window/Scroll Area,
- * underlying charset pixels or PRG exporter.  TEST177 remains source base.
+/* RICO TEST180 — keep the native-sized C64 border around the viewport ONLY.
+ * TEST179 incorrectly filled ALL editor space outside Rico's Window using
+ * the selected border color, invisible with black but obvious with cyan.
+ * Draw editor-black outside the C64; render the actual C64 border as a
+ * 32-pixel band (scaled with editor zoom), keep uncovered screen cells in
+ * screen background color. No Screen data, Window geometry or PRG changes.
  */
 (function(){
 'use strict';
@@ -46,7 +48,10 @@ function state(view){
     return {x:x,y:y,width:w.width*px*sx,height:camH*sx,
       left:(a.x-w.x)*px*sx,
       right:(w.x+w.width-a.x-a.width)*px*sx,
-      border:borderColor(ed)};
+      border:borderColor(ed),
+      showBorder:!!(ed.grid&&ed.grid.border&&ed.grid.border.visible),
+      borderSize:32*sx,
+      background:screenBackgroundColor(ed,frame)};
   }catch(e){return null;}
 }
 function borderColor(editor){
@@ -62,6 +67,28 @@ function borderColor(editor){
   }catch(e){}
   return '#000000';
 }
+function screenBackgroundColor(editor,frame){
+  try {
+    var g=editor.graphic;
+    var ci=g&&g.getBackgroundColor?g.getBackgroundColor(frame):null;
+    var palette=editor.colorPaletteManager&&editor.colorPaletteManager.getCurrentColorPalette
+      ?editor.colorPaletteManager.getCurrentColorPalette():null;
+    if(palette && typeof ci==='number' && ci>=0){
+      var h=palette.getHexString(ci);
+      if(h!==false && h!==null && typeof h!=='undefined')return '#'+h;
+    }
+    var layer=editor.layers&&editor.layers.getSelectedLayerObject
+      ?editor.layers.getSelectedLayerObject():null;
+    if(layer&&layer.getBackgroundColor&&layer.getColorPalette){
+      var lc=layer.getBackgroundColor(frame),lp=layer.getColorPalette();
+      if(lp&&typeof lc==='number'&&lc>=0){
+        var hex=lp.getHexString(lc);
+        if(hex!==false&&hex!==null&&typeof hex!=='undefined')return '#'+hex;
+      }
+    }
+  }catch(e){}
+  return '#000000';
+}
 function paint(ctx,x,y,w,h){if(w>0&&h>0)ctx.fillRect(x,y,w,h);}
 function drawBorder(view,s){
   if(!s || !view.context)return;
@@ -71,15 +98,34 @@ function drawBorder(view,s){
   var x=s.x,y=s.y,x2=x+s.width,y2=y+s.height;
   ctx.save();
   ctx.beginPath();ctx.rect(0,0,maxW,maxH);ctx.clip();
-  ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.fillStyle=s.border;
-  // Cover the editor's checkerboard background and post-drawn grid lines
-  // outside the *visible Window*, without hiding the scrollbar widgets.
+  ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+
+  // IMPORTANT: this is NOT the VIC-II border. It is the workbench outside
+  // the simulated C64. Clean up the checkerboard/grid there using neutral
+  // black, not the user's border color (TEST179 regression).
+  ctx.fillStyle='#000000';
   paint(ctx,0,0,maxW,y);
   paint(ctx,0,y2,maxW,maxH-y2);
   paint(ctx,0,y,x,s.height);
   paint(ctx,x2,y,maxW-x2,s.height);
-  // Any Scroll Area narrower than its Window has uncovered columns.
-  // They are border, not transparent cells and not horizontally repeated art.
+
+  // The VIC-II C64 border is a fixed 32 logical pixels on every side of
+  // the visible Window, independent of Screen/Scroll Area sizes. Native
+  // TEST83 already draws it; the workbench cleanup above covered it, so
+  // paint ONLY this narrow ring once again. Do not flood the editor.
+  if(s.showBorder && s.borderSize>0){
+    var b=s.borderSize;
+    ctx.fillStyle=s.border;
+    paint(ctx,x-b,y-b,s.width+2*b,b);
+    paint(ctx,x-b,y2,s.width+2*b,b);
+    paint(ctx,x-b,y,b,s.height);
+    paint(ctx,x2,y,b,s.height);
+  }
+
+  // Cells in Window but outside Scroll Area belong to the C64 screen,
+  // not to its border. A narrow source must show the SCREEN background
+  // color here, while staying opaque and free of checkerboard artifacts.
+  ctx.fillStyle=s.background;
   if(s.left>0)paint(ctx,x,y,Math.min(s.width,s.left),s.height);
   if(s.right>0)paint(ctx,Math.max(x,x2-s.right),y,Math.min(s.width,s.right),s.height);
   ctx.restore();
@@ -106,7 +152,7 @@ GridView2d.prototype.draw=function(){
   drawBorder(this,s);
   return result;
 };
-window.RICO_TEST178_PREVIEW_BORDER={enabled:true,verticalMapOnly:false,horizontalMap:true,test179:true,sourceUntouched:true,
+window.RICO_TEST178_PREVIEW_BORDER={enabled:true,verticalMapOnly:false,horizontalMap:true,test179:true,test180:true,c64BorderOnly:true,sourceUntouched:true,
   windowUntouched:true,exporterUntouched:true,getState:state};
-console.log('[RICO TEST179] Opaque vertical/horizontal Map Scroll border; grid and ghost column masked without touching art.');
+console.log('[RICO TEST180] C64 32px border only; editor exterior black and blank screen cells use background color.');
 })();
