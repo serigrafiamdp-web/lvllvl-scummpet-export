@@ -9,7 +9,7 @@ function rawTick79(){var ms=0;try{if(typeof getTimestamp==='function')ms=getTime
 function tick(){var r=rawTick79();return pause79.paused?pause79.frozen:(r-pause79.offset);}
 function updatePause79(){var b=$('#ricoMapScrollPause79');if(b.length)b.text(pause79.paused?'PLAY':'PAUSE');}
 function setPaused79(v){v=!!v;if(v===pause79.paused){updatePause79();return;}var r=rawTick79();if(v){pause79.frozen=r-pause79.offset;pause79.rawStart=r;pause79.paused=true;}else{pause79.offset+=Math.max(0,r-pause79.rawStart);pause79.paused=false;}updatePause79();try{var g=graphicOf(activeFrames58);if(g)g.redraw({allCells:true});}catch(e){}}
-function cfgClean(c){c=c||{};var t=c.type||'',ok=false;for(var i=0;i<OPTS.length;i++)if(OPTS[i][0]===t)ok=true;if(!ok)t='';var n=parseInt(c.ticksPerStep,10);if(isNaN(n)||n<1)n=DEF;if(n>255)n=255;var px=parseInt(c.pixelsPerStep,10);if(isNaN(px)||px<1)px=DEF_PIX;if(px>8)px=8;return{version:4,type:t,ticksPerStep:n,pixelsPerStep:px};}
+function cfgClean(c){c=c||{};var t=c.type||'',ok=false;for(var i=0;i<OPTS.length;i++)if(OPTS[i][0]===t)ok=true;if(!ok)t='';var n=parseInt(c.ticksPerStep,10);if(isNaN(n)||n<1)n=DEF;if(n>255)n=255;var px=parseInt(c.pixelsPerStep,10);if(isNaN(px)||px<1)px=DEF_PIX;if(px>8)px=8;return{version:4,type:t,ticksPerStep:n,pixelsPerStep:px,diagonalEdgeMask:c.diagonalEdgeMask!==false};}
 function frameObj(g,n){if(!g||!g.frames)return null;if(typeof n==='undefined')n=g.getCurrentFrame();return n>=0&&n<g.frames.length?g.frames[n]:null;}
 function getCfg(g,n){var f=frameObj(g,n);return f&&f[FIELD]?cfgClean(f[FIELD]):cfgClean(null);}function winCfg(g,n){try{if(window.RICO_TEST75_WINDOW_DIMENSION&&window.RICO_TEST75_WINDOW_DIMENSION.getConfig)return window.RICO_TEST75_WINDOW_DIMENSION.getConfig(g,n);if(window.RICO_TEST67_WINDOW_DIMENSION&&window.RICO_TEST67_WINDOW_DIMENSION.getConfig)return window.RICO_TEST67_WINDOW_DIMENSION.getConfig(g,n);}catch(e){}var w=40,h=25;try{w=g.getGridWidth();h=g.getGridHeight();}catch(e2){}return{x:0,y:0,width:w,height:h};}function scrollAreaCfg(g,n){try{if(window.RICO_TEST75_WINDOW_DIMENSION&&window.RICO_TEST75_WINDOW_DIMENSION.getScrollArea)return window.RICO_TEST75_WINDOW_DIMENSION.getScrollArea(g,n);}catch(e){}var w=40,h=25;try{w=g.getGridWidth();h=g.getGridHeight();}catch(e2){}return{x:0,y:0,width:w,height:h};}
 function reset(g,n){if(!g)return;g.__ricoMap37={frame:typeof n==='number'?n:g.getCurrentFrame(),start:tick(),phase:-1};}
@@ -17,6 +17,14 @@ function setCfg(g,n,c){var f=frameObj(g,n);if(!f)return;f[FIELD]=cfgClean(c);res
 function phase(g,n,c,now){var s=g.__ricoMap37;if(!s||s.frame!==n||now<s.start){reset(g,n);s=g.__ricoMap37;}return Math.floor(Math.max(0,now-s.start)/c.ticksPerStep);}
 function ping(p,size){if(size<=1)return 0;var cyc=size*2-2;p=((p%cyc)+cyc)%cyc;return p<size?p:cyc-p;}
 function bgCSS(g,n){try{var pm=g&&g.editor&&g.editor.colorPaletteManager, pal=pm&&pm.getCurrentColorPalette?pm.getCurrentColorPalette():null, ci=g&&g.getBackgroundColor?g.getBackgroundColor(n):0;if((typeof ci!=='number'||ci<0))ci=0;if(pal&&pal.getHexString){var h=pal.getHexString(ci);if(h!==false&&typeof h!=='undefined'&&h!==null)return '#'+h;}}catch(e){}return '#000000';}
+function diagonalBorderCSS197(g,n){
+  try {
+    var ed=g&&g.editor,layer=ed&&ed.layers&&ed.layers.getSelectedLayerObject?ed.layers.getSelectedLayerObject():null;
+    var p=layer&&layer.getColorPalette&&layer.getColorPalette();
+    if(p&&layer.getBorderColor){var hex=p.getHexString(layer.getBorderColor());if(hex!==false&&hex!==null&&hex!==undefined)return '#'+hex;}
+  }catch(e){}
+  return bgCSS(g,n);
+}
 function options(v){var h='';for(var i=0;i<OPTS.length;i++)h+='<option value="'+OPTS[i][0]+'"'+(OPTS[i][0]===v?' selected':'')+'>'+OPTS[i][1]+'</option>';return h;}
 function removeTicksWord(){var e=document.getElementById('frameDuration');if(!e||e.__rico37)return;e.__rico37=true;e.title='Frame Duration (ticks)';for(var n=e.nextSibling;n;n=n.nextSibling){if(n.nodeType===3&&/ticks/i.test(n.nodeValue||'')){n.nodeValue=(n.nodeValue||'').replace(/\s*ticks\s*/i,' ');break;}if(n.nodeType===1&&n.classList&&n.classList.contains('frameControlSeparator'))break;}}
 function graphicOf(fc){return fc&&fc.editor?fc.editor.graphic:null;}
@@ -24,12 +32,12 @@ function drawNativeBorder58(g,n,ctx,canvas,ox,oy,nw,nh,sc){try{var ed=g&&g.edito
 function previewPump58(){try{var fc=activeFrames58,g=graphicOf(fc);if(g&&g.frames&&g.frames.length){var n=g.getCurrentFrame(),cfg=getCfg(g,n);if(cfg.type){var p=phase(g,n,cfg,tick()),s=g.__ricoMap37;if(s&&s.phase!==p){s.phase=p;g.redraw({allCells:true});}}}}catch(e){console.error('[RICO TEST79 UI] preview pump failed',e);}if(typeof requestAnimationFrame==='function')requestAnimationFrame(previewPump58);}
 function startPreviewPump58(){if(previewLoop58||typeof requestAnimationFrame!=='function')return;previewLoop58=true;requestAnimationFrame(previewPump58);}
 function refreshButton(fc){var b=$('#ricoMapScrollButton37');if(!b.length)return;var g=graphicOf(fc);if(!g)return;var c=getCfg(g,g.getCurrentFrame());b.text('MAP SCROLL'+(c.type?' · ON':''));b.css('font-weight',c.type?'bold':'');b.attr('title',c.type?(c.type+' · '+c.ticksPerStep+' ticks/step · '+c.pixelsPerStep+' px/step'):'Map Scroll settings for this frame');}
-function readDialogCfg79(){var n=parseInt($('#ricoMapScrollTicks37').val(),10);if(isNaN(n)||n<1)n=DEF;if(n>255)n=255;var px=parseInt($('#ricoMapScrollPixels37').val(),10);if(isNaN(px)||px<1)px=DEF_PIX;if(px>8)px=8;return{type:$('#ricoMapScrollType37').val()||'',ticksPerStep:n,pixelsPerStep:px};}
+function readDialogCfg79(){var n=parseInt($('#ricoMapScrollTicks37').val(),10);if(isNaN(n)||n<1)n=DEF;if(n>255)n=255;var px=parseInt($('#ricoMapScrollPixels37').val(),10);if(isNaN(px)||px<1)px=DEF_PIX;if(px>8)px=8;return{type:$('#ricoMapScrollType37').val()||'',ticksPerStep:n,pixelsPerStep:px,diagonalEdgeMask:$('#ricoMapDiagonalEdgeMask197').prop('checked')!==false};}
 function saveDialogFrame79(fc){var g=graphicOf(fc);if(!g)return;var n=g.getCurrentFrame();setCfg(g,n,readDialogCfg79());
   if(autoFit177&&autoFit177.frame===n){var api=window.RICO_TEST75_WINDOW_DIMENSION;if(api&&api.setScrollArea)api.setScrollArea(g,n,autoFit177.rect);autoFit177=null;}
   refreshButton(fc);
 }
-function loadDialogFrame79(fc){var g=graphicOf(fc);if(!g)return;$('#ricoMapAutoFitStatus177').text('Auto Fit detecta los caracteres exteriores del frame. Guardar con OK.').css('color','#aaa');var n=g.getCurrentFrame(),count=g.getFrameCount?g.getFrameCount():(g.frames?g.frames.length:1),cfg=getCfg(g,n),f=frameObj(g,n);$('#ricoMapScrollType37').html(options(cfg.type)).val(cfg.type);$('#ricoMapScrollTicks37').val(cfg.ticksPerStep);$('#ricoMapScrollPixels37').val(cfg.pixelsPerStep);$('#ricoMapScrollFrame79').text('Frame '+(n+1)+' / '+count);$('#ricoMapScrollPrev79').css('opacity',n<=0?0.35:1);$('#ricoMapScrollNext79').css('opacity',n>=count-1?0.35:1);$('#ricoMapScrollInfo37').text('Frame Duration: '+(f&&f.duration?f.duration:'?')+' ticks · '+cfg.pixelsPerStep+' px every '+cfg.ticksPerStep+' tick'+(cfg.ticksPerStep===1?'':'s')+(pause79.paused?' · GLOBAL PAUSE':''));updatePause79();}
+function loadDialogFrame79(fc){var g=graphicOf(fc);if(!g)return;$('#ricoMapAutoFitStatus177').text('Auto Fit detecta los caracteres exteriores del frame. Guardar con OK.').css('color','#aaa');var n=g.getCurrentFrame(),count=g.getFrameCount?g.getFrameCount():(g.frames?g.frames.length:1),cfg=getCfg(g,n),f=frameObj(g,n);$('#ricoMapScrollType37').html(options(cfg.type)).val(cfg.type);$('#ricoMapScrollTicks37').val(cfg.ticksPerStep);$('#ricoMapScrollPixels37').val(cfg.pixelsPerStep);$('#ricoMapDiagonalEdgeMask197').prop('checked',cfg.diagonalEdgeMask!==false);$('#ricoMapDiagonalEdgeRow197').toggle(/^diag-/.test(cfg.type));$('#ricoMapScrollFrame79').text('Frame '+(n+1)+' / '+count);$('#ricoMapScrollPrev79').css('opacity',n<=0?0.35:1);$('#ricoMapScrollNext79').css('opacity',n>=count-1?0.35:1);$('#ricoMapScrollInfo37').text('Frame Duration: '+(f&&f.duration?f.duration:'?')+' ticks · '+cfg.pixelsPerStep+' px every '+cfg.ticksPerStep+' tick'+(cfg.ticksPerStep===1?'':'s')+(pause79.paused?' · GLOBAL PAUSE':''));updatePause79();}
 function autoFitScroll177(fc){
   var g=graphicOf(fc),api=window.RICO_TEST177_ART_FIT;
   if(!g||!api)return;
@@ -45,12 +53,13 @@ function stepDialogFrame79(fc,delta){var g=graphicOf(fc);if(!g)return;var n=g.ge
 
 function ensureDialog(fc){
   if(UI.get&&UI.get('ricoMapScrollDialog37'))return;
-  var d=UI.create('UI.Dialog',{id:'ricoMapScrollDialog37',title:"Rico's Map Scroll",width:470,height:388});
+  var d=UI.create('UI.Dialog',{id:'ricoMapScrollDialog37',title:"Rico's Map Scroll",width:470,height:424});
   var html='<div style="padding:14px 18px">';
   html+='<div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:14px"><div class="ui-button" id="ricoMapScrollPrev79" style="min-width:30px;text-align:center">&lt;</div><div id="ricoMapScrollFrame79" style="min-width:100px;text-align:center;font-weight:bold">Frame</div><div class="ui-button" id="ricoMapScrollNext79" style="min-width:30px;text-align:center">&gt;</div><div class="ui-button" id="ricoMapScrollPause79" style="min-width:66px;text-align:center;margin-left:10px">PAUSE</div></div>';
   html+='<div style="margin-bottom:14px"><label style="display:inline-block;width:125px">Map Scroll:</label><select id="ricoMapScrollType37" style="width:230px">'+options('')+'</select></div>';
   html+='<div style="margin-bottom:10px"><label style="display:inline-block;width:125px">Ticks / Step:</label><input id="ricoMapScrollTicks37" class="number integer" type="number" min="1" max="255" value="6" style="width:70px"></div>';
   html+='<div><label style="display:inline-block;width:125px">Pixels / Step:</label><input id="ricoMapScrollPixels37" class="number integer" type="number" min="1" max="8" value="1" style="width:70px"> <span style="color:#aaa;font-size:11px">1–8 px</span></div>';
+  html+='<div id="ricoMapDiagonalEdgeRow197" style="margin-top:10px;color:#aaa;font-size:11px"><label><input type="checkbox" id="ricoMapDiagonalEdgeMask197" checked> Clean borders 38×24 (experimental, switch OFF for full 40×25)</label></div>';
   html+='<div style="margin-top:13px;text-align:center"><div id="ricoMapAutoFit177" class="ui-button">Auto Fit Scroll Area to Art</div></div>';
   html+='<div id="ricoMapAutoFitStatus177" style="margin-top:7px;text-align:center;color:#aaa;font-size:11px;min-height:16px">Auto Fit detecta los caracteres exteriores del frame. Guardar con OK.</div>';
   html+='<div id="ricoMapScrollInfo37" style="margin-top:12px;color:#aaa;font-size:11px"></div>';
@@ -58,7 +67,7 @@ function ensureDialog(fc){
   d.add(UI.create('UI.HTMLPanel',{html:html}));
   var ok=UI.create('UI.Button',{text:'OK',color:'primary'});d.addButton(ok);ok.on('click',function(){saveDialogFrame79(fc);UI.closeDialog();});
   var ca=UI.create('UI.Button',{text:'Cancel',color:'secondary'});d.addButton(ca);ca.on('click',function(){autoFit177=null;UI.closeDialog();});
-  setTimeout(function(){$('#ricoMapScrollPrev79').on('click',function(){stepDialogFrame79(fc,-1);});$('#ricoMapScrollNext79').on('click',function(){stepDialogFrame79(fc,1);});$('#ricoMapScrollPause79').on('click',function(){setPaused79(!pause79.paused);loadDialogFrame79(fc);});$('#ricoMapAutoFit177').on('click',function(){autoFitScroll177(fc);});},0);
+  setTimeout(function(){$('#ricoMapScrollType37').on('change.rico197',function(){$('#ricoMapDiagonalEdgeRow197').toggle(/^diag-/.test($(this).val()));});$('#ricoMapScrollPrev79').on('click',function(){stepDialogFrame79(fc,-1);});$('#ricoMapScrollNext79').on('click',function(){stepDialogFrame79(fc,1);});$('#ricoMapScrollPause79').on('click',function(){setPaused79(!pause79.paused);loadDialogFrame79(fc);});$('#ricoMapAutoFit177').on('click',function(){autoFitScroll177(fc);});},0);
 }
 function openDialog(fc){var g=graphicOf(fc);if(!g)return;autoFit177=null;activeFrames58=fc;ensureDialog(fc);UI.showDialog('ricoMapScrollDialog37');setTimeout(function(){loadDialogFrame79(fc);},0);}
 function install(fc){activeFrames58=fc;startPreviewPump58();if($('#ricoMapScrollButton37').length){refreshButton(fc);return;}var d=$('#frameDuration');if(!d.length)return;removeTicksWord();var b=$('<div class="ui-button" id="ricoMapScrollButton37" style="margin-left:8px;vertical-align:middle">MAP SCROLL</div>');d.after(b);b.on('click.rico37',function(){openDialog(fc);});refreshButton(fc);}
@@ -133,6 +142,16 @@ Graphic.prototype.drawFrame=function(a){
   else if(wrapX){ctx.drawImage(s,areaOx+dx-areaMW,areaOy);ctx.drawImage(s,areaOx+dx,areaOy);ctx.drawImage(s,areaOx+dx+areaMW,areaOy);}
   else if(wrapY){ctx.drawImage(s,areaOx,areaOy+dy-areaMH);ctx.drawImage(s,areaOx,areaOy+dy);ctx.drawImage(s,areaOx,areaOy+dy+areaMH);}
   else{ctx.drawImage(s,areaOx+dx,areaOy+dy);}
+  // Match the VIC-II experimental 38-column / 24-row edge mask.
+  // The underlying 40x25 map remains unchanged and can be restored via checkbox.
+  if(/^diag-/.test(cfg.type)&&cfg.diagonalEdgeMask){
+    var stripX=Math.min(8*sc,clipW/3),stripY=Math.min(4*sc,clipH/3);
+    ctx.fillStyle=diagonalBorderCSS197(this,n);
+    ctx.fillRect(clipX,clipY,stripX,clipH);
+    ctx.fillRect(clipX+clipW-stripX,clipY,stripX,clipH);
+    ctx.fillRect(clipX,clipY,clipW,stripY);
+    ctx.fillRect(clipX,clipY+clipH-stripY,clipW,stripY);
+  }
   ctx.restore();
   drawNativeBorder58(this,n,ctx,a.canvas,clipX,clipY,viewW,viewH,sc);
 };
