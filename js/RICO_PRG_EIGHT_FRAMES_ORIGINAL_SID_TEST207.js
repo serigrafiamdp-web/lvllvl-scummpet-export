@@ -91,73 +91,108 @@ function validatePatchBank(alloc){
  var collisions=alloc.entries.filter(function(x){return x.address<MEM.patchEnd&&x.address+x.bytes.length>MEM.patchStart;});
  if(collisions.length)throw new Error('TEST207: los recursos ya ocupan $B000-$B7FF. Es necesario reducir Scroll Area o frames para reservar Color RAM.');
 }
+// TEST211 common audio ABI for the LVLLVL exporter and future SCUMM bridge:
+// (1) INIT captures a private $F0-$FF SID state;
+// (2) every PLAY saves/restores the engine $F0-$FF;
+// (3) for native CIA: INIT => raster IRQ armed => one-shot start,
+//     CIA IRQ owns audio, VIC IRQ owns animation. Frame count is irrelevant.
+function buildSidShared211(sid,useHardwareCIA){
+ var out=[
+ 'sid_init_protected211',
+ ' ldx #$00',
+ 'sid_init_save211',
+ ' lda $f0,x',' sta sid_engine_zp211,x',
+ ' inx',' cpx #$10',' bne sid_init_save211',
+ ' lda #'+h2(sid.subtune),
+ ' jsr '+hx(sid.init),
+ ' ldx #$00',
+ 'sid_init_capture211',
+ ' lda $f0,x',' sta sid_private_zp211,x',
+ ' lda sid_engine_zp211,x',' sta $f0,x',
+ ' inx',' cpx #$10',' bne sid_init_capture211',
+ ' rts',
+ 'sid_play_protected211',
+ ' ldx #$00',
+ 'sid_play_swapin211',
+ ' lda $f0,x',' sta sid_engine_zp211,x',
+ ' lda sid_private_zp211,x',' sta $f0,x',
+ ' inx',' cpx #$10',' bne sid_play_swapin211',
+ ' jsr '+hx(sid.play),
+ ' ldx #$00',
+ 'sid_play_swapout211',
+ ' lda $f0,x',' sta sid_private_zp211,x',
+ ' lda sid_engine_zp211,x',' sta $f0,x',
+ ' inx',' cpx #$10',' bne sid_play_swapout211',
+ ' rts',
+ 'sid_engine_zp211',
+ '!byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00',
+ 'sid_private_zp211',
+ '!byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00'
+ ];
+ if(useHardwareCIA)out.push(
+ 'sid_cia_pending211','!byte $00',
+ 'sid_start_gate211','!byte $00',
+ 'sid_audio_only211',
+ ' pla',' tay',' pla',' tax',' pla',' rti'
+ );
+ return out.join('\n');
+}
 function makeSource207(source,sid,speed){
- // Color RAM's sparse scratch from TEST203 must no longer occupy $1000-$17ff.
- // Its 4 index pages + 4 color pages are relocated to $b000-$b7ff.
+ // Only relocate the sparse color lists if the output contains them.
  var edits=0;
  source=source.replace(/\$(1[0-7])00,([xy])/gi,function(_,hi,reg){edits++;return '$'+(0xb0+parseInt(hi,16)-0x10).toString(16)+'00,'+reg;});
- if(edits!==0&&edits!==16)throw new Error('TEST208: reubicacion de color incompleta ('+edits+' referencias).');
- if(/\$(?:1[0-7])00,[xy]/i.test(source))throw new Error('TEST207: quedaron referencias de colores en $1000-$17ff.');
- // Original LVLLVL initializes the SID with A=subtune before enabling IRQ.
- var init=' lda #'+h2(sid.subtune)+'\n jsr '+hx(sid.init)+'\n';
+ if(edits!==0&&edits!==16)throw new Error('TEST211: reubicacion de color incompleta ('+edits+' referencias).');
+ if(/\$(?:1[0-7])00,[xy]/i.test(source))throw new Error('TEST211: quedan referencias a listas de color en la RAM del SID.');
+
+ // Audio INIT leaves zero-page private variables at $F0-$FF.
+ // Capture them and restore the graphics engine's previous page zero.
  source=replaceOnce(source,' lda #$01\n sta $d01a\n lda #$fa\n sta $d012',
- init+' lda #$01\n sta $d01a\n lda #$fa\n sta $d012');
- // Its play is called in raster IRQ after register saves/IRQ acknowledgment.
- var ciaHardware210=speed==='cia-hardware210';
- var fractional209=!ciaHardware210&&speed!==1&&speed!==2&&speed!==60;
- // The three TEST208 modes are kept exactly as before for regression safety.
- var play=fractional209?'':' jsr '+hx(sid.play)+'\n';
- if(speed===2)play+=' jsr '+hx(sid.play)+'\n';
+  ' jsr sid_init_protected211\n lda #$01\n sta $d01a\n lda #$fa\n sta $d012');
+
+ var hardware=speed==='cia-hardware210';
+ var fractional=speed!==1&&speed!==2&&speed!==60&&!hardware;
+ var play=fractional?'':' jsr sid_play_protected211\n';
+ if(speed===2)play+=' jsr sid_play_protected211\n';
  if(speed===60){
-   // Preserve TEST208's previous CIA fallback for tunes with unknown timers.
    play+=' lda sid_phase208\n clc\n adc #$0a\n cmp #$32\n bcc sid_due208\n';
-   play+=' sec\n sbc #$32\n sta sid_phase208\n jsr '+hx(sid.play)+'\n jmp sid_end208\n';
+   play+=' sec\n sbc #$32\n sta sid_phase208\n jsr sid_play_protected211\n jmp sid_end208\n';
    play+='sid_due208\n sta sid_phase208\nsid_end208\n';
  }
- var fraction209=0;
- if(fractional209){
-   var rate256=Math.round(speed*256/50),whole209=Math.floor(rate256/256);
-   fraction209=rate256&255;
-   for(var calls209=0;calls209<whole209;calls209++)play+=' jsr '+hx(sid.play)+'\n';
-   if(fraction209){
-     // 8-bit phase accumulator: for 40Hz on PAL this gives 4 of every 5
-     // 50Hz raster IRQs, rather than TEST208's accelerated 6/5 plays.
-     play+=' lda sid_phase209\n clc\n adc #'+h2(fraction209)+'\n';
+ var fraction=0;
+ if(fractional){
+   var rate256=Math.round(speed*256/50),whole=Math.floor(rate256/256);
+   fraction=rate256&255;
+   for(var k=0;k<whole;k++)play+=' jsr sid_play_protected211\n';
+   if(fraction){
+     play+=' lda sid_phase209\n clc\n adc #'+h2(fraction)+'\n';
      play+=' sta sid_phase209\n bcc sid_skip209\n';
-     play+=' jsr '+hx(sid.play)+'\nsid_skip209\n';
+     play+=' jsr sid_play_protected211\nsid_skip209\n';
    }
  }
- if(ciaHardware210){
-   // TEST210: two INDEPENDENT hardware interrupts: CIA1 Timer A drives
-   // music at the tune's own $DC04/$DC05 latch, VIC raster drives ONLY video.
-   // The SID's INIT has already written the Timer A latch.
+ if(hardware){
+   // Follow the exact proven SCUMM-PET-C64 order: INIT first, install IRQ
+   // vector with CIA disabled, then enable Timer A ONLY on first VIC raster.
+   // The SID's own INIT-provided $DC04/$DC05 latch is never changed here.
    source=replaceOnce(source,' sta $ffff\n cli',
-     ' sta $ffff\n lda #$81\n sta $dc0d\n lda #$11\n sta $dc0e\n cli');
-   // Prioritize the VIC-II raster path. The CIA-only interrupts MUST NOT
-   // increment the map/group scheduler: they only run the audio player.
-   source=replaceOnce(source,'*=$2000\n',
-     '*=$2000\ncia_pending210=$58\n');
+     ' sta $ffff\n lda #$00\n sta sid_start_gate211\n lda #$7f\n sta $dc0d\n lda $dc0d\n lda #$00\n sta $dc0e\n cli');
    source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
-     'irq\n pha\n txa\n pha\n tya\n pha\n lda $dc0d\n and #$01\n sta cia_pending210\n lda $d019\n and #$01\n bne vic_video210\n jmp cia_only_exit210\nvic_video210\n lda #$01\n sta $d019');
-   var groupDone210=source.indexOf('irq_only_group\n jsr group182_irq_tick\n pla\n tay\n pla\n tax\n pla\n rti')>=0?'irq_only_group':'irq_group';
-   source=replaceOnce(source,groupDone210+'\n jsr group182_irq_tick\n pla\n tay\n pla\n tax\n pla\n rti',
-     groupDone210+'\n jsr group182_irq_tick\n jmp cia_only_exit210');
-   source=replaceOnce(source,'*=$3000\ncharset_bank1',
-     'cia_only_exit210\n lda cia_pending210\n beq cia_restore210\n jsr '+hx(sid.play)+
-     '\ncia_restore210\n pla\n tay\n pla\n tax\n pla\n rti\n*=$3000\ncharset_bank1');
+     'irq\n pha\n txa\n pha\n tya\n pha\n lda $dc0d\n and #$01\n sta sid_cia_pending211\n beq sid_no_cia211\n jsr sid_play_protected211\nsid_no_cia211\n lda $d019\n and #$01\n bne sid_vic211\n jmp sid_audio_only211\nsid_vic211\n lda #$01\n sta $d019\n lda sid_start_gate211\n bne sid_vic_armed211\n lda #$81\n sta $dc0d\n lda #$11\n sta $dc0e\n lda #$01\n sta sid_start_gate211\nsid_vic_armed211');
  }else{
+   // Standard SID timing still uses the shared private-ZP PLAY wrapper.
    source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
-     'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
+    'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
  }
- // Source is placed exactly at the SID's own load address; never relocate
- // compiled music data, because absolute JSR/JMP and embedded pointers exist.
  if(speed===60)source=replaceOnce(source,'*=$3000\ncharset_bank1',
   'sid_phase208\n!byte $00\n*=$3000\ncharset_bank1');
- if(fractional209&&fraction209)
-   source=replaceOnce(source,'*=$3000\ncharset_bank1',
-    'sid_phase209\n!byte '+h2((256-fraction209)&255)+'\n*=$3000\ncharset_bank1');
+ if(fractional&&fraction)source=replaceOnce(source,'*=$3000\ncharset_bank1',
+  'sid_phase209\n!byte '+h2((256-fraction)&255)+'\n*=$3000\ncharset_bank1');
+
+ // Our SID ABI helper occupies only the free tail of the existing code bank.
+ // No SCUMM addresses are copied; BANK$B000 can be used by compact frames.
+ source=replaceOnce(source,'*=$3000\ncharset_bank1',
+  buildSidShared211(sid,hardware)+'\n*=$3000\ncharset_bank1');
  source=replaceOnce(source,'*=$2000\n',
-  '*='+hx(sid.load)+'\nSID_ORIGINAL_LVLLVL_TEST207\n'+bytesToAsm(sid.bytes)+'\n*=$2000\n');
+  '*='+hx(sid.load)+'\nSID_ORIGINAL_LVLLVL_TEST211\n'+bytesToAsm(sid.bytes)+'\n*=$2000\n');
  return source;
 }
 function export207(self,args,raw){
@@ -167,7 +202,7 @@ function export207(self,args,raw){
  var explicitSpeed=args&&(args.sidSpeed===1||args.sidSpeed===2)?args.sidSpeed:SID_STATE.speed;
  var hardware210=sid.ciaTiming&&!!sid.ciaTimer&&explicitSpeed!==1&&explicitSpeed!==2;
  var speed=hardware210?'cia-hardware210':explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?60:1);
- SID_STATE.lastTempo209=hardware210?('TEST210 CIA Timer A hardware $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' ≈ '+sid.ciaTimer.hz.toFixed(2)+' Hz, raster separado'):sid.ciaTiming?('CIA sin temporizador usable o tasa manual, modo TEST208'):'VBlank PAL 50 Hz';
+ SID_STATE.lastTempo209=hardware210?('TEST211 CIA Timer A hardware $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' ≈ '+sid.ciaTimer.hz.toFixed(2)+' Hz, raster separado'):sid.ciaTiming?('CIA sin temporizador usable o tasa manual, modo TEST208'):'VBlank PAL 50 Hz';
  var source;
  if(fr.length===1){
    // One-frame export needs no multi-frame storage, and works with horizontal,
@@ -211,22 +246,22 @@ function export207(self,args,raw){
   var err=(assembled&&assembled.errors||[]).map(function(e){return e.message||String(e);});
   throw new Error('TEST207 ASM: '+err.join(' | '));
  }
- window.RICO_TEST210_LAST_EXPORT={
+ window.RICO_TEST211_LAST_EXPORT={
    mode:speed==='cia-hardware210'?'CIA1 Timer A hardware':speed===1?'50 Hz raster':speed===2?'100 Hz raster':speed===60?'~60 Hz fallback':'fractional 50Hz raster',
    frames:fr.length, sidLoad:hx(sid.load), sidInit:hx(sid.init), sidPlay:hx(sid.play),
    ciaTimer:sid.ciaTimer?hx(sid.ciaTimer.latch):null,
    reportedHz:sid.ciaTimer?Number(sid.ciaTimer.hz.toFixed(3)):null
  };
- console.log('[RICO TEST210] PRG SID export',window.RICO_TEST210_LAST_EXPORT);
+ console.log('[RICO TEST211] shared SID ABI export',window.RICO_TEST211_LAST_EXPORT);
  var visual210=typeof document!=='undefined'&&document.getElementById('ricoSid207Status');
- if(visual210)visual210.textContent='TEST210 '+window.RICO_TEST210_LAST_EXPORT.mode+' | '+fr.length+' frame(s) | '+SID_STATE.lastTempo209;
+ if(visual210)visual210.textContent='TEST211 '+window.RICO_TEST211_LAST_EXPORT.mode+' | '+fr.length+' frame(s) | '+SID_STATE.lastTempo209;
  var mem=a.getMemory(),output=new Uint8Array(2+assembled.end-assembled.start);
  output[0]=assembled.start&255;output[1]=(assembled.start>>8)&255;
  for(var k=assembled.start;k<assembled.end;k++)output[2+k-assembled.start]=mem[k]&255;
  self.prg=output;
  args=args||{};
  if(args.download===false)return output;
- var name=args.filename||'rico-sid-frames-test208.prg';
+ var name=args.filename||'rico-sid-shared-abi-test211.prg';
  if(!/\.prg$/i.test(name))name+='.prg';
  if(typeof window.download!=='function')throw new Error('window.download no disponible.');
  window.download(output,name,'application/prg');
@@ -239,7 +274,7 @@ function ensureUI207(){
  var box=document.createElement('div');
  box.id='ricoSid207Panel';
  box.style.cssText='margin:8px 16px;padding:8px;border:1px solid #666;font-size:12px;';
- box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST210 — SID original + scroll (1 o más frames)</label>'
+ box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST211 — SID protegido SCUMM/LVLLVL (1 o más frames)</label>'
    +'<input id="ricoSid207Input" type="file" accept=".sid" style="width:260px">'
    +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: usar CIA Timer A real cuando esté disponible</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
    +'<div id="ricoSid207Status" style="margin-top:5px;color:#bbb">Elegí un archivo .sid. Sólo activa SID cuando tildás la casilla.</div>';
@@ -297,5 +332,6 @@ window.RICO_TEST207_ORIGINAL_SID={
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
  memory:MEM
 };
-console.log('[RICO TEST210 READY] CIA1 hardware SID IRQ independent of VIC raster; version check TEST210; TEST208 rollback remains available.');
+window.RICO_SID_SHARED_ABI_V1={version:211,zeroPageStart:0xf0,zeroPageLength:16,timerRegisters:['$DC04','$DC05'],irqSources:['CIA1 Timer A','VIC-II raster'],initContract:'INIT(A=subtune) then capture SID ZP',playContract:'private SID ZP around PLAY',starting:'first VIC raster after INIT'};
+console.log('[RICO TEST211 READY] Shared SID ABI SCUMM/LVLLVL, native CIA audio IRQ with private $F0-$FF, delayed timer start.');
 })();
