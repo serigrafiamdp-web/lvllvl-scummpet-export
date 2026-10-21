@@ -3,13 +3,13 @@
 /* TEST207 — SID adapter inspired by James' original LVLLVL:
    jaammees/lvllvl/src/js/textMode/c64export/export.asm
    Same PSID load/init/play contracts and IRQ play convention, NOT SCUMM.
-   Only 8 horizontal Map Scroll frames, only tested/isolated resident PSIDs
-   loaded in $1000-$1fff. No existing exporter is changed. */
+   TEST208: 1 or more frames; 8 is a test target, NEVER a minimum.
+   Tested/isolated resident PSIDs loaded in $1000-$1fff. */
 if(typeof ToPRGAdv==='undefined'||!window.RICO_TEST206_COMPACT_FRAMES){
   console.error('[RICO TEST207] TEST206 compact engine missing');return;
 }
 var preceding=ToPRGAdv.prototype.createPRG,compact=window.RICO_TEST206_COMPACT_FRAMES;
-var SID_STATE={data:null,enabled:false,name:'',speed:1,lastMessage:''};
+var SID_STATE={data:null,enabled:false,name:'',speed:0,lastMessage:''};
 var MEM={sidStart:0x1000,sidEnd:0x2000,patchStart:0xb000,patchEnd:0xb800};
 function h2(n){return '$'+('0'+(n&255).toString(16)).slice(-2);}
 function hx(n){return '$'+('0000'+(n&65535).toString(16)).slice(-4);}
@@ -34,11 +34,12 @@ function parseSID(raw){
  if(startSong>songs)throw new Error('SID: subtune inicial fuera de rango.');
  var clockFlag=version>=2&&data.length>=120? (be16(data,0x76)>>2)&3:0;
  var subtuneBit=startSong<=32?((speedBits>>>(startSong-1))&1):0;
- if(subtuneBit)throw new Error('SID utiliza temporizador CIA; TEST207 reproduce una llamada VBlank por cuadro, no temporizacion CIA.');
+ // PSID speed bit requests CIA timing: emulate ~60Hz on PAL by playing
+ // six times every five 50Hz frames. Do not reject compatible PSIDs.
  if(load<MEM.sidStart||load+body.length>MEM.sidEnd)
   throw new Error('TEST207: este PSID carga en '+hx(load)+' y mide '+body.length+' bytes. Primera prueba: carga $1000-$1FFF (4096 B), sin reubicar SID no relocatable.');
  if(init<load||init>=load+body.length||play<load||play>=load+body.length)throw new Error('SID: las direcciones INIT/PLAY deben estar dentro de los bytes cargados, para esta primera prueba.');
- return {version,load,init,play,bytes:body,subtune:startSong-1,songs,speedBits,clockFlag};
+ return {version,load,init,play,bytes:body,subtune:startSong-1,songs,speedBits,clockFlag,ciaTiming:!!subtuneBit};
 }
 function bytesToAsm(u){
  var result=[];for(var i=0;i<u.length;i+=16)result.push('!byte '+Array.prototype.slice.call(u,i,i+16).map(h2).join(','));
@@ -58,32 +59,73 @@ function makeSource207(source,sid,speed){
  // Its 4 index pages + 4 color pages are relocated to $b000-$b7ff.
  var edits=0;
  source=source.replace(/\$(1[0-7])00,([xy])/gi,function(_,hi,reg){edits++;return '$'+(0xb0+parseInt(hi,16)-0x10).toString(16)+'00,'+reg;});
- if(edits<16)throw new Error('TEST207: tablas de color TEST203 no fueron encontradas para reubicacion ('+edits+').');
+ if(edits!==0&&edits!==16)throw new Error('TEST208: reubicacion de color incompleta ('+edits+' referencias).');
  if(/\$(?:1[0-7])00,[xy]/i.test(source))throw new Error('TEST207: quedaron referencias de colores en $1000-$17ff.');
  // Original LVLLVL initializes the SID with A=subtune before enabling IRQ.
  var init=' lda #'+h2(sid.subtune)+'\n jsr '+hx(sid.init)+'\n';
  source=replaceOnce(source,' lda #$01\n sta $d01a\n lda #$fa\n sta $d012',
  init+' lda #$01\n sta $d01a\n lda #$fa\n sta $d012');
  // Its play is called in raster IRQ after register saves/IRQ acknowledgment.
- var play=' jsr '+hx(sid.play)+'\n'+(speed===2?' jsr '+hx(sid.play)+'\n':'');
+ var play=' jsr '+hx(sid.play)+'\n';
+ if(speed===2)play+=' jsr '+hx(sid.play)+'\n';
+ if(speed===60){
+   // Extra tick every fifth PAL raster IRQ, ~60Hz average on 50Hz VIC.
+   play+=' lda sid_phase208\n clc\n adc #$0a\n cmp #$32\n bcc sid_due208\n';
+   play+=' sec\n sbc #$32\n sta sid_phase208\n jsr '+hx(sid.play)+'\n jmp sid_end208\n';
+   play+='sid_due208\n sta sid_phase208\nsid_end208\n';
+ }
  source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
   'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
  // Source is placed exactly at the SID's own load address; never relocate
  // compiled music data, because absolute JSR/JMP and embedded pointers exist.
+ if(speed===60)source=replaceOnce(source,'*=$3000\ncharset_bank1',
+  'sid_phase208\n!byte $00\n*=$3000\ncharset_bank1');
  source=replaceOnce(source,'*=$2000\n',
   '*='+hx(sid.load)+'\nSID_ORIGINAL_LVLLVL_TEST207\n'+bytesToAsm(sid.bytes)+'\n*=$2000\n');
  return source;
 }
 function export207(self,args,raw){
  var graphic=self.editor&&self.editor.graphic,fr=graphic&&graphic.frames||[];
- if(fr.length!==8)throw new Error('TEST207 SID: prueba limitada a 8 frames. El exportador sin musica sigue aceptando mas frames.');
+ if(!fr.length)throw new Error('TEST208: el proyecto no contiene frames.');
  var sid=parseSID(raw);
- var speed=(args&&args.sidSpeed===2)?2:SID_STATE.speed;
- if(speed!==1&&speed!==2)speed=1;
- var frames=compact.collect(self);
- var alloc=compact.pack(frames);
- validatePatchBank(alloc);
- var asm=makeSource207(compact.build({frames:frames,packed:alloc}),sid,speed);
+ var explicitSpeed=args&&(args.sidSpeed===1||args.sidSpeed===2)?args.sidSpeed:SID_STATE.speed;
+ var speed=explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?60:1);
+ var source;
+ if(fr.length===1){
+   // One-frame export needs no multi-frame storage, and works with horizontal,
+   // diagonal or still frame. Reuse their tested routines.
+   var type=fr[0].ricoMapScrollV1&&fr[0].ricoMapScrollV1.type||'';
+   var diagonal=window.RICO_TEST196_DIAGONAL;
+   var horizontal=window.RICO_TEST186_HORIZONTAL;
+   if(/^diag-(?:up|down)-(?:left|right)$/.test(type)){
+     if(!diagonal)throw new Error('Falta el exportador diagonal TEST203.');
+     source=diagonal.build(diagonal.collect(self));
+   }else{
+     if(!horizontal)throw new Error('Falta el exportador horizontal TEST203.');
+     if(type==='left'||type==='right'){
+       source=horizontal.build(horizontal.collect(self));
+     }else if(!type){
+       // Static frame: synthesize a zero-speed horizontal camera *only* for
+       // export, leaving the editable original frame completely unchanged.
+       var original=fr[0],e=self.editor,gg=Object.create(graphic);
+       var sw=original.ricoWindowDimensionV1||{x:0,y:0,width:40,height:25};
+       var sa=original.ricoScrollAreaV1||{x:0,y:0,width:40,height:25};
+       if(sw.width!==40||sw.height!==25)sw={x:0,y:0,width:40,height:25};
+       if(sa.width<40||sa.height<25)sa={x:sw.x||0,y:sw.y||0,width:40,height:25};
+       gg.frames=[Object.assign({},original,{ricoWindowDimensionV1:sw,ricoScrollAreaV1:sa,
+          ricoMapScrollV1:{type:'right',ticksPerStep:1,pixelsPerStep:1}})];
+       var ee=Object.create(e);ee.graphic=gg;
+       var vv=Object.create(self);vv.editor=ee;
+       var one=horizontal.collect(vv);one.pixels=0;
+       source=horizontal.build(one);
+     }else throw new Error('TEST208: el tipo de scroll '+type+' aun requiere integrar el player musical; no se exportara con musica omitida.');
+   }
+ }else{
+   var frames=compact.collect(self),alloc=compact.pack(frames);
+   validatePatchBank(alloc);
+   source=compact.build({frames:frames,packed:alloc});
+ }
+ var asm=makeSource207(source,sid,speed);
  var a=g_app&&g_app.assembler;
  if(!a)throw new Error('No se encontró el ensamblador LVLLVL.');
  var assembled=a.assemble(asm,0x0801);
@@ -97,7 +139,7 @@ function export207(self,args,raw){
  self.prg=output;
  args=args||{};
  if(args.download===false)return output;
- var name=args.filename||'rico-8frames-lvllvl-sid-test207.prg';
+ var name=args.filename||'rico-sid-frames-test208.prg';
  if(!/\.prg$/i.test(name))name+='.prg';
  if(typeof window.download!=='function')throw new Error('window.download no disponible.');
  window.download(output,name,'application/prg');
@@ -110,9 +152,9 @@ function ensureUI207(){
  var box=document.createElement('div');
  box.id='ricoSid207Panel';
  box.style.cssText='margin:8px 16px;padding:8px;border:1px solid #666;font-size:12px;';
- box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST207 — 8 frames + SID original LVLLVL (PSID $1000–$1FFF)</label>'
+ box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> SID original LVLLVL — 1 o más frames (TEST208)</label>'
    +'<input id="ricoSid207Input" type="file" accept=".sid" style="width:260px">'
-   +' <select id="ricoSid207Speed" title="SID play calls per 50Hz PAL frame"><option value="1">50 Hz · 1 play/tick</option><option value="2">100 Hz · 2 plays/tick</option></select>'
+   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: 50Hz / CIA ~60Hz PAL</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
    +'<div id="ricoSid207Status" style="margin-top:5px;color:#bbb">Elegí un archivo .sid. Sólo activa SID cuando tildás la casilla.</div>';
  el.appendChild(box);
  var input=document.getElementById('ricoSid207Input'),flag=document.getElementById('ricoSid207Enabled'),speed=document.getElementById('ricoSid207Speed'),status=document.getElementById('ricoSid207Status');
@@ -125,13 +167,13 @@ function ensureUI207(){
     try {
       var bytes=new Uint8Array(fr.result),info=parseSID(bytes);
       SID_STATE.data=bytes;SID_STATE.name=file.name;SID_STATE.enabled=true;flag.checked=true;
-      message('SID: '+file.name+' · LOAD '+hx(info.load)+' · INIT '+hx(info.init)+' · PLAY '+hx(info.play)+' · '+info.bytes.length+' bytes.');
+      message('SID: '+file.name+' · LOAD '+hx(info.load)+' · INIT '+hx(info.init)+' · PLAY '+hx(info.play)+' · '+info.bytes.length+' bytes'+(info.ciaTiming?' · CIA: ~60Hz PAL aproximados':'')+'.');
     }catch(e){message('SID incompatible: '+e.message);}
    };
    fr.readAsArrayBuffer(file);
  });
  flag.addEventListener('change',function(){SID_STATE.enabled=flag.checked;});
- speed.addEventListener('change',function(){SID_STATE.speed=Number(speed.value)===2?2:1;});
+ speed.addEventListener('change',function(){var v=Number(speed.value);SID_STATE.speed=v===1||v===2?v:0;});
 }
 var previousInit=ToPRGAdv.prototype.init;
 if(typeof previousInit==='function'){
@@ -168,5 +210,5 @@ window.RICO_TEST207_ORIGINAL_SID={
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage};},
  memory:MEM
 };
-console.log('[RICO TEST207] Original LVLLVL SID init/play adapter, 8 frames with compact storage. Optional SID only, no changes to existing export routes.');
+console.log('[RICO TEST208] SID: 1+ frames, no artificial minimum; CIA ~60Hz fallback; original routes preserved.');
 })();
