@@ -103,7 +103,8 @@ function makeSource207(source,sid,speed){
  source=replaceOnce(source,' lda #$01\n sta $d01a\n lda #$fa\n sta $d012',
  init+' lda #$01\n sta $d01a\n lda #$fa\n sta $d012');
  // Its play is called in raster IRQ after register saves/IRQ acknowledgment.
- var fractional209=speed!==1&&speed!==2&&speed!==60;
+ var ciaHardware210=speed==='cia-hardware210';
+ var fractional209=!ciaHardware210&&speed!==1&&speed!==2&&speed!==60;
  // The three TEST208 modes are kept exactly as before for regression safety.
  var play=fractional209?'':' jsr '+hx(sid.play)+'\n';
  if(speed===2)play+=' jsr '+hx(sid.play)+'\n';
@@ -126,8 +127,28 @@ function makeSource207(source,sid,speed){
      play+=' jsr '+hx(sid.play)+'\nsid_skip209\n';
    }
  }
- source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
-  'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
+ if(ciaHardware210){
+   // TEST210: two INDEPENDENT hardware interrupts: CIA1 Timer A drives
+   // music at the tune's own $DC04/$DC05 latch, VIC raster drives ONLY video.
+   // The SID's INIT has already written the Timer A latch.
+   source=replaceOnce(source,' sta $ffff\n cli',
+     ' sta $ffff\n lda #$81\n sta $dc0d\n lda #$11\n sta $dc0e\n cli');
+   // Prioritize the VIC-II raster path. The CIA-only interrupts MUST NOT
+   // increment the map/group scheduler: they only run the audio player.
+   source=replaceOnce(source,'*=$2000\n',
+     '*=$2000\ncia_pending210=$58\n');
+   source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
+     'irq\n pha\n txa\n pha\n tya\n pha\n lda $dc0d\n and #$01\n sta cia_pending210\n lda $d019\n and #$01\n bne vic_video210\n jmp cia_only_exit210\nvic_video210\n lda #$01\n sta $d019');
+   var groupDone210=source.indexOf('irq_only_group\n jsr group182_irq_tick\n pla\n tay\n pla\n tax\n pla\n rti')>=0?'irq_only_group':'irq_group';
+   source=replaceOnce(source,groupDone210+'\n jsr group182_irq_tick\n pla\n tay\n pla\n tax\n pla\n rti',
+     groupDone210+'\n jsr group182_irq_tick\n jmp cia_only_exit210');
+   source=replaceOnce(source,'*=$3000\ncharset_bank1',
+     'cia_only_exit210\n lda cia_pending210\n beq cia_restore210\n jsr '+hx(sid.play)+
+     '\ncia_restore210\n pla\n tay\n pla\n tax\n pla\n rti\n*=$3000\ncharset_bank1');
+ }else{
+   source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
+     'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
+ }
  // Source is placed exactly at the SID's own load address; never relocate
  // compiled music data, because absolute JSR/JMP and embedded pointers exist.
  if(speed===60)source=replaceOnce(source,'*=$3000\ncharset_bank1',
@@ -144,8 +165,9 @@ function export207(self,args,raw){
  if(!fr.length)throw new Error('TEST208: el proyecto no contiene frames.');
  var sid=parseSID(raw);
  var explicitSpeed=args&&(args.sidSpeed===1||args.sidSpeed===2)?args.sidSpeed:SID_STATE.speed;
- var speed=explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?(sid.ciaTimer?sid.ciaTimer.hz:60):1);
- SID_STATE.lastTempo209=sid.ciaTiming?(sid.ciaTimer?('CIA $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' = '+sid.ciaTimer.hz.toFixed(2)+' Hz'):'CIA sin timer detectable: TEST208 ~60 Hz'):'VBlank PAL 50 Hz';
+ var hardware210=sid.ciaTiming&&!!sid.ciaTimer&&explicitSpeed!==1&&explicitSpeed!==2;
+ var speed=hardware210?'cia-hardware210':explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?60:1);
+ SID_STATE.lastTempo209=hardware210?('TEST210 CIA Timer A hardware $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' ≈ '+sid.ciaTimer.hz.toFixed(2)+' Hz, raster separado'):sid.ciaTiming?('CIA sin temporizador usable o tasa manual, modo TEST208'):'VBlank PAL 50 Hz';
  var source;
  if(fr.length===1){
    // One-frame export needs no multi-frame storage, and works with horizontal,
@@ -189,6 +211,15 @@ function export207(self,args,raw){
   var err=(assembled&&assembled.errors||[]).map(function(e){return e.message||String(e);});
   throw new Error('TEST207 ASM: '+err.join(' | '));
  }
+ window.RICO_TEST210_LAST_EXPORT={
+   mode:speed==='cia-hardware210'?'CIA1 Timer A hardware':speed===1?'50 Hz raster':speed===2?'100 Hz raster':speed===60?'~60 Hz fallback':'fractional 50Hz raster',
+   frames:fr.length, sidLoad:hx(sid.load), sidInit:hx(sid.init), sidPlay:hx(sid.play),
+   ciaTimer:sid.ciaTimer?hx(sid.ciaTimer.latch):null,
+   reportedHz:sid.ciaTimer?Number(sid.ciaTimer.hz.toFixed(3)):null
+ };
+ console.log('[RICO TEST210] PRG SID export',window.RICO_TEST210_LAST_EXPORT);
+ var visual210=typeof document!=='undefined'&&document.getElementById('ricoSid207Status');
+ if(visual210)visual210.textContent='TEST210 '+window.RICO_TEST210_LAST_EXPORT.mode+' | '+fr.length+' frame(s) | '+SID_STATE.lastTempo209;
  var mem=a.getMemory(),output=new Uint8Array(2+assembled.end-assembled.start);
  output[0]=assembled.start&255;output[1]=(assembled.start>>8)&255;
  for(var k=assembled.start;k<assembled.end;k++)output[2+k-assembled.start]=mem[k]&255;
@@ -208,9 +239,9 @@ function ensureUI207(){
  var box=document.createElement('div');
  box.id='ricoSid207Panel';
  box.style.cssText='margin:8px 16px;padding:8px;border:1px solid #666;font-size:12px;';
- box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> SID original LVLLVL — 1 o más frames (TEST208)</label>'
+ box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST210 — SID original + scroll (1 o más frames)</label>'
    +'<input id="ricoSid207Input" type="file" accept=".sid" style="width:260px">'
-   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: leer tempo CIA del SID</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
+   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: usar CIA Timer A real cuando esté disponible</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
    +'<div id="ricoSid207Status" style="margin-top:5px;color:#bbb">Elegí un archivo .sid. Sólo activa SID cuando tildás la casilla.</div>';
  el.appendChild(box);
  var input=document.getElementById('ricoSid207Input'),flag=document.getElementById('ricoSid207Enabled'),speed=document.getElementById('ricoSid207Speed'),status=document.getElementById('ricoSid207Status');
@@ -266,5 +297,5 @@ window.RICO_TEST207_ORIGINAL_SID={
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
  memory:MEM
 };
-console.log('[RICO TEST209] SIDTracker64 CIA Timer A auto-detection (e.g. $6037 ~40Hz), TEST208 timing fallback preserved.');
+console.log('[RICO TEST210 READY] CIA1 hardware SID IRQ independent of VIC raster; version check TEST210; TEST208 rollback remains available.');
 })();
