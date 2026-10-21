@@ -112,6 +112,10 @@ function buildSidShared211(sid,useHardwareCIA){
  ' inx',' cpx #$10',' bne sid_init_capture211',
  ' rts',
  'sid_play_protected211',
+ ' inc sid_audio_ticks_lo211',
+ ' bne sid_audio_counted211',
+ ' inc sid_audio_ticks_hi211',
+ 'sid_audio_counted211',
  ' ldx #$00',
  'sid_play_swapin211',
  ' lda $f0,x',' sta sid_engine_zp211,x',
@@ -127,7 +131,11 @@ function buildSidShared211(sid,useHardwareCIA){
  'sid_engine_zp211',
  '!byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00',
  'sid_private_zp211',
- '!byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00'
+ '!byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00',
+ 'sid_audio_ticks_lo211','!byte $00',
+ 'sid_audio_ticks_hi211','!byte $00',
+ 'sid_video_ticks_lo211','!byte $00',
+ 'sid_video_ticks_hi211','!byte $00'
  ];
  if(useHardwareCIA)out.push(
  'sid_cia_pending211','!byte $00',
@@ -176,11 +184,11 @@ function makeSource207(source,sid,speed){
    source=replaceOnce(source,' sta $ffff\n cli',
      ' sta $ffff\n lda #$00\n sta sid_start_gate211\n lda #$7f\n sta $dc0d\n lda $dc0d\n lda #$00\n sta $dc0e\n cli');
    source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
-     'irq\n pha\n txa\n pha\n tya\n pha\n lda $dc0d\n and #$01\n sta sid_cia_pending211\n beq sid_no_cia211\n jsr sid_play_protected211\nsid_no_cia211\n lda $d019\n and #$01\n bne sid_vic211\n jmp sid_audio_only211\nsid_vic211\n lda #$01\n sta $d019\n lda sid_start_gate211\n bne sid_vic_armed211\n lda #$81\n sta $dc0d\n lda #$11\n sta $dc0e\n lda #$01\n sta sid_start_gate211\nsid_vic_armed211');
+     'irq\n pha\n txa\n pha\n tya\n pha\n lda $dc0d\n and #$01\n sta sid_cia_pending211\n beq sid_no_cia211\n jsr sid_play_protected211\nsid_no_cia211\n lda $d019\n and #$01\n bne sid_vic211\n jmp sid_audio_only211\nsid_vic211\n lda #$01\n sta $d019\n inc sid_video_ticks_lo211\n bne sid_video_counted211\n inc sid_video_ticks_hi211\nsid_video_counted211\n lda sid_start_gate211\n bne sid_vic_armed211\n lda #$81\n sta $dc0d\n lda #$11\n sta $dc0e\n lda #$01\n sta sid_start_gate211\nsid_vic_armed211');
  }else{
    // Standard SID timing still uses the shared private-ZP PLAY wrapper.
    source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
-    'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
+    'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n inc sid_video_ticks_lo211\n bne sid_video_counted211\n inc sid_video_ticks_hi211\nsid_video_counted211\n'+play.trimEnd());
  }
  if(speed===60)source=replaceOnce(source,'*=$3000\ncharset_bank1',
   'sid_phase208\n!byte $00\n*=$3000\ncharset_bank1');
@@ -332,6 +340,6 @@ window.RICO_TEST207_ORIGINAL_SID={
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
  memory:MEM
 };
-window.RICO_SID_SHARED_ABI_V1={version:211,zeroPageStart:0xf0,zeroPageLength:16,timerRegisters:['$DC04','$DC05'],irqSources:['CIA1 Timer A','VIC-II raster'],initContract:'INIT(A=subtune) then capture SID ZP',playContract:'private SID ZP around PLAY',starting:'first VIC raster after INIT'};
+window.RICO_SID_SHARED_ABI_V1={version:211,zeroPageStart:0xf0,zeroPageLength:16,timerRegisters:['$DC04','$DC05'],irqSources:['CIA1 Timer A','VIC-II raster'],initContract:'INIT(A=subtune) then capture SID ZP',playContract:'private SID ZP around PLAY',starting:'first VIC raster after INIT',debugCounters:['sid_audio_ticks_lo211','sid_audio_ticks_hi211','sid_video_ticks_lo211','sid_video_ticks_hi211']};
 console.log('[RICO TEST211 READY] Shared SID ABI SCUMM/LVLLVL, native CIA audio IRQ with private $F0-$FF, delayed timer start.');
 })();
