@@ -145,6 +145,12 @@ Graphic.prototype.drawFrame=function(args){
     var dist=phase83(this)*(parseInt(cfg.pixelsPerStep,10)||1);
     var movementX=0,movementY=0,repeat=false;
     switch(cfg.type){
+      // TEST204: same world-coordinate camera used by the four established
+      // cardinal modes, now advanced simultaneously on both axes.
+      case'diag-up-left':startX+=dist;startY+=dist;repeat=true;break;
+      case'diag-up-right':startX-=dist;startY+=dist;repeat=true;break;
+      case'diag-down-left':startX+=dist;startY-=dist;repeat=true;break;
+      case'diag-down-right':startX-=dist;startY-=dist;repeat=true;break;
       case'up':startY+=dist;repeat=true;break;
       case'down':startY-=dist;repeat=true;break;
       case'left':startX+=dist;repeat=true;break;
@@ -176,8 +182,15 @@ Graphic.prototype.drawFrame=function(args){
       // TEST178: repeat only the axis that actually scrolls.  The old 3x3
       // loop tiled a vertical source horizontally into the C64 border.
       // A narrow Scroll Area must not be extended with phantom columns.
+      var diagonalRepeat=/^diag-(?:up|down)-(?:left|right)$/.test(cfg.type);
       var verticalRepeat=cfg.type==='up'||cfg.type==='down';
-      if(verticalRepeat){
+      if(diagonalRepeat){
+        // Actual two-axis wrapping: repeat *both* axes so the viewport stays
+        // opaque at every corner, without phantom tiles in cardinal modes.
+        for(var dy204=-1;dy204<=1;dy204++)
+          for(var dx204=-1;dx204<=1;dx204++)
+            ctx.drawImage(source,drawX+dx204*areaMW,drawY+dy204*areaMH);
+      }else if(verticalRepeat){
         for(var yy=-1;yy<=1;yy++)ctx.drawImage(source,drawX,drawY+yy*areaMH);
       }else{
         for(var xx=-1;xx<=1;xx++)ctx.drawImage(source,drawX+xx*areaMW,drawY);
@@ -199,7 +212,7 @@ window.RICO_TEST83_LARGE_VIEWPORT={
   viewportOnlyWhenScrollOn:true,
   fullScreenWhenScrollOff:true,
   sourceRowsNotCropped:true,
-  scrollTypes:['left','right','up','down','pingpong-left','pingpong-right','pingpong-up','pingpong-down','move-left','move-right','move-up','move-down','movein-left','movein-right','movein-up','movein-down']
+  scrollTypes:['left','right','up','down','diag-up-left','diag-up-right','diag-down-left','diag-down-right','pingpong-left','pingpong-right','pingpong-up','pingpong-down','move-left','move-right','move-up','move-down','movein-left','movein-right','movein-up','movein-down']
 };
-console.log('[RICO TEST169 UI] Large Screen stays editable when OFF; all map scroll types use Window viewport when ON.');
+console.log('[RICO TEST204 UI] Large Screen viewport: diagonal 2-axis Map Scroll preview; prior cardinal/other movements retained.');
 })();
