@@ -85,9 +85,9 @@ function collectAnimations175(ts,data){
   var motion=motions.length?motions[0]:null,group=null;
   if(motion){
     var g=motion.g,w=Number(g.widthTiles),h=Number(g.heightTiles),ticks=Number(g.ticksPerFrame);
-    if(g.type!=='up')throw new Error('TEST182: el Group Scroll combinado con Map Scroll implementa por ahora Scroll Up. No se cambiara la animacion configurada.');
+    if(g.type!=='up'&&g.type!=='left'&&g.type!=='right')throw new Error('TEST183: este motor combina Map Scroll con Group Scroll Up, Left o Right. No se alterara la direccion seleccionada.');
     if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>256||h>32||!Array.isArray(g.cells)||g.cells.length!==w*h)
-      throw new Error('TEST182: Group Scroll Up debe ser un rectangulo completo de caracteres distintos, maximo 256 tiles.');
+      throw new Error('TEST182: Group Scroll debe ser un rectangulo completo de caracteres distintos, maximo 256 tiles.');
     if(!Number.isInteger(ticks)||ticks<1||ticks>255)throw new Error('TEST182: ticks del Group Scroll deben estar entre 1 y 255.');
     var cells=Array.from({length:w},function(){return Array(h).fill(-1);}),found={};
     for(var ci=0;ci<g.cells.length;ci++){
@@ -117,7 +117,7 @@ function collectAnimations175(ts,data){
       }
       original.push(column.concat(column));
     }
-    group={bank:groupBank,w:w,h:h,ticks:ticks,columns:original,addresses:addresses,protection:protection,codes:found,protectedIds:protectedIds};
+    group={bank:groupBank,w:w,h:h,ticks:ticks,type:g.type,cells:cells,tiles:groupTiles,columns:original,addresses:addresses,protection:protection,codes:found,protectedIds:protectedIds};
   }
   var used=new Uint8Array(256);
   for(var cell=0;cell<data.length;cell++)used[data[cell]&255]=1;
@@ -782,7 +782,7 @@ function buildSource(d){
   }
   // TEST182: group's immutable double-length source is placed after color
   // tables, NEVER over the map, charsets, or dynamic raster screen buffers.
-  if(d.anim175&&d.anim175.group){
+  if(d.anim175&&d.anim175.group&&d.anim175.group.type==='up'){
     var gg=d.anim175.group, rows=gg.h*8, sourceSize=gg.w*rows*2;
     var upper=colorMode==='sparse'?sparseBase+d.area.height*3+sparseStoredBytes:COLOR_DATA_BASE+d.colors.length;
     var groupBase=Math.max(0xa000,(upper+255)&0xff00),groupApprox=sourceSize+gg.w*gg.h*3+700;
@@ -878,6 +878,117 @@ function buildSource(d){
     out.push('group182_original_sources');
     gg.columns.forEach(function(col){emitBytes(out,col)});
     if(pos>0xd000)throw new Error('TEST182: datos del Group Scroll invaden memoria de I/O; reducir el grupo o area de mapa.');
+  }
+  // TEST183 horizontal group compositor: pixels wrap across glyph boundaries.
+  // Unlike Map Scroll, the pointers target only charset RAM (BANK1 or BANK2).
+  // Work is one 8x8 tile per main-loop iteration, allowing the map to prepare
+  // its next screen before any further animation work is scheduled.
+  if(d.anim175&&d.anim175.group&&/^(left|right)$/.test(d.anim175.group.type)){
+    var hgrp=d.anim175.group, gw=hgrp.w, gh=hgrp.h, total=gw*gh;
+    var sbaseRaw=(colorMode==='sparse'?sparseBase+d.area.height*3+sparseStoredBytes:COLOR_DATA_BASE+d.colors.length);
+    var hcodeBase=Math.max(0xa000,(sbaseRaw+255)&0xff00),hdataBase=(hcodeBase+0x0800+255)&0xff00;
+    var dataLength=gw*gh*16; // each horizontal scanline is two copies of w chars
+    if(hdataBase+dataLength>0xd000)throw new Error('TEST183: Group Scroll horizontal excede RAM segura; no se exportara parcialmente.');
+    out.push('*=$'+('0000'+hcodeBase.toString(16)).slice(-4));
+    out.push('; TEST183 independent horizontal group scroll '+hgrp.type+' with pixel wrap');
+    out.push('group182_irq_tick');
+    out.push(' dec group182_timer');out.push(' bne group182_irq_done');
+    out.push(' lda #$'+hex2(hgrp.ticks));out.push(' sta group182_timer');
+    out.push(' lda group182_pending');out.push(' cmp #$ff');out.push(' beq group182_irq_done');
+    out.push(' inc group182_pending');
+    out.push('group182_irq_done');out.push(' rts');
+    out.push('group182_timer');out.push('!byte $'+hex2(hgrp.ticks));
+    out.push('group182_pending');out.push('!byte $00');
+    out.push('group182_active');out.push('!byte $00');
+    out.push('group182_tile_index');out.push('!byte $00');
+    out.push('group183_byte_phase');out.push('!byte $00');
+    out.push('group183_bit_phase');out.push('!byte $00');
+    out.push('group183_shift_count');out.push('!byte $00');
+    out.push('group183_high');out.push('!byte $00');
+    out.push('group183_low');out.push('!byte $00');
+    out.push('group183_raster_left');out.push('!byte $00');
+    // The grouped source/destination pointers occupy dedicated zero page
+    // previously reserved by TEST182, never the map's source/dest pointers.
+    out.push('group182_src_lo=$35');out.push('group182_src_hi=$36');
+    out.push('group182_dest_lo=$37');out.push('group182_dest_hi=$38');
+    out.push('group182_step');
+    out.push(' lda group182_active');out.push(' bne group183_copy_next');
+    // Horizontal preview uses one pixel per Group Animate tick for Left/Right.
+    // Preserve that speed; the 2px/IRQ TEST165 optimization is ONLY Scroll Up.
+    var step=1;
+    if(hgrp.type==='left'){
+      out.push(' lda group183_bit_phase');out.push(' clc');out.push(' adc #$'+hex2(step));
+      out.push(' cmp #$08');out.push(' bcc group183_left_no_carry');
+      out.push(' sbc #$08');out.push(' pha');
+      out.push(' inc group183_byte_phase');
+      if(gw!==256){out.push(' lda group183_byte_phase');out.push(' cmp #$'+hex2(gw));out.push(' bne group183_left_keep_byte');out.push(' lda #$00');out.push(' sta group183_byte_phase');out.push('group183_left_keep_byte');}
+      out.push(' pla');out.push('group183_left_no_carry');out.push(' sta group183_bit_phase');
+    }else{
+      out.push(' lda group183_bit_phase');out.push(' sec');out.push(' sbc #$'+hex2(step));
+      out.push(' bcs group183_right_no_borrow');
+      out.push(' clc');out.push(' adc #$08');out.push(' pha');
+      out.push(' lda group183_byte_phase');out.push(' bne group183_right_dec_byte');
+      out.push(' lda #$'+hex2(gw-1));out.push(' sta group183_byte_phase');out.push(' jmp group183_right_byte_done');
+      out.push('group183_right_dec_byte');out.push(' dec group183_byte_phase');
+      out.push('group183_right_byte_done');out.push(' pla');
+      out.push('group183_right_no_borrow');out.push(' sta group183_bit_phase');
+    }
+    out.push(' lda #$01');out.push(' sta group182_active');
+    out.push(' lda #$00');out.push(' sta group182_tile_index');
+    out.push('group183_copy_next');
+    out.push(' ldx group182_tile_index');
+    out.push(' lda group182_protected,x');out.push(' bne group183_next_tile');
+    out.push(' lda group182_dest_los,x');out.push(' sta group182_dest_lo');
+    out.push(' lda group182_dest_his,x');out.push(' sta group182_dest_hi');
+    out.push(' lda group183_source_los,x');out.push(' clc');out.push(' adc group183_byte_phase');out.push(' sta group182_src_lo');
+    out.push(' lda group183_source_his,x');out.push(' adc #$00');out.push(' sta group182_src_hi');
+    out.push(' lda #$08');out.push(' sta group183_raster_left');
+    out.push('group183_raster_loop');
+    out.push(' ldy #$00');out.push(' lda (group182_src_lo),y');out.push(' sta group183_high');
+    out.push(' iny');out.push(' lda (group182_src_lo),y');out.push(' sta group183_low');
+    out.push(' lda group183_bit_phase');out.push(' sta group183_shift_count');
+    out.push(' beq group183_no_shift');
+    out.push('group183_bit_loop');
+    out.push(' asl group183_low');out.push(' rol group183_high');
+    out.push(' dec group183_shift_count');out.push(' bne group183_bit_loop');
+    out.push('group183_no_shift');
+    out.push(' ldy #$00');out.push(' lda group183_high');out.push(' sta (group182_dest_lo),y');
+    // Next raster row begins 2*width source bytes later (each row repeated
+    // horizontally for wraparound). Destination charset advances one byte.
+    out.push(' clc');out.push(' lda group182_src_lo');out.push(' adc #$'+hex2((2*gw)&255));out.push(' sta group182_src_lo');
+    out.push(' lda group182_src_hi');out.push(' adc #$'+hex2((2*gw)>>8));out.push(' sta group182_src_hi');
+    out.push(' inc group182_dest_lo');out.push(' bne group183_dest_advanced');out.push(' inc group182_dest_hi');out.push('group183_dest_advanced');
+    out.push(' dec group183_raster_left');out.push(' bne group183_raster_loop');
+    out.push('group183_next_tile');
+    out.push(' inc group182_tile_index');
+    out.push(' lda group182_tile_index');out.push(' cmp #$'+hex2(total&255));
+    out.push(' bne group183_step_done');
+    out.push(' lda #$00');out.push(' sta group182_active');
+    out.push(' dec group182_pending');
+    out.push('group183_step_done');out.push(' rts');
+    // Source pointers point into the immutable doubled raster data.
+    var sourceLos=[],sourceHis=[];
+    for(var cx2=0;cx2<gw;cx2++)for(var cy2=0;cy2<gh;cy2++){
+      var address183=hdataBase+cy2*8*(gw*2)+cx2;
+      sourceLos.push(address183&255);sourceHis.push((address183>>8)&255);
+    }
+    out.push('group183_source_los');emitBytes(out,sourceLos);
+    out.push('group183_source_his');emitBytes(out,sourceHis);
+    out.push('group182_dest_los');emitBytes(out,hgrp.addresses.map(function(a){return a&255}));
+    out.push('group182_dest_his');emitBytes(out,hgrp.addresses.map(function(a){return a>>8}));
+    out.push('group182_protected');emitBytes(out,hgrp.protection);
+    out.push('*=$'+('0000'+hdataBase.toString(16)).slice(-4));
+    out.push('group183_original_sources');
+    for(var ry=0;ry<gh*8;ry++){
+      var rowBytes=[];
+      for(var rx=0;rx<gw;rx++){
+        var tileCode=hgrp.cells[rx][Math.floor(ry/8)];
+        var px=hgrp.tiles[tileCode].data[0],mask=0;
+        for(var bit=0;bit<8;bit++)if(px[(ry%8)*8+bit])mask|=1<<(7-bit);
+        rowBytes.push(mask);
+      }
+      emitBytes(out,rowBytes.concat(rowBytes));
+    }
   }
   return out.join('\n');
 }
