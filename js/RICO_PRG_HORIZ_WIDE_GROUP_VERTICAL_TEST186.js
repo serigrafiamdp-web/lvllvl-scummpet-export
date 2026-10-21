@@ -65,7 +65,8 @@ function collect(self){
  if(!ints||w.width!==40||w.height!==25||w.x<0||w.y<0||w.x+40>sz.w||w.y+25>sz.h||area.x<0||area.y<0||area.width<40||area.x+area.width>sz.w||area.y+area.height>sz.h||w.x<area.x||w.x+40>area.x+area.width||w.y<area.y||w.y+25>area.y+area.height)
   throw new Error('TEST186: Window 40x25 debe quedar dentro del Screen y Scroll Area completos.');
  if(area.width>96||area.width*2*25>=0x3000)throw new Error('TEST186: Scroll Area horizontal supera el limite de esta primera prueba.');
- if(cfg.ticksPerStep!==1||(cfg.pixelsPerStep!==1&&cfg.pixelsPerStep!==8))throw new Error('TEST188: este motor admite Map Scroll horizontal 1 o 8 pixeles por paso, con 1 tick.');
+ if(!Number.isInteger(cfg.ticksPerStep)||cfg.ticksPerStep<1||cfg.ticksPerStep>1024)throw new Error('Ticks/Step fuera del rango representable (1..1024).');
+ if(cfg.pixelsPerStep!==1&&cfg.pixelsPerStep!==8)throw new Error('TEST191: el motor horizontal de esta rama necesita implementar aun los saltos intermedios en pixels/step.');
  var layer=ed.layers.getSelectedLayerObject(),ts=layer.getTileSet();if(ts.getTileWidth()!==8||ts.getTileHeight()!==8)throw new Error('TEST186: solo charset C64 8x8.');
  var store=ts.getDocRecord().data||{},group=makeGroup(ts,store);
  var bank1=glyphBytes(ts.tileData),bank2=store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData?glyphBytes(store.ricoCharsetBank2.tileData):bank1;
@@ -89,7 +90,7 @@ function collect(self){
  }
  if(Object.keys(colors).length!==1)throw new Error('TEST186: TERRY usa color de caracteres uniforme; mapas multicolor necesitan actualizar Color RAM al desplazar horizontalmente (pendiente).');
  var fc=Number(Object.keys(colors)[0]),bcolor=Number(layer.getBorderColor(0))&15,bg=Number(layer.getBackgroundColor(0))&15,bank=f.charsetBank===2?2:1;
- return{map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,pixels:cfg.pixelsPerStep,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,border:bcolor,bg:bg,bank:bank};
+ return{map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,pixels:cfg.pixelsPerStep,ticks:cfg.ticksPerStep,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,border:bcolor,bg:bg,bank:bank};
 }
 function build(d){
  var a=[],emit=function(){for(var i=0;i<arguments.length;i++)a.push(arguments[i]);};
@@ -97,11 +98,11 @@ function build(d){
  // Wait for prep_ready when needed; never swap an incomplete buffer.
  // VIC bank 0, two screen buffers, banked charsets, and independent group scheduler.
  emit('; TEST186 RICO WIDE HORIZONTAL MAP + VERTICAL GROUP UP/DOWN', '*=$0801','!byte $0b,$08,$0a,$00,$9e,$38,$31,$39,$32,$00,$00,$00','*=$2000',
- 'src_lo=$0a','src_hi=$0b','dst_lo=$0c','dst_hi=$0d','front_hi=$0e','back_hi=$0f','camera_x=$11','prep_request=$13','prep_ready=$14','main_busy=$17','fine_pos=$18','step_ticks=$19','tmp_row=$1a','charset_bits=$1b',
+ 'src_lo=$0a','src_hi=$0b','dst_lo=$0c','dst_hi=$0d','front_hi=$0e','back_hi=$0f','camera_x=$11','prep_request=$13','prep_ready=$14','main_busy=$17','fine_pos=$18','step_ticks=$19','tmp_row=$1a','charset_bits=$1b','step_tick_lo=$1c','step_tick_hi=$1d',
  'start',' sei',' lda #$35',' sta $01',' lda #$7f',' sta $dc0d',' sta $dd0d',' lda $dc0d',' lda $dd0d',
  ' lda $dd00',' and #$fc',' ora #$03',' sta $dd00',
  ' lda #$04',' sta front_hi',' lda #$08',' sta back_hi',' lda #'+h(d.initialX),' sta camera_x',
- ' lda #$00',' sta prep_request',' sta prep_ready',' sta main_busy',
+ ' lda #$00',' sta prep_request',' sta prep_ready',' sta main_busy',' sta step_tick_lo',' sta step_tick_hi',
  ' lda #'+h(d.bank===2?0x0e:0x0c),' sta charset_bits',
  ' lda #'+h(d.type==='left'?7:0),' sta fine_pos',
  ' lda #'+h(d.bg),' sta $d021',' lda #'+h(d.border),' sta $d020',
@@ -118,7 +119,12 @@ function build(d){
  ' jsr swap_screens',' lda #'+h(d.type==='left'?7:0),' sta fine_pos',
  ' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',
  (d.pixels===8?' jmp irq_map_step':' jmp irq_only_group'),
- 'irq_map_step');
+ 'irq_map_step',
+ ' inc step_tick_lo',' bne irq_tick_check',' inc step_tick_hi',
+ 'irq_tick_check',' lda step_tick_hi',' cmp #'+h((d.ticks>>8)&255),' bne irq_tick_wait',
+ ' lda step_tick_lo',' cmp #'+h(d.ticks&255),' beq irq_tick_fire',
+ 'irq_tick_wait',' jmp irq_only_group',
+ 'irq_tick_fire',' lda #$00',' sta step_tick_lo',' sta step_tick_hi');
  if(d.pixels===8){
    // A character-wide step is 8 pixels; map camera changes only by one column.
    // Never swap an unfinished backbuffer; group animation remains ticked on every IRQ.
@@ -176,5 +182,5 @@ ToPRGAdv.prototype.createPRG=function(args){
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST188] Wide Map Scroll supports 1 or 8 pixels per step (1 tick), vertical Group Scroll unchanged.');
+console.log('[RICO TEST191] Wide horizontal Map Scroll ticks 1..1024, 1/8 pixels per step; vertical Group Scroll unchanged.');
 })();
