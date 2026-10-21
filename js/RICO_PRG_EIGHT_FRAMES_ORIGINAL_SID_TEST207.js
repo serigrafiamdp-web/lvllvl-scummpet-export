@@ -57,9 +57,9 @@ function makeSource207(source,sid,speed){
  // Color RAM's sparse scratch from TEST203 must no longer occupy $1000-$17ff.
  // Its 4 index pages + 4 color pages are relocated to $b000-$b7ff.
  var edits=0;
- source=source.replace(/\$(1[0-7])00,x/gi,function(_,hi){edits++;return '$'+(0xb0+parseInt(hi,16)-0x10).toString(16)+'00,x';});
+ source=source.replace(/\$(1[0-7])00,([xy])/gi,function(_,hi,reg){edits++;return '$'+(0xb0+parseInt(hi,16)-0x10).toString(16)+'00,'+reg;});
  if(edits<16)throw new Error('TEST207: tablas de color TEST203 no fueron encontradas para reubicacion ('+edits+').');
- if(/\$(?:1[0-7])00,x/i.test(source))throw new Error('TEST207: quedaron referencias de colores en $1000-$17ff.');
+ if(/\$(?:1[0-7])00,[xy]/i.test(source))throw new Error('TEST207: quedaron referencias de colores en $1000-$17ff.');
  // Original LVLLVL initializes the SID with A=subtune before enabling IRQ.
  var init=' lda #'+h2(sid.subtune)+'\n jsr '+hx(sid.init)+'\n';
  source=replaceOnce(source,' lda #$01\n sta $d01a\n lda #$fa\n sta $d012',
@@ -142,8 +142,16 @@ if(typeof previousStart==='function'){
  ToPRGAdv.prototype.start=function(){var result=previousStart.apply(this,arguments);ensureUI207();return result;};
 }
 ToPRGAdv.prototype.createPRG=function(args){
- var chosen=args&&args.music==='sid'&&args.sidData?args.sidData:SID_STATE.enabled&&SID_STATE.data?SID_STATE.data:null;
- if(!chosen)return preceding.apply(this,arguments);
+ var requiresNative=args&&args.music==='sid';
+ var chosen=requiresNative?args.sidData:SID_STATE.enabled&&SID_STATE.data?SID_STATE.data:null;
+ if(!chosen){
+  if(requiresNative){
+   window.RICO_TEST207_LAST_ERROR='Elegiste SID pero no hay un archivo cargado.';
+   if(typeof window.alert==='function')window.alert('RICO TEST207 SID: '+window.RICO_TEST207_LAST_ERROR);
+   return false;
+  }
+  return preceding.apply(this,arguments);
+ }
  try{return export207(this,args,chosen);}
  catch(e){
    window.RICO_TEST207_LAST_ERROR=e.message;
