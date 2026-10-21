@@ -913,11 +913,11 @@ function buildSource(d){
     out.push('group182_dest_lo=$37');out.push('group182_dest_hi=$38');
     out.push('group182_step');
     out.push(' lda group182_active');out.push(' bne group183_copy_next');
-    // TEST184: two pixel phase advance for horizontal Left/Right per group tick.
-    // Actual visible throughput still depends on main-loop capacity: one 8x8
-    // tile is updated per iteration, while Map Scroll preparation comes first.
-    // Use the same 2px step in both directions, including 2x8 legacy groups.
-    var step=2;
+    // TEST185: 4px group phase step for horizontal Left/Right, to compare
+    // against TEST184 2px and document the emergent Waves effect.
+    // Only the immediate step differs in the generated PRG; one tile per
+    // main-loop iteration still limits how fast a complete phase appears.
+    var step=4;
     if(hgrp.type==='left'){
       out.push(' lda group183_bit_phase');out.push(' clc');out.push(' adc #$'+hex2(step));
       out.push(' cmp #$08');out.push(' bcc group183_left_no_carry');
