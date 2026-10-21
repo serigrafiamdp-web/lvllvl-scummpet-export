@@ -173,8 +173,12 @@ function build206(data){
   sourceLoader206(packed.refs)+'\n*=$3000\ncharset_bank1');
  // Packed resources live in the free RAM banks, never in the group at $A000/$A800.
  var blobs=packed.entries.slice().sort(function(a,b){return a.address-b.address;});
- var resources=blobs.map(function(x){return '*='+b4(x.address)+'\n'+x.label+'\n'+lines(x.bytes);}).join('\n')+'\n';
- src+=resources;
+ // Preserve ascending assembler segments. $6800-$9fff must precede the
+ // group engine at $a000/$a800; higher banks follow it.
+ var underGroup=blobs.filter(function(x){return x.address<0xa000;}).map(function(x){return '*='+b4(x.address)+'\n'+x.label+'\n'+lines(x.bytes);}).join('\n');
+ var aboveGroup=blobs.filter(function(x){return x.address>=0xb000;}).map(function(x){return '*='+b4(x.address)+'\n'+x.label+'\n'+lines(x.bytes);}).join('\n');
+ src=swapOne(src,'*=$a000\n',underGroup+'\n*=$a000\n');
+ if(aboveGroup)src+='\n'+aboveGroup+'\n';
  return src;
 }
 function assemble206(self,asm){
