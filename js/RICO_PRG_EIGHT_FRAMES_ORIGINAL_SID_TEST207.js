@@ -207,10 +207,22 @@ function export207(self,args,raw){
  var graphic=self.editor&&self.editor.graphic,fr=graphic&&graphic.frames||[];
  if(!fr.length)throw new Error('TEST208: el proyecto no contiene frames.');
  var sid=parseSID(raw);
- var explicitSpeed=args&&(args.sidSpeed===1||args.sidSpeed===2)?args.sidSpeed:SID_STATE.speed;
- var hardware210=sid.ciaTiming&&!!sid.ciaTimer&&explicitSpeed!==1&&explicitSpeed!==2;
- var speed=hardware210?'cia-hardware210':explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?60:1);
- SID_STATE.lastTempo209=hardware210?('TEST211 CIA Timer A hardware $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' ≈ '+sid.ciaTimer.hz.toFixed(2)+' Hz, raster separado'):sid.ciaTiming?('CIA sin temporizador usable o tasa manual, modo TEST208'):'VBlank PAL 50 Hz';
+ // TEST212: don't use args.sidSpeed as authoritative for audio playback.
+ // Original LVLLVL may supply its own default '1', silently forcing 50Hz
+ // even when the dedicated RICO SID option clearly displays 'Auto'.
+ // Read the visible SID selector directly; explicit programmatic overrides
+ // use our namespaced sidPlaybackMode212 key ONLY.
+ var sidSpeedControl212=typeof document!=='undefined'&&document.getElementById('ricoSid207Speed');
+ var playbackMode212=sidSpeedControl212?Number(sidSpeedControl212.value):SID_STATE.speed;
+ if(args&&Object.prototype.hasOwnProperty.call(args,'sidPlaybackMode212'))
+   playbackMode212=Number(args.sidPlaybackMode212);
+ if(playbackMode212!==1&&playbackMode212!==2)playbackMode212=0;
+ SID_STATE.speed=playbackMode212;
+ var hardware210=sid.ciaTiming&&!!sid.ciaTimer&&playbackMode212===0;
+ var speed=hardware210?'cia-hardware210':playbackMode212===1||playbackMode212===2?playbackMode212:(sid.ciaTiming?60:1);
+ if(playbackMode212===0&&sid.ciaTiming&&sid.ciaTimer&&speed!=='cia-hardware210')
+   throw new Error('TEST212: AUTO CIA seleccionado pero no se activo el temporizador hardware.');
+ SID_STATE.lastTempo209=hardware210?('TEST212 AUTO CIA Timer A real $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' ≈ '+sid.ciaTimer.hz.toFixed(2)+' Hz'):sid.ciaTiming?('CIA sin latch detectable o modo manual; tempo '+(speed===60?'fallback':'seleccionado')):'VBlank PAL 50 Hz';
  var source;
  if(fr.length===1){
    // One-frame export needs no multi-frame storage, and works with horizontal,
@@ -254,22 +266,25 @@ function export207(self,args,raw){
   var err=(assembled&&assembled.errors||[]).map(function(e){return e.message||String(e);});
   throw new Error('TEST207 ASM: '+err.join(' | '));
  }
- window.RICO_TEST211_LAST_EXPORT={
+ window.RICO_TEST212_LAST_EXPORT={
    mode:speed==='cia-hardware210'?'CIA1 Timer A hardware':speed===1?'50 Hz raster':speed===2?'100 Hz raster':speed===60?'~60 Hz fallback':'fractional 50Hz raster',
    frames:fr.length, sidLoad:hx(sid.load), sidInit:hx(sid.init), sidPlay:hx(sid.play),
    ciaTimer:sid.ciaTimer?hx(sid.ciaTimer.latch):null,
-   reportedHz:sid.ciaTimer?Number(sid.ciaTimer.hz.toFixed(3)):null
+   reportedHz:sid.ciaTimer?Number(sid.ciaTimer.hz.toFixed(3)):null,
+   requestedMode:playbackMode212===0?'AUTO':playbackMode212===1?'MANUAL_50':'MANUAL_100',
+   legacyArgsSidSpeedIgnored:args&&args.sidSpeed!==undefined?args.sidSpeed:null,
+   hardwareCIAGuaranteed:playbackMode212===0&&sid.ciaTiming&&!!sid.ciaTimer
  };
- console.log('[RICO TEST211] shared SID ABI export',window.RICO_TEST211_LAST_EXPORT);
+ console.log('[RICO TEST212] actual SID playback route (old args.sidSpeed ignored)',window.RICO_TEST212_LAST_EXPORT);
  var visual210=typeof document!=='undefined'&&document.getElementById('ricoSid207Status');
- if(visual210)visual210.textContent='TEST211 '+window.RICO_TEST211_LAST_EXPORT.mode+' | '+fr.length+' frame(s) | '+SID_STATE.lastTempo209;
+ if(visual210)visual210.textContent='TEST212 '+window.RICO_TEST212_LAST_EXPORT.requestedMode+' / '+window.RICO_TEST212_LAST_EXPORT.mode+' | '+fr.length+' frame(s) | '+SID_STATE.lastTempo209;
  var mem=a.getMemory(),output=new Uint8Array(2+assembled.end-assembled.start);
  output[0]=assembled.start&255;output[1]=(assembled.start>>8)&255;
  for(var k=assembled.start;k<assembled.end;k++)output[2+k-assembled.start]=mem[k]&255;
  self.prg=output;
  args=args||{};
  if(args.download===false)return output;
- var name=args.filename||'rico-sid-shared-abi-test211.prg';
+ var name=args.filename||'rico-sid-auto-cia-test212.prg';
  if(!/\.prg$/i.test(name))name+='.prg';
  if(typeof window.download!=='function')throw new Error('window.download no disponible.');
  window.download(output,name,'application/prg');
@@ -282,9 +297,9 @@ function ensureUI207(){
  var box=document.createElement('div');
  box.id='ricoSid207Panel';
  box.style.cssText='margin:8px 16px;padding:8px;border:1px solid #666;font-size:12px;';
- box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST211 — SID protegido SCUMM/LVLLVL (1 o más frames)</label>'
+ box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST212 — SID CIA Auto REAL / SCUMM (1 o más frames)</label>'
    +'<input id="ricoSid207Input" type="file" accept=".sid" style="width:260px">'
-   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: usar CIA Timer A real cuando esté disponible</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
+   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto — CIA original o VBlank 50 Hz</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
    +'<div id="ricoSid207Status" style="margin-top:5px;color:#bbb">Elegí un archivo .sid. Sólo activa SID cuando tildás la casilla.</div>';
  el.appendChild(box);
  var input=document.getElementById('ricoSid207Input'),flag=document.getElementById('ricoSid207Enabled'),speed=document.getElementById('ricoSid207Speed'),status=document.getElementById('ricoSid207Status');
@@ -341,5 +356,5 @@ window.RICO_TEST207_ORIGINAL_SID={
  memory:MEM
 };
 window.RICO_SID_SHARED_ABI_V1={version:211,zeroPageStart:0xf0,zeroPageLength:16,timerRegisters:['$DC04','$DC05'],irqSources:['CIA1 Timer A','VIC-II raster'],initContract:'INIT(A=subtune) then capture SID ZP',playContract:'private SID ZP around PLAY',starting:'first VIC raster after INIT',debugCounters:['sid_audio_ticks_lo211','sid_audio_ticks_hi211','sid_video_ticks_lo211','sid_video_ticks_hi211']};
-console.log('[RICO TEST211 READY] Shared SID ABI SCUMM/LVLLVL, native CIA audio IRQ with private $F0-$FF, delayed timer start.');
+console.log('[RICO TEST212 READY] Dedicated SID Auto mode always wins over legacy args.sidSpeed; native CIA hardware if PSID has valid latch.');
 })();
