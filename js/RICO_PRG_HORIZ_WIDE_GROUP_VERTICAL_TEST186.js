@@ -94,9 +94,9 @@ function collect(self){
    }
    map.push.apply(map,vals.concat(vals));rawCols.push.apply(rawCols,cvals.concat(cvals));
  }
- if(Object.keys(colors).length!==1)throw new Error('TEST186: TERRY usa color de caracteres uniforme; mapas multicolor necesitan actualizar Color RAM al desplazar horizontalmente (pendiente).');
+ // TEST200: multi-color horizontal map is staged offscreen and committed on swap.
  var fc=Number(Object.keys(colors)[0]),bcolor=Number(layer.getBorderColor(0))&15,bg=Number(layer.getBackgroundColor(0))&15,bank=f.charsetBank===2?2:1;
- return{map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,pixels:cfg.pixelsPerStep,ticks:cfg.ticksPerStep,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,border:bcolor,bg:bg,bank:bank};
+ return{map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,pixels:cfg.pixelsPerStep,ticks:cfg.ticksPerStep,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,multicolor:Object.keys(colors).length>1,border:bcolor,bg:bg,bank:bank};
 }
 function build(d){
  var a=[],emit=function(){for(var i=0;i<arguments.length;i++)a.push(arguments[i]);};
@@ -104,17 +104,18 @@ function build(d){
  // Wait for prep_ready when needed; never swap an incomplete buffer.
  // VIC bank 0, two screen buffers, banked charsets, and independent group scheduler.
  emit('; TEST186 RICO WIDE HORIZONTAL MAP + VERTICAL GROUP UP/DOWN', '*=$0801','!byte $0b,$08,$0a,$00,$9e,$38,$31,$39,$32,$00,$00,$00','*=$2000',
- 'src_lo=$0a','src_hi=$0b','dst_lo=$0c','dst_hi=$0d','front_hi=$0e','back_hi=$0f','camera_x=$11','prep_request=$13','prep_ready=$14','main_busy=$17','fine_pos=$18','step_ticks=$19','tmp_row=$1a','charset_bits=$1b','step_tick_lo=$1c','step_tick_hi=$1d',
+ 'src_lo=$0a','src_hi=$0b','dst_lo=$0c','dst_hi=$0d','front_hi=$0e','back_hi=$0f','camera_x=$11','prep_request=$13','prep_ready=$14','main_busy=$17','fine_pos=$18','step_ticks=$19','tmp_row=$1a','charset_bits=$1b','step_tick_lo=$1c','step_tick_hi=$1d','color_src_lo=$1e','color_src_hi=$1f','color_dst_lo=$20','color_dst_hi=$21',
  'start',' sei',' lda #$35',' sta $01',' lda #$7f',' sta $dc0d',' sta $dd0d',' lda $dc0d',' lda $dd0d',
  ' lda $dd00',' and #$fc',' ora #$03',' sta $dd00',
  ' lda #$04',' sta front_hi',' lda #$08',' sta back_hi',' lda #'+h(d.initialX),' sta camera_x',
  ' lda #$00',' sta prep_request',' sta prep_ready',' sta main_busy',' sta step_tick_lo',' sta step_tick_hi',
  ' lda #'+h(d.bank===2?0x0e:0x0c),' sta charset_bits',
  ' lda #'+h(d.type==='left'?7:0),' sta fine_pos',
- ' lda #'+h(d.bg),' sta $d021',' lda #'+h(d.border),' sta $d020',
- ' lda #'+h(d.fg),' ldx #$00','init_colorram',' sta $d800,x',' sta $d900,x',' sta $da00,x',' sta $db00,x',' inx',' bne init_colorram',
- ' lda #$04',' sta dst_hi',' jsr render_to_dst',' lda #$08',' sta dst_hi',' jsr render_to_dst',
- ' jsr update_d018',' jsr apply_horizontal',
+ ' lda #'+h(d.bg),' sta $d021',' lda #'+h(d.border),' sta $d020');
+ if(!d.multicolor)emit(' lda #'+h(d.fg),' ldx #$00','init_colorram',' sta $d800,x',' sta $d900,x',' sta $da00,x',' sta $db00,x',' inx',' bne init_colorram');
+ emit(' lda #$04',' sta dst_hi',' jsr render_to_dst',' lda #$08',' sta dst_hi',' jsr render_to_dst');
+ if(d.multicolor)emit(' jsr commit_colors200');
+ emit(' jsr update_d018',' jsr apply_horizontal',
  ' lda #$01',' sta $d01a',' lda #$fa',' sta $d012',' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
  'main_loop',' lda prep_request',' beq main_try_group',' lda prep_ready',' bne main_try_group',
  ' lda #$01',' sta main_busy',' lda back_hi',' sta dst_hi',' jsr render_to_dst',
@@ -122,8 +123,9 @@ function build(d){
  'main_try_group',' lda group182_pending',' beq main_loop',' jsr group182_step',' jmp main_loop',
  'irq',' pha',' txa',' pha',' tya',' pha',' lda #$01',' sta $d019',
  ' lda main_busy',' bne irq_only_group',' lda prep_request',' beq irq_map_step',' lda prep_ready',' beq irq_only_group',
- ' jsr swap_screens',
- ' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',
+ ' jsr swap_screens');
+ if(d.multicolor)emit(' jsr commit_colors200');
+ emit(' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',
  ' jmp irq_only_group',
  'irq_map_step',
  ' inc step_tick_lo',' bne irq_tick_check',' inc step_tick_hi',
@@ -152,15 +154,32 @@ function build(d){
  'swap_screens',' lda front_hi',' pha',' lda back_hi',' sta front_hi',' pla',' sta back_hi',' jsr update_d018',' rts',
  'update_d018',' lda front_hi',' cmp #$04',' bne d018_0800',' lda #$10',' jmp d018_charset','d018_0800',' lda #$20','d018_charset',' ora charset_bits',' sta $d018',' rts',
  'apply_horizontal',' lda fine_pos',' and #$07',' sta $d016',' lda #$1b',' sta $d011',' rts',
- 'render_to_dst',' lda #$00',' sta dst_lo',
- ' lda #<world_map_data',' sta src_lo',' lda #>world_map_data',' sta src_hi',
- ' clc',' lda src_lo',' adc camera_x',' sta src_lo',' lda src_hi',' adc #$00',' sta src_hi',
- ' lda #$19',' sta tmp_row',
- 'render_row',' ldy #$00','render_column',' lda (src_lo),y',' sta (dst_lo),y',' iny',' cpy #$28',' bne render_column',
- ' clc',' lda src_lo',' adc #'+h(d.srcStride&255),' sta src_lo',' lda src_hi',' adc #'+h(d.srcStride>>8),' sta src_hi',
- ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',' lda dst_hi',' adc #$00',' sta dst_hi',
- ' dec tmp_row',' bne render_row',' rts',
- '*=$3000','charset_bank1');bytes(a,d.bank1);
+ 'render_to_dst',' lda #$00',' sta dst_lo');
+ if(d.multicolor)emit(' sta color_dst_lo',' lda #$0c',' sta color_dst_hi');
+ emit(' lda #<world_map_data',' sta src_lo',' lda #>world_map_data',' sta src_hi',
+ ' clc',' lda src_lo',' adc camera_x',' sta src_lo',' lda src_hi',' adc #$00',' sta src_hi');
+ if(d.multicolor)emit(
+ ' lda #<world_colors',' sta color_src_lo',' lda #>world_colors',' sta color_src_hi',
+ ' clc',' lda color_src_lo',' adc camera_x',' sta color_src_lo',
+ ' lda color_src_hi',' adc #$00',' sta color_src_hi');
+ emit(' lda #$19',' sta tmp_row','render_row',' ldy #$00',
+ 'render_column',' lda (src_lo),y',' sta (dst_lo),y');
+ if(d.multicolor)emit(' lda (color_src_lo),y',' sta (color_dst_lo),y');
+ emit(' iny',' cpy #$28',' bne render_column',
+ ' clc',' lda src_lo',' adc #'+h(d.srcStride&255),' sta src_lo',
+ ' lda src_hi',' adc #'+h(d.srcStride>>8),' sta src_hi');
+ if(d.multicolor)emit(' clc',' lda color_src_lo',' adc #'+h(d.srcStride&255),' sta color_src_lo',
+ ' lda color_src_hi',' adc #'+h(d.srcStride>>8),' sta color_src_hi');
+ emit(' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+ ' lda dst_hi',' adc #$00',' sta dst_hi');
+ if(d.multicolor)emit(' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
+ ' lda color_dst_hi',' adc #$00',' sta color_dst_hi');
+ emit(' dec tmp_row',' bne render_row',' rts');
+ if(d.multicolor)emit('commit_colors200',' ldx #$00','color_page_loop200',
+ ' lda $0c00,x',' sta $d800,x',' lda $0d00,x',' sta $d900,x',
+ ' lda $0e00,x',' sta $da00,x',' lda $0f00,x',' sta $db00,x',
+ ' inx',' bne color_page_loop200',' rts');
+ emit('*=$3000','charset_bank1');bytes(a,d.bank1);
  emit('*=$3800','charset_bank2');bytes(a,d.bank2);
  emit('*=$4000','world_map_data');bytes(a,d.map);
  emit('*=$7000','world_colors');bytes(a,d.colors);
@@ -174,17 +193,17 @@ ToPRGAdv.prototype.createPRG=function(args){
  var ed=this.editor,s=ed&&size(ed),cfg=ed&&getCfg(ed,0),t=cfg&&cfg.type;
  if(!s||s.w<=40||t!=='left'&&t!=='right')return previous.apply(this,arguments);
  try{
-   var d=collect(this),text=build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test194.prg';this.prg=prg;
+   var d=collect(this),text=build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test200.prg';this.prg=prg;
    if(args&&args.download===false)return prg;
    if(!/\.prg$/i.test(name))name+='.prg';
    if(typeof window.download!=='function')throw new Error('No esta disponible window.download');
    window.download(prg,name,'application/prg');return prg;
  }catch(e){
- console.warn('[RICO TEST189] Exportador de prueba no admite esta combinacion; pasando al motor anterior:',e.message);
- try{return previous.apply(this,arguments);}
- catch(f){console.error('[RICO TEST189] Error del exportador anterior:',f);console.error('[RICO TEST190] Error tecnico en motor previo (sin cartel):',f.message);return false;}
+ window.RICO_TEST200_HORIZONTAL_LAST_ERROR=e.message;
+ console.error('[RICO TEST200] Right/Left horizontal export error (no static fallback):',e);
+ return false;
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST195] Group Scroll 1..8 pixels/tick Up/Down/Left/Right with wide horizontal map; TEST194 no-group path retained.');
+console.log('[RICO TEST200] Map Scroll Left/Right accepts per-cell multicolor with shadow Color RAM; monochrome fast path kept.');
 })();
