@@ -65,7 +65,7 @@ function collect(self){
  if(!ints||w.width!==40||w.height!==25||w.x<0||w.y<0||w.x+40>sz.w||w.y+25>sz.h||area.x<0||area.y<0||area.width<40||area.x+area.width>sz.w||area.y+area.height>sz.h||w.x<area.x||w.x+40>area.x+area.width||w.y<area.y||w.y+25>area.y+area.height)
   throw new Error('TEST186: Window 40x25 debe quedar dentro del Screen y Scroll Area completos.');
  if(area.width>96||area.width*2*25>=0x3000)throw new Error('TEST186: Scroll Area horizontal supera el limite de esta primera prueba.');
- if(cfg.ticksPerStep!==1||cfg.pixelsPerStep!==1)throw new Error('TEST186: primera validacion horizontal requiere Map Scroll 1 tick / 1 pixel.');
+ if(cfg.ticksPerStep!==1||(cfg.pixelsPerStep!==1&&cfg.pixelsPerStep!==8))throw new Error('TEST188: este motor admite Map Scroll horizontal 1 o 8 pixeles por paso, con 1 tick.');
  var layer=ed.layers.getSelectedLayerObject(),ts=layer.getTileSet();if(ts.getTileWidth()!==8||ts.getTileHeight()!==8)throw new Error('TEST186: solo charset C64 8x8.');
  var store=ts.getDocRecord().data||{},group=makeGroup(ts,store);
  var bank1=glyphBytes(ts.tileData),bank2=store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData?glyphBytes(store.ricoCharsetBank2.tileData):bank1;
@@ -89,10 +89,12 @@ function collect(self){
  }
  if(Object.keys(colors).length!==1)throw new Error('TEST186: TERRY usa color de caracteres uniforme; mapas multicolor necesitan actualizar Color RAM al desplazar horizontalmente (pendiente).');
  var fc=Number(Object.keys(colors)[0]),bcolor=Number(layer.getBorderColor(0))&15,bg=Number(layer.getBackgroundColor(0))&15,bank=f.charsetBank===2?2:1;
- return{map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,border:bcolor,bg:bg,bank:bank};
+ return{map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,pixels:cfg.pixelsPerStep,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,border:bcolor,bg:bg,bank:bank};
 }
 function build(d){
  var a=[],emit=function(){for(var i=0;i<arguments.length;i++)a.push(arguments[i]);};
+ // TEST188: 8 pixels = one full character column per successful backbuffer swap.
+ // Wait for prep_ready when needed; never swap an incomplete buffer.
  // VIC bank 0, two screen buffers, banked charsets, and independent group scheduler.
  emit('; TEST186 RICO WIDE HORIZONTAL MAP + VERTICAL GROUP UP/DOWN', '*=$0801','!byte $0b,$08,$0a,$00,$9e,$38,$31,$39,$32,$00,$00,$00','*=$2000',
  'src_lo=$0a','src_hi=$0b','dst_lo=$0c','dst_hi=$0d','front_hi=$0e','back_hi=$0f','camera_x=$11','prep_request=$13','prep_ready=$14','main_busy=$17','fine_pos=$18','step_ticks=$19','tmp_row=$1a','charset_bits=$1b',
@@ -114,14 +116,28 @@ function build(d){
  'irq',' pha',' txa',' pha',' tya',' pha',' lda #$01',' sta $d019',
  ' lda main_busy',' bne irq_only_group',' lda prep_request',' beq irq_map_step',' lda prep_ready',' beq irq_only_group',
  ' jsr swap_screens',' lda #'+h(d.type==='left'?7:0),' sta fine_pos',
- ' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',' jmp irq_only_group',
- 'irq_map_step',' lda fine_pos');
+ ' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',
+ (d.pixels===8?' jmp irq_map_step':' jmp irq_only_group'),
+ 'irq_map_step');
+ if(d.pixels===8){
+   // A character-wide step is 8 pixels; map camera changes only by one column.
+   // Never swap an unfinished backbuffer; group animation remains ticked on every IRQ.
+   if(d.type==='left'){
+     emit(' inc camera_x',' lda camera_x',' cmp #'+h(d.areaWidth),' bcc irq_queue',' lda #$00',' sta camera_x',' jmp irq_queue');
+   }else{
+     emit(' lda camera_x',' bne irq_right_dec8',' lda #'+h(d.areaWidth-1),' sta camera_x',' jmp irq_queue',
+          'irq_right_dec8',' dec camera_x');
+   }
+ }else{
+   emit(' lda fine_pos');
+
  if(d.type==='left'){
   emit(' beq irq_boundary_left',' dec fine_pos',' jsr apply_horizontal',' jmp irq_only_group',
  'irq_boundary_left',' inc camera_x',' lda camera_x',' cmp #'+h(d.areaWidth),' bcc irq_queue',' lda #$00',' sta camera_x',' jmp irq_queue');
  }else{
   emit(' cmp #$07',' beq irq_boundary_right',' inc fine_pos',' jsr apply_horizontal',' jmp irq_only_group',
- 'irq_boundary_right',' lda camera_x',' bne irq_right_dec',' lda #'+h(d.areaWidth-1),' sta camera_x',' jmp irq_queue','irq_right_dec',' dec camera_x');
+ 'irq_boundary_right',' lda camera_x',' bne irq_right_dec',' lda #'+h(d.areaWidth-1),' sta camera_x',' jmp irq_queue', 'irq_right_dec',' dec camera_x');
+ }
  }
  emit('irq_queue',' lda #$01',' sta prep_request',' lda #$00',' sta prep_ready',
  'irq_only_group',' jsr group182_irq_tick',' pla',' tay',' pla',' tax',' pla',' rti',
@@ -156,5 +172,5 @@ ToPRGAdv.prototype.createPRG=function(args){
  }catch(e){console.error('[RICO TEST186]',e);alert('No se pudo exportar: '+e.message);return false;}
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST186] Variable-width horizontal Map Scroll + vertical Group Scroll experimental installed.');
+console.log('[RICO TEST188] Wide Map Scroll supports 1 or 8 pixels per step (1 tick), vertical Group Scroll unchanged.');
 })();
