@@ -3,6 +3,7 @@
 if(typeof ToPRGAdv==='undefined'||!window.RICO_TEST168_PRG_LARGE_MAP){console.error('[TEST186] Missing TEST185');return;}
 var previous=ToPRGAdv.prototype.createPRG;
 var MAP_BASE=0x4000, COLORS_BASE=0x7000;
+function hex4_202(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
 function h(v){return ('$'+('0'+((v||0)&255).toString(16)).slice(-2));}
 function bytes(out,dat){for(var i=0;i<dat.length;i+=16)out.push('!byte '+Array.prototype.slice.call(dat,i,i+16).map(h).join(','));}
 function getCfg(ed,n){return (ed.graphic.frames[n]||{}).ricoMapScrollV1||{};}
@@ -175,10 +176,21 @@ function build(d){
  if(d.multicolor)emit(' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
  ' lda color_dst_hi',' adc #$00',' sta color_dst_hi');
  emit(' dec tmp_row',' bne render_row',' rts');
- if(d.multicolor)emit('commit_colors200',' ldx #$00','color_page_loop200',
- ' lda $0c00,x',' sta $d800,x',' lda $0d00,x',' sta $d900,x',
- ' lda $0e00,x',' sta $da00,x',' lda $0f00,x',' sta $db00,x',
- ' inx',' bne color_page_loop200',' rts');
+ // TEST202: contiguous Color RAM pages, top to bottom. 16-copy
+ // unrolling saves IRQ cycles and keeps BNE within 6502 branch reach.
+ if(d.multicolor){
+   emit('commit_colors200');
+   for(var page202=0;page202<4;page202++){
+     var srcPage202=0x0c00+(page202<<8),dstPage202=0xd800+(page202<<8);
+     var label202='color_page'+page202+'_202';
+     emit(' ldx #$00',label202);
+     for(var batch202=0;batch202<16;batch202++)
+       emit(' lda '+hex4_202(srcPage202)+',x',
+                  ' sta '+hex4_202(dstPage202)+',x',' inx');
+     emit(' bne '+label202);
+   }
+   emit(' rts');
+ }
  emit('*=$3000','charset_bank1');bytes(a,d.bank1);
  emit('*=$3800','charset_bank2');bytes(a,d.bank2);
  emit('*=$4000','world_map_data');bytes(a,d.map);
@@ -205,5 +217,5 @@ ToPRGAdv.prototype.createPRG=function(args){
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST201] Horizontal multicolor Color RAM commit at frame-start raster 0; monochrome stays on TEST200 timer.');
+console.log('[RICO TEST202] Horizontal multicolor Color RAM commit at frame-start raster 0; monochrome stays on TEST200 timer.');
 })();
