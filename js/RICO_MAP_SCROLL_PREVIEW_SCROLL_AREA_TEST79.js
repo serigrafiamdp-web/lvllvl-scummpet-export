@@ -17,6 +17,14 @@ function setCfg(g,n,c){var f=frameObj(g,n);if(!f)return;f[FIELD]=cfgClean(c);res
 function phase(g,n,c,now){var s=g.__ricoMap37;if(!s||s.frame!==n||now<s.start){reset(g,n);s=g.__ricoMap37;}return Math.floor(Math.max(0,now-s.start)/c.ticksPerStep);}
 function ping(p,size){if(size<=1)return 0;var cyc=size*2-2;p=((p%cyc)+cyc)%cyc;return p<size?p:cyc-p;}
 function bgCSS(g,n){try{var pm=g&&g.editor&&g.editor.colorPaletteManager, pal=pm&&pm.getCurrentColorPalette?pm.getCurrentColorPalette():null, ci=g&&g.getBackgroundColor?g.getBackgroundColor(n):0;if((typeof ci!=='number'||ci<0))ci=0;if(pal&&pal.getHexString){var h=pal.getHexString(ci);if(h!==false&&typeof h!=='undefined'&&h!==null)return '#'+h;}}catch(e){}return '#000000';}
+function diagonalBorderCSS197(g,n){
+  try {
+    var ed=g&&g.editor,layer=ed&&ed.layers&&ed.layers.getSelectedLayerObject?ed.layers.getSelectedLayerObject():null;
+    var p=layer&&layer.getColorPalette&&layer.getColorPalette();
+    if(p&&layer.getBorderColor){var hex=p.getHexString(layer.getBorderColor());if(hex!==false&&hex!==null&&hex!==undefined)return '#'+hex;}
+  }catch(e){}
+  return bgCSS(g,n);
+}
 function options(v){var h='';for(var i=0;i<OPTS.length;i++)h+='<option value="'+OPTS[i][0]+'"'+(OPTS[i][0]===v?' selected':'')+'>'+OPTS[i][1]+'</option>';return h;}
 function removeTicksWord(){var e=document.getElementById('frameDuration');if(!e||e.__rico37)return;e.__rico37=true;e.title='Frame Duration (ticks)';for(var n=e.nextSibling;n;n=n.nextSibling){if(n.nodeType===3&&/ticks/i.test(n.nodeValue||'')){n.nodeValue=(n.nodeValue||'').replace(/\s*ticks\s*/i,' ');break;}if(n.nodeType===1&&n.classList&&n.classList.contains('frameControlSeparator'))break;}}
 function graphicOf(fc){return fc&&fc.editor?fc.editor.graphic:null;}
@@ -138,7 +146,7 @@ Graphic.prototype.drawFrame=function(a){
   // The underlying 40x25 map remains unchanged and can be restored via checkbox.
   if(/^diag-/.test(cfg.type)&&cfg.diagonalEdgeMask){
     var stripX=Math.min(8*sc,clipW/3),stripY=Math.min(4*sc,clipH/3);
-    ctx.fillStyle=bgCSS(this,n);
+    ctx.fillStyle=diagonalBorderCSS197(this,n);
     ctx.fillRect(clipX,clipY,stripX,clipH);
     ctx.fillRect(clipX+clipW-stripX,clipY,stripX,clipH);
     ctx.fillRect(clipX,clipY,clipW,stripY);
