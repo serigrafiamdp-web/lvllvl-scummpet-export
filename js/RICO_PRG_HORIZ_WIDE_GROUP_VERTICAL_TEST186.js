@@ -66,7 +66,7 @@ function collect(self){
   throw new Error('TEST186: Window 40x25 debe quedar dentro del Screen y Scroll Area completos.');
  if(area.width>96||area.width*2*25>=0x3000)throw new Error('TEST186: Scroll Area horizontal supera el limite de esta primera prueba.');
  if(!Number.isInteger(cfg.ticksPerStep)||cfg.ticksPerStep<1||cfg.ticksPerStep>1024)throw new Error('Ticks/Step fuera del rango representable (1..1024).');
- if(cfg.pixelsPerStep!==1&&cfg.pixelsPerStep!==8)throw new Error('TEST191: el motor horizontal de esta rama necesita implementar aun los saltos intermedios en pixels/step.');
+ if(!Number.isInteger(cfg.pixelsPerStep)||cfg.pixelsPerStep<1||cfg.pixelsPerStep>8)throw new Error('Pixels/Step debe estar entre 1 y 8.');
  var layer=ed.layers.getSelectedLayerObject(),ts=layer.getTileSet();if(ts.getTileWidth()!==8||ts.getTileHeight()!==8)throw new Error('TEST186: solo charset C64 8x8.');
  var store=ts.getDocRecord().data||{},group=makeGroup(ts,store);
  var bank1=glyphBytes(ts.tileData),bank2=store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData?glyphBytes(store.ricoCharsetBank2.tileData):bank1;
@@ -116,34 +116,30 @@ function build(d){
  'main_try_group',' lda group182_pending',' beq main_loop',' jsr group182_step',' jmp main_loop',
  'irq',' pha',' txa',' pha',' tya',' pha',' lda #$01',' sta $d019',
  ' lda main_busy',' bne irq_only_group',' lda prep_request',' beq irq_map_step',' lda prep_ready',' beq irq_only_group',
- ' jsr swap_screens',' lda #'+h(d.type==='left'?7:0),' sta fine_pos',
+ ' jsr swap_screens',
  ' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',
- (d.pixels===8?' jmp irq_map_step':' jmp irq_only_group'),
+ ' jmp irq_only_group',
  'irq_map_step',
  ' inc step_tick_lo',' bne irq_tick_check',' inc step_tick_hi',
  'irq_tick_check',' lda step_tick_hi',' cmp #'+h((d.ticks>>8)&255),' bne irq_tick_wait',
  ' lda step_tick_lo',' cmp #'+h(d.ticks&255),' beq irq_tick_fire',
  'irq_tick_wait',' jmp irq_only_group',
  'irq_tick_fire',' lda #$00',' sta step_tick_lo',' sta step_tick_hi');
- if(d.pixels===8){
-   // A character-wide step is 8 pixels; map camera changes only by one column.
-   // Never swap an unfinished backbuffer; group animation remains ticked on every IRQ.
-   if(d.type==='left'){
-     emit(' inc camera_x',' lda camera_x',' cmp #'+h(d.areaWidth),' bcc irq_queue',' lda #$00',' sta camera_x',' jmp irq_queue');
-   }else{
-     emit(' lda camera_x',' bne irq_right_dec8',' lda #'+h(d.areaWidth-1),' sta camera_x',' jmp irq_queue',
-          'irq_right_dec8',' dec camera_x');
-   }
- }else{
-   emit(' lda fine_pos');
-
+ // TEST193: 1..8 pixels each configured tick. Preserve sub-character remainder
+ // when crossing a character boundary; swap only after the backbuffer is ready.
  if(d.type==='left'){
-  emit(' beq irq_boundary_left',' dec fine_pos',' jsr apply_horizontal',' jmp irq_only_group',
- 'irq_boundary_left',' inc camera_x',' lda camera_x',' cmp #'+h(d.areaWidth),' bcc irq_queue',' lda #$00',' sta camera_x',' jmp irq_queue');
+  emit(' lda fine_pos',' sec',' sbc #'+h(d.pixels),' bcc irq_boundary_left',
+       ' sta fine_pos',' jsr apply_horizontal',' jmp irq_only_group',
+       'irq_boundary_left',' clc',' adc #$08',' sta fine_pos',
+       ' inc camera_x',' lda camera_x',' cmp #'+h(d.areaWidth),
+       ' bcc irq_queue',' lda #$00',' sta camera_x',' jmp irq_queue');
  }else{
-  emit(' cmp #$07',' beq irq_boundary_right',' inc fine_pos',' jsr apply_horizontal',' jmp irq_only_group',
- 'irq_boundary_right',' lda camera_x',' bne irq_right_dec',' lda #'+h(d.areaWidth-1),' sta camera_x',' jmp irq_queue', 'irq_right_dec',' dec camera_x');
- }
+  emit(' lda fine_pos',' clc',' adc #'+h(d.pixels),' cmp #$08',
+       ' bcs irq_boundary_right',' sta fine_pos',' jsr apply_horizontal',' jmp irq_only_group',
+       'irq_boundary_right',' sec',' sbc #$08',' sta fine_pos',
+       ' lda camera_x',' bne irq_right_dec',
+       ' lda #'+h(d.areaWidth-1),' sta camera_x',' jmp irq_queue',
+       'irq_right_dec',' dec camera_x');
  }
  emit('irq_queue',' lda #$01',' sta prep_request',' lda #$00',' sta prep_ready',
  'irq_only_group',' jsr group182_irq_tick',' pla',' tay',' pla',' tax',' pla',' rti',
@@ -182,5 +178,5 @@ ToPRGAdv.prototype.createPRG=function(args){
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST192] Experimental combined Group Scroll cardinal directions Up/Down/Left/Right with 1..255 ticks; VICE validation pending.');
+console.log('[RICO TEST193] Horizontal map 1..8 pixels/step, 1..1024 ticks; Group Scroll cardinal experiment, VICE validation pending.');
 })();
