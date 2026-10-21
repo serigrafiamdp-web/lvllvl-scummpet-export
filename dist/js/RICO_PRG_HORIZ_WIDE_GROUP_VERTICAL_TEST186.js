@@ -169,7 +169,11 @@ ToPRGAdv.prototype.createPRG=function(args){
    if(!/\.prg$/i.test(name))name+='.prg';
    if(typeof window.download!=='function')throw new Error('No esta disponible window.download');
    window.download(prg,name,'application/prg');return prg;
- }catch(e){console.error('[RICO TEST186]',e);alert('No se pudo exportar: '+e.message);return false;}
+ }catch(e){
+   console.warn('[RICO TEST189] Motor horizontal experimental no aplicable; intentando exportador anterior:',e.message);
+   try { return previous.apply(this,arguments); }
+   catch(fallbackError) { console.error('[RICO TEST189] Tampoco pudo exportar el motor anterior:',fallbackError);alert('La exportacion fallo en ambos motores: '+fallbackError.message);return false; }
+ }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
 console.log('[RICO TEST188] Wide Map Scroll supports 1 or 8 pixels per step (1 tick), vertical Group Scroll unchanged.');
