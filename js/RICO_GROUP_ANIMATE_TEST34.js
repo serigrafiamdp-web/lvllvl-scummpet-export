@@ -257,7 +257,22 @@
     }
   }
 
-  function createGroup(tileSet, desc, type, ticks) {
+  // TEST195: separate scroll distance from its existing Ticks/Frame cadence.
+  // Old projects without pixelsPerTick keep their TEST194 export speed.
+  function isGroupScrollType(type) {
+    return /^(left|right|up|down|pingpong-left|pingpong-right|pingpong-up|pingpong-down)$/.test(type || '');
+  }
+
+  function groupPixels195(group) {
+    var value = Number(group && group.pixelsPerTick);
+    if(Number.isInteger(value) && value >= 1 && value <= 8) return value;
+    if(group && (group.type === 'up' || group.type === 'down'))
+      return (group.widthTiles === 2 && group.heightTiles === 8 && Number(group.ticksPerFrame) === 1) ? 1 : 2;
+    if(group && (group.type === 'left' || group.type === 'right')) return 4;
+    return 1;
+  }
+
+  function createGroup(tileSet, desc, type, ticks, pixels) {
     var store = getStore(tileSet, true);
     removeIntersectingGroups(tileSet, desc);
     if(!type || type === 'mixed') {
@@ -279,6 +294,7 @@
       ticksPerFrame: ticks,
       version: 1
     };
+    if(isGroupScrollType(type)) group.pixelsPerTick = Math.max(1, Math.min(8, parseInt(pixels, 10) || 1));
     getGroups(tileSet, desc.bank, true).push(group);
     markModified(tileSet);
     tileSet.__ricoGroupPhase34 = null;
@@ -520,11 +536,17 @@
   // NEVER change g_tick, group.ticksPerFrame, metadata, other animations or PRG.
   // Time-based phase skips missed browser frames instead of slowing the scroll.
   function previewPhase165(phaseState, bank, group, ticks, count, tick) {
-    if(group.type !== 'up') return Math.floor(tick / ticks) % count;
+    // Preserve legacy previews unless the new per-group distance was configured.
+    // Explicit pixelsPerTick runs against PAL's 20ms ticks in all scroll directions.
+    var explicitPixels = Number(group.pixelsPerTick);
+    var hasPixels = Number.isInteger(explicitPixels) && explicitPixels >= 1 && explicitPixels <= 8;
+    if(!hasPixels && group.type !== 'up') return Math.floor(tick / ticks) % count;
+    if(!isGroupScrollType(group.type)) return Math.floor(tick / ticks) % count;
     var clocks = phaseState.__ricoPalPreview165;
     if(!clocks) clocks = phaseState.__ricoPalPreview165 = {};
     var key = bank + ':' + group.id;
-    var signature = group.widthTiles + 'x' + group.heightTiles + ':' + ticks + ':' + group.type;
+    var distance = groupPixels195(group);
+    var signature = group.widthTiles + 'x' + group.heightTiles + ':' + ticks + ':' + group.type + ':' + distance;
     var now = (typeof performance !== 'undefined' && performance && typeof performance.now === 'function')
       ? performance.now() : Date.now();
     var clock = clocks[key];
@@ -539,7 +561,7 @@
     var elapsedPalTicks = Math.floor((now - clock.started) / 20);
     var steps = Math.floor(elapsedPalTicks / ticks);
     var legacy155 = (group.widthTiles === 2 && group.heightTiles === 8 && ticks === 1);
-    clock.phase = (steps * (legacy155 ? 1 : 2)) % count;
+    clock.phase = (steps * (hasPixels ? distance : (legacy155 ? 1 : 2))) % count;
     return clock.phase;
   }
 
@@ -711,6 +733,11 @@
             '<label for="ricoGroupTicks34">Ticks/Frame:</label> ' +
             '<input size="2" class="number" min="1" max="255" value="6" id="ricoGroupTicks34"/>' +
           '</div>' +
+          '<div style="display:inline-block; margin:6px 0 0 12px" id="ricoGroupPixelsRow195">' +
+            '<label for="ricoGroupPixels195">Pixels / Tick:</label> ' +
+            '<input id="ricoGroupPixels195" class="number integer" type="number" min="1" max="8" step="1" value="1" style="width:53px"/>' +
+            '<span style="font-size:10px;color:#888; margin-left:4px">1–8 px</span>' +
+          '</div>' +
         '</div>' +
         '<div id="ricoGroupEmptyRow151" style="margin-top:9px;">' +
           '<label for="ricoGroupEmptyChar151" style="cursor:pointer; color:#bbb;">' +
@@ -728,6 +755,9 @@
     $('#ricoGroupTicks34').off('change.rico34 keyup.rico34').on('change.rico34 keyup.rico34', function() {
       updateGroupTicksFromUI(tileEditor);
     });
+    $('#ricoGroupPixels195').off('change.rico195').on('change.rico195', function() {
+      updateGroupPixelsFromUI(tileEditor);
+    });
     $('#ricoGroupEmptyChar151').off('change.rico151').on('change.rico151', function() {
       updateGlobalEmptyCharactersFromUI(tileEditor);
     });
@@ -743,6 +773,8 @@
     if(!desc || desc.cells.length < 2) {
       select.html(optionsHtml('', false)).val('').prop('disabled', true);
       $('#ricoGroupTicks34').prop('disabled', true);
+      $('#ricoGroupPixelsRow195').hide();
+      $('#ricoGroupPixels195').prop('disabled', true);
       $('#ricoGroupInfo34').text('Select 2 or more tiles to animate them as one bitmap.');
       return;
     }
@@ -754,6 +786,10 @@
     var selected = exact ? exact.type : (intersect ? 'mixed' : '');
     select.html(optionsHtml(selected, !!intersect && !exact)).val(selected);
     if(exact) $('#ricoGroupTicks34').val(exact.ticksPerFrame || 6);
+    var pixelsEnabled = isGroupScrollType(selected);
+    $('#ricoGroupPixelsRow195').toggle(pixelsEnabled);
+    $('#ricoGroupPixels195').prop('disabled', !pixelsEnabled);
+    $('#ricoGroupPixels195').val(exact ? groupPixels195(exact) : 1);
 
     var pxW = desc.widthTiles * TILE_W;
     var pxH = desc.heightTiles * TILE_H;
@@ -772,7 +808,10 @@
     var ticks = parseInt($('#ricoGroupTicks34').val(), 10);
     if(isNaN(ticks) || ticks < 1) ticks = 6;
 
-    createGroup(tileEditor.tileSet, desc, type, ticks);
+    var pixels = parseInt($('#ricoGroupPixels195').val(), 10);
+    if(!Number.isInteger(pixels) || pixels < 1) pixels = 1;
+    if(pixels > 8) pixels = 8;
+    createGroup(tileEditor.tileSet, desc, type, ticks, pixels);
     tileEditor.tileSet.__ricoGroupPhase34 = null;
     tileEditor.tileSet.__ricoSwitchBankClock171 = null;
     tileEditor.tileSet.__ricoGroupActiveBank34 = 0;
@@ -804,6 +843,24 @@
       if(tileEditor.editor && tileEditor.editor.currentTile) tileEditor.editor.currentTile.refresh();
     } catch(e) {}
     syncGroupUI(tileEditor);
+  }
+
+  function updateGroupPixelsFromUI(tileEditor) {
+    if(!tileEditor || !tileEditor.tileSet) return;
+    var desc = selectionDescriptor(tileEditor);
+    var group = findExactGroup(tileEditor.tileSet, desc);
+    if(!group || !isGroupScrollType(group.type)) return;
+    var pixels = parseInt($('#ricoGroupPixels195').val(), 10);
+    if(!Number.isInteger(pixels) || pixels < 1) pixels = 1;
+    if(pixels > 8) pixels = 8;
+    $('#ricoGroupPixels195').val(pixels);
+    if(group.pixelsPerTick === pixels) return;
+    group.pixelsPerTick = pixels;
+    markModified(tileEditor.tileSet);
+    tileEditor.tileSet.__ricoGroupPhase34 = null;
+    tileEditor.tileSet.__ricoGroupActiveBank34 = 0;
+    tileEditor.tileSet.update(typeof g_tick !== 'undefined' ? g_tick : 0);
+    refreshGroupSelection153(tileEditor.tileSet, desc);
   }
 
   function updateGroupTicksFromUI(tileEditor) {
@@ -872,5 +929,5 @@
   window.RICO_TEST171_GROUP_BANK_SWITCH = true;
   window.RICO_TEST172_DUAL_NATIVE_BANK_SWITCH = true;
   window.RICO_TEST152_PIXEL_BASED_EMPTY_CHARACTERS = true;
-  console.log('[RICO TEST165] Group Scroll Up preview PAL-paced (2 px/IRQ, legacy TEST155 1 px), unchanged exports and static tileset.');
+  console.log('[RICO TEST195] Group Animate Pixels / Tick 1..8 stored separately, live PAL preview for configured groups; legacy projects preserved.');
 })();

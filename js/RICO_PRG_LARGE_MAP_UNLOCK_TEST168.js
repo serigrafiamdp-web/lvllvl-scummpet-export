@@ -85,6 +85,10 @@ function collectAnimations175(ts,data){
   var motion=motions.length?motions[0]:null,group=null;
   if(motion){
     var g=motion.g,w=Number(g.widthTiles),h=Number(g.heightTiles),ticks=Number(g.ticksPerFrame);
+    var hasPixels=g.pixelsPerTick!==undefined && g.pixelsPerTick!==null;
+    var groupPixels=hasPixels?Number(g.pixelsPerTick):(g.type==='up'||g.type==='down'?((w===2&&h===8&&ticks===1)?1:2):4);
+    if(!Number.isInteger(groupPixels)||groupPixels<1||groupPixels>8)
+      throw new Error('TEST195: Group Animate Pixels/Tick debe estar entre 1 y 8.');
     if(g.type!=='up'&&g.type!=='left'&&g.type!=='right')throw new Error('TEST183: este motor combina Map Scroll con Group Scroll Up, Left o Right. No se alterara la direccion seleccionada.');
     if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>256||h>32||!Array.isArray(g.cells)||g.cells.length!==w*h)
       throw new Error('TEST182: Group Scroll debe ser un rectangulo completo de caracteres distintos, maximo 256 tiles.');
@@ -117,7 +121,7 @@ function collectAnimations175(ts,data){
       }
       original.push(column.concat(column));
     }
-    group={bank:groupBank,w:w,h:h,ticks:ticks,type:g.type,cells:cells,tiles:groupTiles,columns:original,addresses:addresses,protection:protection,codes:found,protectedIds:protectedIds};
+    group={bank:groupBank,w:w,h:h,ticks:ticks,pixels:groupPixels,type:g.type,cells:cells,tiles:groupTiles,columns:original,addresses:addresses,protection:protection,codes:found,protectedIds:protectedIds};
   }
   var used=new Uint8Array(256);
   for(var cell=0;cell<data.length;cell++)used[data[cell]&255]=1;
@@ -815,8 +819,11 @@ function buildSource(d){
     out.push('group182_dest_hi=$38');
     out.push('group182_step');
     out.push(' lda group182_active');out.push(' bne group182_continue');
-    out.push(' inc group182_phase');
-    if(!(gg.w===2&&gg.h===8&&gg.ticks===1))out.push(' inc group182_phase'); // TEST155 legacy 1px/tick
+    // TEST195: 1..8 pixels per group tick, preserving legacy default speed.
+    out.push(' lda group182_phase');
+    out.push(' clc');
+    out.push(' adc #$'+hex2(gg.pixels||((gg.w===2&&gg.h===8&&gg.ticks===1)?1:2)));
+    out.push(' sta group182_phase');
     if(rows!==256){
       out.push(' lda group182_phase');out.push(' cmp #$'+hex2(rows));
       out.push(' bcc group182_phase_done');out.push(' sec');
@@ -917,7 +924,7 @@ function buildSource(d){
     // against TEST184 2px and document the emergent Waves effect.
     // Only the immediate step differs in the generated PRG; one tile per
     // main-loop iteration still limits how fast a complete phase appears.
-    var step=4;
+    var step=hgrp.pixels||4;
     if(hgrp.type==='left'){
       out.push(' lda group183_bit_phase');out.push(' clc');out.push(' adc #$'+hex2(step));
       out.push(' cmp #$08');out.push(' bcc group183_left_no_carry');

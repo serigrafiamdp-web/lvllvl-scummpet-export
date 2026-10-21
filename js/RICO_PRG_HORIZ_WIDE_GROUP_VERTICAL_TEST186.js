@@ -19,6 +19,10 @@ function makeGroup(ts,store){
   var selection=mods[0],cfg=selection.raw,bank=selection.bank;
   if(!/^(up|down|left|right)$/.test(cfg.type))throw new Error('TEST192: direccion de Group Scroll no implementada en el runtime combinado: '+cfg.type);
   var w=Number(cfg.widthTiles),hh=Number(cfg.heightTiles),ticks=Number(cfg.ticksPerFrame);
+  var hasPixels=cfg.pixelsPerTick!==undefined&&cfg.pixelsPerTick!==null;
+  var pixels=hasPixels?Number(cfg.pixelsPerTick):(cfg.type==='up'||cfg.type==='down'?((w===2&&hh===8&&ticks===1)?1:2):4);
+  if(!Number.isInteger(pixels)||pixels<1||pixels>8)
+    throw new Error('TEST195: Group Animate Pixels/Tick debe estar entre 1 y 8.');
   if(!Number.isInteger(w)||!Number.isInteger(hh)||w<1||hh<1||hh>32||w*hh>256||!Number.isInteger(ticks)||ticks<1||ticks>255)throw new Error('TEST186: geometria o ticks de grupo invalidos.');
   var tileSet=bank===1?ts.tileData:store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData;
   if(!tileSet||tileSet.length<256)throw new Error('TEST186: falta el BANK '+bank+'.');
@@ -35,7 +39,7 @@ function makeGroup(ts,store){
     }
     columns.push(col.concat(col));
   }
-  return {bank:bank,w:w,h:hh,ticks:ticks,type:cfg.type,cells:matrix,tiles:tileSet,columns:columns,addresses:addresses,protection:protectedVals,codes:ids};
+  return {bank:bank,w:w,h:hh,ticks:ticks,pixels:pixels,type:cfg.type,cells:matrix,tiles:tileSet,columns:columns,addresses:addresses,protection:protectedVals,codes:ids};
 }
 function groupASM(group,tileBank1,tileBank2){
  var blank=new Uint8Array(1280);var col=new Uint8Array(1280);col.fill(14);
@@ -49,7 +53,7 @@ function groupASM(group,tileBank1,tileBank2){
    if(first<0||last<0)throw new Error('TEST186: grupo vertical Down sin fase identificable.');
    var old=tail.slice(first,last),anchor=' bne group182_continue\n',z=old.indexOf(anchor);
    if(z<0)throw new Error('TEST186: scheduler de grupo cambiado.');
-   var n=group.h*8,speed=(group.w===2&&group.h===8&&group.ticks===1)?1:2;
+   var n=group.h*8,speed=group.pixels||((group.w===2&&group.h===8&&group.ticks===1)?1:2);
    var body=' lda group182_phase\n sec\n sbc #'+h(speed)+'\n';
    if(n!==256)body+=' bcs group182_down_wrap_done\n clc\n adc #'+h(n)+'\ngroup182_down_wrap_done\n';
    body+=' sta group182_phase\n';
@@ -182,5 +186,5 @@ ToPRGAdv.prototype.createPRG=function(args){
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST194] Standalone horizontal Map Scroll: 1..8 pixels/step, 1..1024 ticks, Group optional; VICE validation pending.');
+console.log('[RICO TEST195] Group Scroll 1..8 pixels/tick Up/Down/Left/Right with wide horizontal map; TEST194 no-group path retained.');
 })();
