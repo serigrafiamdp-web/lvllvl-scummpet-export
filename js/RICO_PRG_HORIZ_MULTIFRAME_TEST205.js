@@ -138,6 +138,9 @@ function build205(d){
  change(' lda #$04\n sta dst_hi\n jsr render_to_dst',
   ' lda #$00\n sta frame_index205\n sta frame_request205\n jsr load_frame205\n jsr commit_frame205\n lda #$04\n sta dst_hi\n jsr render_to_dst');
  // The next frame waits for the existing TEST203 deferred prepare/render path.
+ // Both scroll directions exceed short-branch reach in the combined player.
+ change('lda main_busy\n bne irq_only_group\n lda prep_request\n beq irq_map_step\n lda prep_ready\n beq irq_only_group',
+  'lda main_busy\n beq irq_no_busy205\n jmp irq_only_group\nirq_no_busy205\n lda prep_request\n beq irq_map_step\n lda prep_ready\n bne irq_prep_ready205\n jmp irq_only_group\nirq_prep_ready205');
  change('irq_map_step\n inc step_tick_lo',
   'irq_map_step\n jsr duration_tick205\n lda frame_request205\n beq duration_continue205\n jmp irq_only_group\nduration_continue205\n inc step_tick_lo');
  change('cmp #'+h(first.ticks>>8)+'\n bne irq_tick_wait',
@@ -151,8 +154,8 @@ function build205(d){
  var left=' lda fine_pos\n sec\n sbc speed205\n bcc irq_boundary_left205\n sta fine_pos\n jsr apply_horizontal\n jmp irq_only_group\nirq_boundary_left205\n clc\n adc #$08\n sta fine_pos\n inc camera_x\n lda camera_x\n cmp area_width205\n bcc irq_queue\n lda #$00\n sta camera_x\n jmp irq_queue';
  var right=' lda fine_pos\n clc\n adc speed205\n cmp #$08\n bcs irq_boundary_right205\n sta fine_pos\n jsr apply_horizontal\n jmp irq_only_group\nirq_boundary_right205\n sec\n sbc #$08\n sta fine_pos\n lda camera_x\n bne irq_right_dec205\n lda area_width205\n sec\n sbc #$01\n sta camera_x\n jmp irq_queue\nirq_right_dec205\n dec camera_x';
  var tickCode=tickHead+' lda direction205\n beq irq_dir_left205\n jmp irq_dir_right205\nirq_dir_left205\n'+left+'\nirq_dir_right205\n'+right+'\n';
- var start=src.indexOf('irq_tick_fire\n'),end=src.indexOf('irq_queue\n',start);
- if(start<0||end<0||end<=start)throw new Error('TEST205: no se encuentra el codigo de Pixels/Step TEST203.');
+ var start=src.indexOf('\nirq_tick_fire\n')+1,end=src.indexOf('\nirq_queue\n',start)+1;
+ if(start<=0||end<=0||end<=start)throw new Error('TEST205: no se encuentra el codigo de Pixels/Step TEST203.');
  src=src.slice(0,start)+tickCode+src.slice(end);
  // Render screen+shadow color from the currently selected frame's own data.
  change('lda #<world_map_data\n sta src_lo\n lda #>world_map_data\n sta src_hi',
