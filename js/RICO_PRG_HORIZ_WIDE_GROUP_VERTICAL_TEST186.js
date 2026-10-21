@@ -205,10 +205,16 @@ function build(d){
  ' lda #<world_colors',' sta color_src_lo',' lda #>world_colors',' sta color_src_hi',
  ' clc',' lda color_src_lo',' adc camera_x',' sta color_src_lo',
  ' lda color_src_hi',' adc #$00',' sta color_src_hi');
- emit(' lda #$19',' sta tmp_row','render_row',' ldy #$00',
- 'render_column',' lda (src_lo),y',' sta (dst_lo),y');
- if(d.multicolor)emit(' lda (color_src_lo),y',' sta (color_dst_lo),y');
- emit(' iny',' cpy #$28',' bne render_column',
+ // TEST214: copy eight consecutive cells per inner-loop iteration.
+ // Exact same 1000 cells and shadow colors; fewer loop branches.
+ // No change to IRQ, buffers, camera, SID, or Pixels/Step.
+ emit(' lda #$19',' sta tmp_row','render_row',' ldy #$00','render_column');
+ for(var cell214=0;cell214<8;cell214++){
+  emit(' lda (src_lo),y',' sta (dst_lo),y');
+  if(d.multicolor)emit(' lda (color_src_lo),y',' sta (color_dst_lo),y');
+  emit(' iny');
+ }
+ emit(' cpy #$28',' bne render_column',
  ' clc',' lda src_lo',' adc #'+h(d.srcStride&255),' sta src_lo',
  ' lda src_hi',' adc #'+h(d.srcStride>>8),' sta src_hi');
  if(d.multicolor)emit(' clc',' lda color_src_lo',' adc #'+h(d.srcStride&255),' sta color_src_lo',
