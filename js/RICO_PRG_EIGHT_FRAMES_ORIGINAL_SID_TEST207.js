@@ -332,9 +332,10 @@ ToPRGAdv.prototype.createPRG=function(args){
  var requiresNative=args&&args.music==='sid';
  var chosen=requiresNative?args.sidData:SID_STATE.enabled&&SID_STATE.data?SID_STATE.data:null;
  if(!chosen){
-  var requestedMusic=args&&args.music&&args.music!=='no';
-  if(requiresNative||requestedMusic){
-   window.RICO_TEST207_LAST_ERROR=requiresNative?'Elegiste SID pero no hay un archivo cargado.':'Para esta prueba de scroll + SID, elegi un archivo PSID original en TEST207. Todavia no integramos musica interna del editor.';
+  // Sin PSID: usar el exportador normal. Solo exigir archivo si SID
+  // fue elegido de forma explicita. El scroll no depende del audio.
+  if(requiresNative){
+   window.RICO_TEST207_LAST_ERROR='Elegiste SID pero no hay un archivo cargado.';
    if(typeof window.alert==='function')window.alert('RICO TEST207 SID: '+window.RICO_TEST207_LAST_ERROR);
    return false;
   }
