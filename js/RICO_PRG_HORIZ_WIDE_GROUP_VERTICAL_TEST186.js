@@ -12,6 +12,8 @@ function makeGroup(ts,store){
   var groups=store.ricoGroupAnimationsV1||{},all=[];
   for(var bank=1;bank<=2;bank++)(groups['bank'+bank]||[]).forEach(function(g){all.push({bank:bank,raw:g});});
   var mods=all.filter(function(g){return g.raw.type!=='switch-bank';});
+  // TEST194: horizontal Map Scroll is valid without a Group Scroll.
+  if(mods.length===0){ if(all.length)throw new Error('No se puede omitir Switch Bank al exportar.');return null; }
   if(mods.length!==1)throw new Error('TEST186: selecciona exactamente UN Group Scroll vertical para esta prueba.');
   if(all.some(function(g){return g.raw.type==='switch-bank';}))throw new Error('TEST186: combinar Switch Bank con mapa horizontal queda pendiente; no se exportara un efecto distinto.');
   var selection=mods[0],cfg=selection.raw,bank=selection.bank;
@@ -158,7 +160,9 @@ function build(d){
  emit('*=$3800','charset_bank2');bytes(a,d.bank2);
  emit('*=$4000','world_map_data');bytes(a,d.map);
  emit('*=$7000','world_colors');bytes(a,d.colors);
- a.push(groupASM(d.group,d.bank1,d.bank2));
+ // TEST194: no dummy animation is added to the user's project.
+ // Minimal inert labels satisfy the shared IRQ/main-loop scheduler.
+ a.push(d.group?groupASM(d.group,d.bank1,d.bank2):'*=$a000\ngroup182_pending\n!byte $00\ngroup182_irq_tick\n rts\ngroup182_step\n rts');
  return a.join('\n')+'\n';
 }
 function assemble(self,src){var a=g_app&&g_app.assembler;if(!a)throw new Error('TEST186: ensamblador LVLLVL no disponible');var r=a.assemble(src,0x0801);if(!r||!r.success){var errors=r&&r.errors||[];throw new Error('TEST186 error ASM: '+errors.map(function(e){return e.message||String(e)}).join(' | '));}var mem=a.getMemory(),b=new Uint8Array(2+r.end-r.start);b[0]=r.start&255;b[1]=r.start>>8;for(var i=r.start;i<r.end;i++)b[2+i-r.start]=mem[i]&255;return b;}
@@ -166,7 +170,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  var ed=this.editor,s=ed&&size(ed),cfg=ed&&getCfg(ed,0),t=cfg&&cfg.type;
  if(!s||s.w<=40||t!=='left'&&t!=='right')return previous.apply(this,arguments);
  try{
-   var d=collect(this),text=build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test186.prg';this.prg=prg;
+   var d=collect(this),text=build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test194.prg';this.prg=prg;
    if(args&&args.download===false)return prg;
    if(!/\.prg$/i.test(name))name+='.prg';
    if(typeof window.download!=='function')throw new Error('No esta disponible window.download');
@@ -178,5 +182,5 @@ ToPRGAdv.prototype.createPRG=function(args){
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST193] Horizontal map 1..8 pixels/step, 1..1024 ticks; Group Scroll cardinal experiment, VICE validation pending.');
+console.log('[RICO TEST194] Standalone horizontal Map Scroll: 1..8 pixels/step, 1..1024 ticks, Group optional; VICE validation pending.');
 })();
