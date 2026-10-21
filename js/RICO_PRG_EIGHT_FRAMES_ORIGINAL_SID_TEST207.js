@@ -103,7 +103,8 @@ function makeSource207(source,sid,speed){
  source=replaceOnce(source,' lda #$01\n sta $d01a\n lda #$fa\n sta $d012',
  init+' lda #$01\n sta $d01a\n lda #$fa\n sta $d012');
  // Its play is called in raster IRQ after register saves/IRQ acknowledgment.
- var fractional209=speed!==1&&speed!==2&&speed!==60;
+ var ciaHardware210=speed==='cia-hardware210';
+ var fractional209=!ciaHardware210&&speed!==1&&speed!==2&&speed!==60;
  // The three TEST208 modes are kept exactly as before for regression safety.
  var play=fractional209?'':' jsr '+hx(sid.play)+'\n';
  if(speed===2)play+=' jsr '+hx(sid.play)+'\n';
@@ -126,8 +127,21 @@ function makeSource207(source,sid,speed){
      play+=' jsr '+hx(sid.play)+'\nsid_skip209\n';
    }
  }
- source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
-  'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
+ if(ciaHardware210){
+   // TEST210: two INDEPENDENT hardware interrupts: CIA1 Timer A drives
+   // music at the tune's own $DC04/$DC05 latch, VIC raster drives ONLY video.
+   // The SID's INIT has already written the Timer A latch.
+   source=replaceOnce(source,' sta $ffff\n cli',
+     ' sta $ffff\n lda #$81\n sta $dc0d\n lda #$11\n sta $dc0e\n cli');
+   source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
+     'irq\n pha\n txa\n pha\n tya\n pha\n lda $dc0d\n and #$01\n beq cia_no_play210\n jsr '+hx(sid.play)+
+     '\ncia_no_play210\n lda $d019\n and #$01\n bne vic_video210\n jmp cia_only_exit210\nvic_video210\n lda #$01\n sta $d019');
+   source=replaceOnce(source,'*=$3000\ncharset_bank1',
+     'cia_only_exit210\n pla\n tay\n pla\n tax\n pla\n rti\n*=$3000\ncharset_bank1');
+ }else{
+   source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
+     'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
+ }
  // Source is placed exactly at the SID's own load address; never relocate
  // compiled music data, because absolute JSR/JMP and embedded pointers exist.
  if(speed===60)source=replaceOnce(source,'*=$3000\ncharset_bank1',
@@ -144,8 +158,9 @@ function export207(self,args,raw){
  if(!fr.length)throw new Error('TEST208: el proyecto no contiene frames.');
  var sid=parseSID(raw);
  var explicitSpeed=args&&(args.sidSpeed===1||args.sidSpeed===2)?args.sidSpeed:SID_STATE.speed;
- var speed=explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?(sid.ciaTimer?sid.ciaTimer.hz:60):1);
- SID_STATE.lastTempo209=sid.ciaTiming?(sid.ciaTimer?('CIA $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' = '+sid.ciaTimer.hz.toFixed(2)+' Hz'):'CIA sin timer detectable: TEST208 ~60 Hz'):'VBlank PAL 50 Hz';
+ var hardware210=sid.ciaTiming&&!!sid.ciaTimer&&explicitSpeed!==1&&explicitSpeed!==2;
+ var speed=hardware210?'cia-hardware210':explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?60:1);
+ SID_STATE.lastTempo209=hardware210?('TEST210 CIA Timer A hardware $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' ≈ '+sid.ciaTimer.hz.toFixed(2)+' Hz, raster separado'):sid.ciaTiming?('CIA sin temporizador usable o tasa manual, modo TEST208'):'VBlank PAL 50 Hz';
  var source;
  if(fr.length===1){
    // One-frame export needs no multi-frame storage, and works with horizontal,
@@ -266,5 +281,5 @@ window.RICO_TEST207_ORIGINAL_SID={
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
  memory:MEM
 };
-console.log('[RICO TEST209] SIDTracker64 CIA Timer A auto-detection (e.g. $6037 ~40Hz), TEST208 timing fallback preserved.');
+console.log('[RICO TEST210] SIDTracker64 REAL CIA Timer A IRQ, separate VIC raster graphics IRQ. TEST208/209 legacy modes preserved.');
 })();
