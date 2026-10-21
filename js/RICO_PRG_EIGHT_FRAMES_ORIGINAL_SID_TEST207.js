@@ -211,6 +211,15 @@ function export207(self,args,raw){
   var err=(assembled&&assembled.errors||[]).map(function(e){return e.message||String(e);});
   throw new Error('TEST207 ASM: '+err.join(' | '));
  }
+ window.RICO_TEST210_LAST_EXPORT={
+   mode:speed==='cia-hardware210'?'CIA1 Timer A hardware':speed===1?'50 Hz raster':speed===2?'100 Hz raster':speed===60?'~60 Hz fallback':'fractional 50Hz raster',
+   frames:fr.length, sidLoad:hx(sid.load), sidInit:hx(sid.init), sidPlay:hx(sid.play),
+   ciaTimer:sid.ciaTimer?hx(sid.ciaTimer.latch):null,
+   reportedHz:sid.ciaTimer?Number(sid.ciaTimer.hz.toFixed(3)):null
+ };
+ console.log('[RICO TEST210] PRG SID export',window.RICO_TEST210_LAST_EXPORT);
+ var visual210=typeof document!=='undefined'&&document.getElementById('ricoSid207Status');
+ if(visual210)visual210.textContent='TEST210 '+window.RICO_TEST210_LAST_EXPORT.mode+' | '+fr.length+' frame(s) | '+SID_STATE.lastTempo209;
  var mem=a.getMemory(),output=new Uint8Array(2+assembled.end-assembled.start);
  output[0]=assembled.start&255;output[1]=(assembled.start>>8)&255;
  for(var k=assembled.start;k<assembled.end;k++)output[2+k-assembled.start]=mem[k]&255;
@@ -230,9 +239,9 @@ function ensureUI207(){
  var box=document.createElement('div');
  box.id='ricoSid207Panel';
  box.style.cssText='margin:8px 16px;padding:8px;border:1px solid #666;font-size:12px;';
- box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> SID original LVLLVL — 1 o más frames (TEST208)</label>'
+ box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST210 — SID original + scroll (1 o más frames)</label>'
    +'<input id="ricoSid207Input" type="file" accept=".sid" style="width:260px">'
-   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: leer tempo CIA del SID</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
+   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: usar CIA Timer A real cuando esté disponible</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
    +'<div id="ricoSid207Status" style="margin-top:5px;color:#bbb">Elegí un archivo .sid. Sólo activa SID cuando tildás la casilla.</div>';
  el.appendChild(box);
  var input=document.getElementById('ricoSid207Input'),flag=document.getElementById('ricoSid207Enabled'),speed=document.getElementById('ricoSid207Speed'),status=document.getElementById('ricoSid207Status');
@@ -288,5 +297,5 @@ window.RICO_TEST207_ORIGINAL_SID={
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
  memory:MEM
 };
-console.log('[RICO TEST210] SIDTracker64 REAL CIA Timer A IRQ, separate VIC raster graphics IRQ. TEST208/209 legacy modes preserved.');
+console.log('[RICO TEST210 READY] CIA1 hardware SID IRQ independent of VIC raster; version check TEST210; TEST208 rollback remains available.');
 })();
