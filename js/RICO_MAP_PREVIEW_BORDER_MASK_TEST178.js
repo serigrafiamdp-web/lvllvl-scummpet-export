@@ -1,4 +1,5 @@
-/* RICO TEST178 — opaque C64 border around an active large vertical Map Scroll.
+/* RICO TEST179 — opaque C64 border around any active large Map Scroll.
+ * Extends TEST178 PASS to horizontal movement without changing vertical logic.
  * Only editor canvas presentation.  Never edits Screen/Window/Scroll Area,
  * underlying charset pixels or PRG exporter.  TEST177 remains source base.
  */
@@ -21,15 +22,17 @@ function areaConfig(g,frame){
     return w&&w.getScrollArea?w.getScrollArea(g,frame):null;
   } catch(e){return null;}
 }
-function vertical(cfg){
-  return cfg && /^(?:up|down|pingpong-up|pingpong-down|move-up|move-down|movein-up|movein-down)$/.test(cfg.type||'');
+function supportedMovement(cfg){
+  // TEST179: horizontal Map Scroll must obey the same Window mask
+  // as TEST178's approved vertical mode. Leave OFF and legacy 40x25 alone.
+  return cfg && /^(?:up|down|left|right|pingpong-up|pingpong-down|pingpong-left|pingpong-right|move-up|move-down|move-left|move-right|movein-up|movein-down|movein-left|movein-right)$/.test(cfg.type||'');
 }
 function state(view){
   try {
     var ed=view&&view.editor, g=ed&&ed.graphic;
     if(!g || !ed.grid || g.getType&&g.getType()==='sprite')return null;
     var frame=g.getCurrentFrame(),cfg=mapConfig(g,frame),w=windowConfig(g,frame),a=areaConfig(g,frame);
-    if(!vertical(cfg)||!w||!a)return null;
+    if(!supportedMovement(cfg)||!w||!a)return null;
     var cols=g.getGridWidth(),rows=g.getGridHeight();
     if(cols<=40&&rows<=25)return null; // legacy 40x25 untouched
     if(w.width>=cols&&w.height>=rows)return null; // no camera crop
@@ -75,7 +78,7 @@ function drawBorder(view,s){
   paint(ctx,0,y2,maxW,maxH-y2);
   paint(ctx,0,y,x,s.height);
   paint(ctx,x2,y,maxW-x2,s.height);
-  // A vertical Scroll Area narrower than its Window has uncovered columns.
+  // Any Scroll Area narrower than its Window has uncovered columns.
   // They are border, not transparent cells and not horizontally repeated art.
   if(s.left>0)paint(ctx,x,y,Math.min(s.width,s.left),s.height);
   if(s.right>0)paint(ctx,Math.max(x,x2-s.right),y,Math.min(s.width,s.right),s.height);
@@ -103,7 +106,7 @@ GridView2d.prototype.draw=function(){
   drawBorder(this,s);
   return result;
 };
-window.RICO_TEST178_PREVIEW_BORDER={enabled:true,verticalMapOnly:true,sourceUntouched:true,
+window.RICO_TEST178_PREVIEW_BORDER={enabled:true,verticalMapOnly:false,horizontalMap:true,test179:true,sourceUntouched:true,
   windowUntouched:true,exporterUntouched:true,getState:state};
-console.log('[RICO TEST178] Opaque vertical Map Scroll border; checker and ghost column masked without touching art.');
+console.log('[RICO TEST179] Opaque vertical/horizontal Map Scroll border; grid and ghost column masked without touching art.');
 })();
