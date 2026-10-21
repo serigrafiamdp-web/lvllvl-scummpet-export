@@ -112,14 +112,21 @@ function colorSparse203(add){
        full203='$'+(0x54+p203).toString(16),
        scan203='color_scan203_'+p203,
        next203='color_next203_'+p203;
-   add(' ldx #$00',' ldy #$00',' lda #$00',' sta '+full203,scan203,
-       ' lda '+dst203+',x',' and #$0f',' cmp '+src203+',x',
-       ' beq '+next203,
-       ' lda '+src203+',x',' sta '+val203+',y',
-       ' txa',' sta '+idx203+',y',
-       ' iny',' bne '+next203,
-       ' lda #$01',' sta '+full203,
-       next203,' inx',' bne '+scan203,' sty '+count203);
+   // TEST216: four comparisons per loop; same sparse-index/color results.
+   // Maximum backward 6502 branch: 4 * 29 + 2 = 118 bytes (< 128).
+   // Keep TEST215 screen copy, buffer swap, and map tick scheduler unchanged.
+   add(' ldx #$00',' ldy #$00',' lda #$00',' sta '+full203,scan203);
+   for(var k216=0;k216<4;k216++){
+     var next216=next203+'_'+k216;
+     add(' lda '+dst203+',x',' and #$0f',' cmp '+src203+',x',
+         ' beq '+next216,
+         ' lda '+src203+',x',' sta '+val203+',y',
+         ' txa',' sta '+idx203+',y',
+         ' iny',' bne '+next216,
+         ' lda #$01',' sta '+full203,
+         next216,' inx');
+   }
+   add(' bne '+scan203,' sty '+count203);
  }
  add(' rts','commit_sparse_colors203');
  for(var page203=0;page203<4;page203++){
