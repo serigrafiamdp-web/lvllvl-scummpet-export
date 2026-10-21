@@ -173,10 +173,14 @@ Graphic.prototype.drawFrame=function(args){
     // Only continuous Scroll repeats source around the selected camera.
     // Ping Pong and Move keep the naturally exposed background (no phantom wrap).
     if(repeat){
-      for(var yy=-1;yy<=1;yy++){
-        for(var xx=-1;xx<=1;xx++){
-          ctx.drawImage(source,drawX+xx*areaMW,drawY+yy*areaMH);
-        }
+      // TEST178: repeat only the axis that actually scrolls.  The old 3x3
+      // loop tiled a vertical source horizontally into the C64 border.
+      // A narrow Scroll Area must not be extended with phantom columns.
+      var verticalRepeat=cfg.type==='up'||cfg.type==='down';
+      if(verticalRepeat){
+        for(var yy=-1;yy<=1;yy++)ctx.drawImage(source,drawX,drawY+yy*areaMH);
+      }else{
+        for(var xx=-1;xx<=1;xx++)ctx.drawImage(source,drawX+xx*areaMW,drawY);
       }
     }else{
       ctx.drawImage(source,drawX,drawY);
