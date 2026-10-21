@@ -13,7 +13,22 @@ function onlyOnce(src,oldText,newText){
 }
 function virtualCollect(self,i){
  var ed=self.editor,realGraphic=ed.graphic,fr=realGraphic.frames[i],layer=ed.layers.getSelectedLayerObject();
- var g=Object.create(realGraphic);g.frames=[fr];
+ // A frame with Map Scroll OFF is an intentional still frame. Reuse the
+ // tested horizontal collector for its data, with a zero-pixel scheduler.
+ var still=!fr.ricoMapScrollV1||!fr.ricoMapScrollV1.type;
+ var effective=fr;
+ if(still){
+   var ww=fr.ricoWindowDimensionV1||{};
+   if(ww.width!==40||ww.height!==25){
+     // Only a temporary 40x25 camera is synthesized; the editor is untouched.
+     ww={x:0,y:0,width:40,height:25};
+   }
+   var aa=fr.ricoScrollAreaV1||{};
+   if(aa.width<40||aa.height<25)aa={x:ww.x||0,y:ww.y||0,width:40,height:25};
+   effective=Object.assign({},fr,{ricoMapScrollV1:{type:'right',ticksPerStep:1,pixelsPerStep:1},
+     ricoWindowDimensionV1:ww,ricoScrollAreaV1:aa});
+ }
+ var g=Object.create(realGraphic);g.frames=[effective];
  var l=Object.create(layer);
  l.getCell=function(pos){return layer.getCell.call(layer,Object.assign({},pos,{frame:i}));};
  if(typeof layer.getBorderColor==='function')l.getBorderColor=function(){return layer.getBorderColor.call(layer,i);};
@@ -22,6 +37,7 @@ function virtualCollect(self,i){
  var editor=Object.create(ed);editor.graphic=g;editor.layers=ls;
  var holder=Object.create(self);holder.editor=editor;
  var result=H.collect(holder);
+ if(still){result.type='right';result.pixels=0;}
  var dur=12;
  try{dur=realGraphic.getFrameDuration(i);}catch(e){dur=fr&&fr.duration;}
  dur=Number(dur);
@@ -38,7 +54,7 @@ function collect205(self){
  for(var i=0;i<data.length;i++){
    var f=data[i],length=f.map.length;
    if(length!==f.colors.length)throw new Error('TEST205: mapa y colores deben tener la misma geometria.');
-   if(f.type!=='left'&&f.type!=='right')throw new Error('TEST205: Frame '+(i+1)+' requiere Left o Right.');
+   if(f.type!=='left'&&f.type!=='right')throw new Error('TEST205: Frame '+(i+1)+' requiere Left o Right, o Map Scroll OFF.');
    if(f.initialX<0||f.initialX>=f.areaWidth)throw new Error('TEST205: camera X inicial fuera del mapa.');
    // The two 12KB source banks are the actual memory constraint.
    if(used+length>0x3000)throw new Error('TEST205: '+frames.length+' frames requieren '+(used+length)+' bytes por banco; el limite de RAM para mapas y colores es 12288. No se descarta ninguna frame.');
@@ -187,7 +203,9 @@ function assemble205(self,src){
 }
 ToPRGAdv.prototype.createPRG=function(args){
  var ed=this.editor,fs=ed&&ed.graphic&&ed.graphic.frames||[],cfg=fs[0]&&fs[0].ricoMapScrollV1||{},width=ed&&ed.graphic&&ed.graphic.getGridWidth&&ed.graphic.getGridWidth();
- if(fs.length<2||width<=40||cfg.type!=='left'&&cfg.type!=='right')return oldExport.apply(this,arguments);
+ var height=ed&&ed.graphic&&ed.graphic.getGridHeight&&ed.graphic.getGridHeight();
+ var active=fs.some(function(f){var t=f&&f.ricoMapScrollV1&&f.ricoMapScrollV1.type;return t==='left'||t==='right';});
+ if(fs.length<2||(width<=40&&height<=25)||!active)return oldExport.apply(this,arguments);
  try{
   var d=collect205(this),src=build205(d),prg=assemble205(this,src);
   args=args||{};
