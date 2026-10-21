@@ -3,7 +3,6 @@
 if(typeof ToPRGAdv==='undefined'||!window.RICO_TEST168_PRG_LARGE_MAP){console.error('[TEST186] Missing TEST185');return;}
 var previous=ToPRGAdv.prototype.createPRG;
 var MAP_BASE=0x4000, COLORS_BASE=0x7000;
-function hex4_202(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
 function h(v){return ('$'+('0'+((v||0)&255).toString(16)).slice(-2));}
 function bytes(out,dat){for(var i=0;i<dat.length;i+=16)out.push('!byte '+Array.prototype.slice.call(dat,i,i+16).map(h).join(','));}
 function getCfg(ed,n){return (ed.graphic.frames[n]||{}).ricoMapScrollV1||{};}
@@ -99,6 +98,47 @@ function collect(self){
  var fc=Number(Object.keys(colors)[0]),bcolor=Number(layer.getBorderColor(0))&15,bg=Number(layer.getBackgroundColor(0))&15,bank=f.charsetBank===2?2:1;
  return{map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,pixels:cfg.pixelsPerStep,ticks:cfg.ticksPerStep,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,multicolor:Object.keys(colors).length>1,border:bcolor,bg:bg,bank:bank};
 }
+
+function colorSparse203(add){
+ // Per page: $1000+p*256 holds changed column indexes; $1400+p*256 colors.
+ // $50..$53 = counts mod 256, $54..$57 = full-page (256 changes) flags.
+ add('prepare_sparse_colors203');
+ for(var p203=0;p203<4;p203++){
+   var src203='$'+(0x0c00+p203*256).toString(16),
+       dst203='$'+(0xd800+p203*256).toString(16),
+       idx203='$'+(0x1000+p203*256).toString(16),
+       val203='$'+(0x1400+p203*256).toString(16),
+       count203='$'+(0x50+p203).toString(16),
+       full203='$'+(0x54+p203).toString(16),
+       scan203='color_scan203_'+p203,
+       next203='color_next203_'+p203;
+   add(' ldx #$00',' ldy #$00',' lda #$00',' sta '+full203,scan203,
+       ' lda '+dst203+',x',' and #$0f',' cmp '+src203+',x',
+       ' beq '+next203,
+       ' lda '+src203+',x',' sta '+val203+',y',
+       ' txa',' sta '+idx203+',y',
+       ' iny',' bne '+next203,
+       ' lda #$01',' sta '+full203,
+       next203,' inx',' bne '+scan203,' sty '+count203);
+ }
+ add(' rts','commit_sparse_colors203');
+ for(var page203=0;page203<4;page203++){
+   var addr203='$'+(0xd800+page203*256).toString(16),
+       pos203='$'+(0x1000+page203*256).toString(16),
+       color203='$'+(0x1400+page203*256).toString(16),
+       countp203='$'+(0x50+page203).toString(16),
+       fullp203='$'+(0x54+page203).toString(16),
+       nextp203='color_done203_'+page203,
+       loopp203='color_apply203_'+page203;
+   add(' lda '+countp203,' ora '+fullp203,' beq '+nextp203,
+       ' ldy #$00',loopp203,
+       ' lda '+pos203+',y',' tax',' lda '+color203+',y',' sta '+addr203+',x',
+       ' iny',' cpy '+countp203,' bne '+loopp203,
+       nextp203);
+ }
+ add(' rts');
+}
+
 function build(d){
  var a=[],emit=function(){for(var i=0;i<arguments.length;i++)a.push(arguments[i]);};
  // TEST188: 8 pixels = one full character column per successful backbuffer swap.
@@ -117,16 +157,16 @@ function build(d){
  emit(' lda #$04',' sta dst_hi',' jsr render_to_dst',' lda #$08',' sta dst_hi',' jsr render_to_dst');
  if(d.multicolor)emit(' jsr commit_colors200');
  emit(' jsr update_d018',' jsr apply_horizontal',
- ' lda #$01',' sta $d01a',' lda #'+h(d.multicolor?0:0xfa),' sta $d012',' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
+ ' lda #$01',' sta $d01a',' lda #$fa',' sta $d012',' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
  'main_loop',' lda prep_request',' beq main_try_group',' lda prep_ready',' bne main_try_group',
- ' lda #$01',' sta main_busy',' lda back_hi',' sta dst_hi',' jsr render_to_dst',
- ' lda #$01',' sta prep_ready',' lda #$00',' sta main_busy',' jmp main_loop',
+ ' lda #$01',' sta main_busy',' lda back_hi',' sta dst_hi',' jsr render_to_dst');
+ if(d.multicolor)emit(' jsr prepare_sparse_colors203');
+ emit(' lda #$01',' sta prep_ready',' lda #$00',' sta main_busy',' jmp main_loop',
  'main_try_group',' lda group182_pending',' beq main_loop',' jsr group182_step',' jmp main_loop',
  'irq',' pha',' txa',' pha',' tya',' pha',' lda #$01',' sta $d019',
- ' lda main_busy',' bne irq_only_group',' lda prep_request',' beq irq_map_step',' lda prep_ready',' beq irq_only_group',
- ' jsr swap_screens');
- if(d.multicolor)emit(' jsr commit_colors200');
- emit(' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',
+ ' lda main_busy',' bne irq_only_group',' lda prep_request',' beq irq_map_step',' lda prep_ready',' beq irq_only_group');
+ if(d.multicolor)emit(' jsr commit_sparse_colors203');
+ emit(' jsr swap_screens',' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',
  ' jmp irq_only_group',
  'irq_map_step',
  ' inc step_tick_lo',' bne irq_tick_check',' inc step_tick_hi',
@@ -176,21 +216,11 @@ function build(d){
  if(d.multicolor)emit(' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
  ' lda color_dst_hi',' adc #$00',' sta color_dst_hi');
  emit(' dec tmp_row',' bne render_row',' rts');
- // TEST202: contiguous Color RAM pages, top to bottom. 16-copy
- // unrolling saves IRQ cycles and keeps BNE within 6502 branch reach.
- if(d.multicolor){
-   emit('commit_colors200');
-   for(var page202=0;page202<4;page202++){
-     var srcPage202=0x0c00+(page202<<8),dstPage202=0xd800+(page202<<8);
-     var label202='color_page'+page202+'_202';
-     emit(' ldx #$00',label202);
-     for(var batch202=0;batch202<16;batch202++)
-       emit(' lda '+hex4_202(srcPage202)+',x',
-                  ' sta '+hex4_202(dstPage202)+',x',' inx');
-     emit(' bne '+label202);
-   }
-   emit(' rts');
- }
+ if(d.multicolor)emit('commit_colors200',' ldx #$00','color_page_loop200',
+ ' lda $0c00,x',' sta $d800,x',' lda $0d00,x',' sta $d900,x',
+ ' lda $0e00,x',' sta $da00,x',' lda $0f00,x',' sta $db00,x',
+ ' inx',' bne color_page_loop200',' rts');
+ if(d.multicolor)colorSparse203(emit);
  emit('*=$3000','charset_bank1');bytes(a,d.bank1);
  emit('*=$3800','charset_bank2');bytes(a,d.bank2);
  emit('*=$4000','world_map_data');bytes(a,d.map);
@@ -205,7 +235,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  var ed=this.editor,s=ed&&size(ed),cfg=ed&&getCfg(ed,0),t=cfg&&cfg.type;
  if(!s||s.w<=40||t!=='left'&&t!=='right')return previous.apply(this,arguments);
  try{
-   var d=collect(this),text=build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test200.prg';this.prg=prg;
+   var d=collect(this),text=build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test203.prg';this.prg=prg;
    if(args&&args.download===false)return prg;
    if(!/\.prg$/i.test(name))name+='.prg';
    if(typeof window.download!=='function')throw new Error('No esta disponible window.download');
@@ -217,5 +247,5 @@ ToPRGAdv.prototype.createPRG=function(args){
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST202] Horizontal multicolor Color RAM commit at frame-start raster 0; monochrome stays on TEST200 timer.');
+console.log('[RICO TEST203] Left/Right adaptive changed-color patch lists; IRQ performs sparse writes before screen swap.');
 })();

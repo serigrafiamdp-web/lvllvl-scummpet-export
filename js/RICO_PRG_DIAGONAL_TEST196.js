@@ -9,7 +9,6 @@ var DIRECTIONS={
  'diag-up-left':{x:-1,y:-1}, 'diag-up-right':{x:1,y:-1},
  'diag-down-left':{x:-1,y:1},'diag-down-right':{x:1,y:1}
 };
-function hex4_202(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
 function h(v){return '$'+('0'+((v||0)&255).toString(16)).slice(-2);}
 function hex4(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
 function emitBytes(dst,items){for(var i=0;i<items.length;i+=16)dst.push('!byte '+Array.prototype.slice.call(items,i,i+16).map(h).join(','));}
@@ -98,6 +97,47 @@ function collect(self){
    edgeMask:cfg.diagonalEdgeMask!==false,uniformColor:uniformColor,solidColor:colors[0]||0,
    fastRows:fastRows,rowStride:fastRows?area.width*2:area.width};
 }
+
+function colorSparse203(add){
+ // Per page: $1000+p*256 holds changed column indexes; $1400+p*256 colors.
+ // $50..$53 = counts mod 256, $54..$57 = full-page (256 changes) flags.
+ add('prepare_sparse_colors203');
+ for(var p203=0;p203<4;p203++){
+   var src203='$'+(0x0c00+p203*256).toString(16),
+       dst203='$'+(0xd800+p203*256).toString(16),
+       idx203='$'+(0x1000+p203*256).toString(16),
+       val203='$'+(0x1400+p203*256).toString(16),
+       count203='$'+(0x50+p203).toString(16),
+       full203='$'+(0x54+p203).toString(16),
+       scan203='color_scan203_'+p203,
+       next203='color_next203_'+p203;
+   add(' ldx #$00',' ldy #$00',' lda #$00',' sta '+full203,scan203,
+       ' lda '+dst203+',x',' and #$0f',' cmp '+src203+',x',
+       ' beq '+next203,
+       ' lda '+src203+',x',' sta '+val203+',y',
+       ' txa',' sta '+idx203+',y',
+       ' iny',' bne '+next203,
+       ' lda #$01',' sta '+full203,
+       next203,' inx',' bne '+scan203,' sty '+count203);
+ }
+ add(' rts','commit_sparse_colors203');
+ for(var page203=0;page203<4;page203++){
+   var addr203='$'+(0xd800+page203*256).toString(16),
+       pos203='$'+(0x1000+page203*256).toString(16),
+       color203='$'+(0x1400+page203*256).toString(16),
+       countp203='$'+(0x50+page203).toString(16),
+       fullp203='$'+(0x54+page203).toString(16),
+       nextp203='color_done203_'+page203,
+       loopp203='color_apply203_'+page203;
+   add(' lda '+countp203,' ora '+fullp203,' beq '+nextp203,
+       ' ldy #$00',loopp203,
+       ' lda '+pos203+',y',' tax',' lda '+color203+',y',' sta '+addr203+',x',
+       ' iny',' cpy '+countp203,' bne '+loopp203,
+       nextp203);
+ }
+ add(' rts');
+}
+
 function build(d){
  var out=[],e=function(){for(var i=0;i<arguments.length;i++)out.push(arguments[i]);};
  e('; TEST196: independent diagonal Map Scroll, 1..8 pixels/step, no speed veto.',
@@ -127,22 +167,22 @@ function build(d){
    ' lda #$08',' sta dst_hi',' jsr render_to_dst');
  if(!d.uniformColor)e(' jsr commit_colors199');
  e(' jsr update_d018',' jsr apply_fine',
-   ' lda #$01',' sta $d01a',' lda #'+h(d.uniformColor?0xfa:0),' sta $d012',
+   ' lda #$01',' sta $d01a',' lda #$fa',' sta $d012',
    ' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
    'main_loop',' lda prep_request',' beq main_group',' lda prep_ready',' bne main_group',
    ' lda #$01',' sta main_busy',
-   ' lda back_hi',' sta dst_hi',' jsr render_to_dst',
-   ' lda #$01',' sta prep_ready',
+   ' lda back_hi',' sta dst_hi',' jsr render_to_dst');
+ if(!d.uniformColor)e(' jsr prepare_sparse_colors203');
+ e(' lda #$01',' sta prep_ready',
    ' lda #$00',' sta main_busy',' jmp main_loop',
    'main_group',' lda group182_pending',' beq main_loop',' jsr group182_step',' jmp main_loop',
    'irq',' pha',' txa',' pha',' tya',' pha',
    ' lda #$01',' sta $d019',
    ' lda main_busy',' bne irq_group',
    ' lda prep_request',' beq irq_tick',
-   ' lda prep_ready',' beq irq_group',
-   ' jsr swap_screens');
- if(!d.uniformColor)e(' jsr commit_colors199');
- e(' lda pending_x',' sta camera_x',' lda pending_y',' sta camera_y',
+   ' lda prep_ready',' beq irq_group');
+ if(!d.uniformColor)e(' jsr commit_sparse_colors203');
+ e(' jsr swap_screens',' lda pending_x',' sta camera_x',' lda pending_y',' sta camera_y',
    ' lda next_fx',' sta fine_x',' lda next_fy',' sta fine_y',
    ' jsr apply_fine',
    ' lda #$00',' sta prep_request',' sta prep_ready',
@@ -256,21 +296,12 @@ function build(d){
  // Commit only AFTER screen swap, during raster IRQ at line $FA.
  // Sequential top-to-bottom copy runs ahead of the PAL raster beam in a
  // typical frame; C64 has no real double-buffered Color RAM.
- // TEST202: contiguous Color RAM pages, top to bottom. 16-copy
- // unrolling saves IRQ cycles and keeps BNE within 6502 branch reach.
- if(!d.uniformColor){
-   e('commit_colors199');
-   for(var page202=0;page202<4;page202++){
-     var srcPage202=0x0c00+(page202<<8),dstPage202=0xd800+(page202<<8);
-     var label202='color_page'+page202+'_202';
-     e(' ldx #$00',label202);
-     for(var batch202=0;batch202<16;batch202++)
-       e(' lda '+hex4_202(srcPage202)+',x',
-                  ' sta '+hex4_202(dstPage202)+',x',' inx');
-     e(' bne '+label202);
-   }
-   e(' rts');
- }
+ if(!d.uniformColor)e('commit_colors199',' ldx #$00','commit_color_pages199',
+     ' lda $0c00,x',' sta $d800,x',
+     ' lda $0d00,x',' sta $d900,x',
+     ' lda $0e00,x',' sta $da00,x',
+     ' lda $0f00,x',' sta $db00,x',
+     ' inx',' bne commit_color_pages199',' rts');
  e('world_rows_lo');
  var los=[],his=[],clo=[],chi=[];
  for(var i=0;i<d.areaHeight;i++){
@@ -281,6 +312,7 @@ function build(d){
  }
  emitBytes(out,los);e('world_rows_hi');emitBytes(out,his);
  e('color_rows_lo');emitBytes(out,clo);e('color_rows_hi');emitBytes(out,chi);
+ if(!d.uniformColor)colorSparse203(e);
  e('*=$3000','charset_bank1');emitBytes(out,d.bank1);
  e('*=$3800','charset_bank2');emitBytes(out,d.bank2);
  e('*=$4000','world_map_data');emitBytes(out,d.map);
@@ -346,7 +378,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   var data=collect(this),source=build(data),prg=assemble(this,source);
   this.prg=prg;args=args||{};
   if(args.download===false)return prg;
-  var name=args.filename||'rico-diagonal-test199.prg';
+  var name=args.filename||'rico-diagonal-test203.prg';
   if(!/\.prg$/i.test(name))name+='.prg';
   window.download(prg,name,'application/prg');
   return prg;
@@ -357,5 +389,5 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST196_DIAGONAL={collect:collect,build:build,directions:DIRECTIONS};
-console.log('[RICO TEST202] Diagonal multicolor Color RAM commit at frame-start raster 0; mono and speed preserve TEST198.');
+console.log('[RICO TEST203] Diagonal adaptive changed-color patch lists; IRQ commits sparse changes before raster swap.');
 })();
