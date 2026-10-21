@@ -133,11 +133,18 @@ function makeSource207(source,sid,speed){
    // The SID's INIT has already written the Timer A latch.
    source=replaceOnce(source,' sta $ffff\n cli',
      ' sta $ffff\n lda #$81\n sta $dc0d\n lda #$11\n sta $dc0e\n cli');
+   // Prioritize the VIC-II raster path. The CIA-only interrupts MUST NOT
+   // increment the map/group scheduler: they only run the audio player.
+   source=replaceOnce(source,'*=$2000\n',
+     '*=$2000\ncia_pending210=$58\n');
    source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
-     'irq\n pha\n txa\n pha\n tya\n pha\n lda $dc0d\n and #$01\n beq cia_no_play210\n jsr '+hx(sid.play)+
-     '\ncia_no_play210\n lda $d019\n and #$01\n bne vic_video210\n jmp cia_only_exit210\nvic_video210\n lda #$01\n sta $d019');
+     'irq\n pha\n txa\n pha\n tya\n pha\n lda $dc0d\n and #$01\n sta cia_pending210\n lda $d019\n and #$01\n bne vic_video210\n jmp cia_only_exit210\nvic_video210\n lda #$01\n sta $d019');
+   var groupDone210=source.indexOf('irq_only_group\n jsr group182_irq_tick\n pla\n tay\n pla\n tax\n pla\n rti')>=0?'irq_only_group':'irq_group';
+   source=replaceOnce(source,groupDone210+'\n jsr group182_irq_tick\n pla\n tay\n pla\n tax\n pla\n rti',
+     groupDone210+'\n jsr group182_irq_tick\n jmp cia_only_exit210');
    source=replaceOnce(source,'*=$3000\ncharset_bank1',
-     'cia_only_exit210\n pla\n tay\n pla\n tax\n pla\n rti\n*=$3000\ncharset_bank1');
+     'cia_only_exit210\n lda cia_pending210\n beq cia_restore210\n jsr '+hx(sid.play)+
+     '\ncia_restore210\n pla\n tay\n pla\n tax\n pla\n rti\n*=$3000\ncharset_bank1');
  }else{
    source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
      'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
