@@ -169,9 +169,8 @@ function build205(d){
  var extraMap=fs.slice(1).map(function(f,i){return 'world_map_frame205_'+(i+1)+'\n'+byteLine(f.map);}).join('\n');
  var extraColors=fs.slice(1).map(function(f,i){return 'world_colors_frame205_'+(i+1)+'\n'+byteLine(f.colors);}).join('\n');
  change('*=$7000\nworld_colors',extraMap+'\n*=$7000\nworld_colors');
- change('*=$a000\ngroup182_pending',extraColors+'\n*=$a000\ngroup182_pending');
- // A real Group Scroll uses another label immediately after $a000.
- // The fallback replacement above handles the no-group case only.
+ change('*=$a000\n',extraColors+'\n*=$a000\n');
+ // Works for both the inert group labels and active Group Scroll ASM.
  return src;
 }
 function assemble205(self,src){
