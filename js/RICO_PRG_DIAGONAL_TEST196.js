@@ -76,12 +76,26 @@ function collect(self){
  if(map.length>=0x3000)throw new Error('El mapa supera los 12 KB disponibles en $4000-$6FFF.');
  if(colors.length>=0x3000)throw new Error('Los colores superan los 12 KB disponibles en $7000-$9FFF.');
  var uniformColor=colors.every(function(c){return c===colors[0];});
+ // TEST198: a doubled *row* permits straight 40-byte copies without checking
+ // horizontal wrap at each character. Larger maps stay on the old slow path.
+ var fastRows=map.length*2<0x3000;
+ if(fastRows){
+  var fastMap=[],fastColors=[];
+  for(var ry=0;ry<area.height;ry++){
+   var from=ry*area.width,to=from+area.width;
+   var rowMap=map.slice(from,to),rowColors=colors.slice(from,to);
+   fastMap.push.apply(fastMap,rowMap.concat(rowMap));
+   fastColors.push.apply(fastColors,rowColors.concat(rowColors));
+  }
+  map=fastMap;colors=fastColors;
+ }
  var b1=glyphs(ts.tileData),b2=store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData?glyphs(store.ricoCharsetBank2.tileData):b1;
  var bg=Number(layer.getBackgroundColor(0))&15,border=Number(layer.getBorderColor(0))&15;
  return{direction:cfg.type,dir:dir,ticks:ticks,pixels:pixels,areaWidth:area.width,areaHeight:area.height,
    cameraX:w.x-area.x,cameraY:w.y-area.y,bank:fr.charsetBank===2?2:1,bg:bg,border:border,
    map:map,colors:colors,bank1:b1,bank2:b2,group:groupFromStore(ts,store),
-   edgeMask:cfg.diagonalEdgeMask!==false,uniformColor:uniformColor,solidColor:colors[0]||0};
+   edgeMask:cfg.diagonalEdgeMask!==false,uniformColor:uniformColor,solidColor:colors[0]||0,
+   fastRows:fastRows,rowStride:fastRows?area.width*2:area.width};
 }
 function build(d){
  var out=[],e=function(){for(var i=0;i<arguments.length;i++)out.push(arguments[i]);};
@@ -180,8 +194,33 @@ function build(d){
  e(' lda pending_x',' cmp camera_x',' bne queue_frame',
    ' lda pending_y',' cmp camera_y',' bne queue_frame',
    ' lda next_fx',' sta fine_x',' lda next_fy',' sta fine_y',' jsr apply_fine',' rts',
-   'queue_frame',' lda #$01',' sta prep_request',' lda #$00',' sta prep_ready',' rts',
-   'render_to_dst',
+   'queue_frame',' lda #$01',' sta prep_request',' lda #$00',' sta prep_ready',' rts');
+ if(d.fastRows){
+   // TEST198 FAST: row source pointer + camera X once per row, then direct
+   // (source),Y -> (screen),Y copies. No per-tile wrap test or X/Y exchange.
+   e('render_to_dst',' lda #$00',' sta dst_lo');
+   if(!d.uniformColor)e(' sta color_dst_lo',' lda #$d8',' sta color_dst_hi');
+   e(' lda pending_y',' sta row_id',' lda #$19',' sta rows_left',
+     'render_row',' ldx row_id',
+     ' lda world_rows_lo,x',' clc',' adc pending_x',' sta src_lo',
+     ' lda world_rows_hi,x',' adc #$00',' sta src_hi');
+   if(!d.uniformColor)e(
+     ' lda color_rows_lo,x',' clc',' adc pending_x',' sta color_src_lo',
+     ' lda color_rows_hi,x',' adc #$00',' sta color_src_hi');
+   e(' ldy #$00','fast_column',
+     ' lda (src_lo),y',' sta (dst_lo),y');
+   if(!d.uniformColor)e(' lda (color_src_lo),y',' sta (color_dst_lo),y');
+   e(' iny',' cpy #$28',' bne fast_column',
+     ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+     ' lda dst_hi',' adc #$00',' sta dst_hi');
+   if(!d.uniformColor)e(' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
+     ' lda color_dst_hi',' adc #$00',' sta color_dst_hi');
+   e(' inc row_id',' lda row_id',' cmp #'+h(d.areaHeight),' bne fast_row_continue',
+     ' lda #$00',' sta row_id',
+     'fast_row_continue',' dec rows_left',' bne render_row',' rts');
+ }else{
+   // Safe fallback for maps whose duplicated row data does not fit RAM.
+   e('render_to_dst',
    ' lda #$00',' sta dst_lo',' sta color_dst_lo',
    ' lda #$d8',' sta color_dst_hi',
    ' lda pending_y',' sta row_id',
@@ -208,14 +247,15 @@ function build(d){
    ' lda color_dst_hi',' adc #$00',' sta color_dst_hi',
    ' inc row_id',' lda row_id',' cmp #'+h(d.areaHeight),' bne row_continue',
    ' lda #$00',' sta row_id',
-   'row_continue',' dec rows_left',' bne render_row',' rts',
-   'world_rows_lo');
+   'row_continue',' dec rows_left',' bne render_row',' rts');
+ }
+ e('world_rows_lo');
  var los=[],his=[],clo=[],chi=[];
  for(var i=0;i<d.areaHeight;i++){
-   los.push((0x4000+i*d.areaWidth)&255);
-   his.push((0x4000+i*d.areaWidth)>>8);
-   clo.push((0x7000+i*d.areaWidth)&255);
-   chi.push((0x7000+i*d.areaWidth)>>8);
+   los.push((0x4000+i*d.rowStride)&255);
+   his.push((0x4000+i*d.rowStride)>>8);
+   clo.push((0x7000+i*d.rowStride)&255);
+   chi.push((0x7000+i*d.rowStride)>>8);
  }
  emitBytes(out,los);e('world_rows_hi');emitBytes(out,his);
  e('color_rows_lo');emitBytes(out,clo);e('color_rows_hi');emitBytes(out,chi);
@@ -284,7 +324,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   var data=collect(this),source=build(data),prg=assemble(this,source);
   this.prg=prg;args=args||{};
   if(args.download===false)return prg;
-  var name=args.filename||'rico-diagonal-test196.prg';
+  var name=args.filename||'rico-diagonal-test198.prg';
   if(!/\.prg$/i.test(name))name+='.prg';
   window.download(prg,name,'application/prg');
   return prg;
@@ -295,5 +335,5 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST196_DIAGONAL={collect:collect,build:build,directions:DIRECTIONS};
-console.log('[RICO TEST197] Diagonal Map Scroll: optional 38x24 clean borders and one-time monochrome Color RAM initialization.');
+console.log('[RICO TEST198] Diagonal Map Scroll: duplicated-row fast 40x25 renderer when RAM permits, legacy fallback for large maps.');
 })();
