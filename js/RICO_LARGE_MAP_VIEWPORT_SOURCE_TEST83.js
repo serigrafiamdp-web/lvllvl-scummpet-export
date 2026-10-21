@@ -58,6 +58,16 @@ function bgCSS83(g,n){
   }catch(e){}
   return '#000000';
 }
+function diagonalBorderColor204(g,n){
+  try {
+    var ed=g&&g.editor,layer=ed&&ed.layers&&ed.layers.getSelectedLayerObject?ed.layers.getSelectedLayerObject():null;
+    if(layer&&layer.getColorPalette&&layer.getBorderColor){
+      var pal=layer.getColorPalette(),hex=pal&&pal.getHexString(layer.getBorderColor());
+      if(hex!==false&&hex!==null&&typeof hex!=='undefined')return '#'+hex;
+    }
+  }catch(e){}
+  return bgCSS83(g,n);
+}
 function phase83(g){
   try{var s=g.__ricoMap37;if(s&&typeof s.phase==='number'&&s.phase>=0)return s.phase|0;}catch(e){}
   return 0;
@@ -197,6 +207,17 @@ Graphic.prototype.drawFrame=function(args){
       }
     }else{
       ctx.drawImage(source,drawX,drawY);
+    }
+    // Same 38x24 C64 fine-scroll edge mask as TEST197's smaller-screen
+    // preview. This masks 8 logical pixels per X side and 4 per Y side.
+    // The 40x25 source, Screen/Scroll Area and export stay unchanged.
+    if(/^diag-(?:up|down)-(?:left|right)$/.test(cfg.type)&&cfg.diagonalEdgeMask!==false){
+      var edgeX204=Math.min(8*sc,tw/3),edgeY204=Math.min(4*sc,th/3);
+      ctx.fillStyle=diagonalBorderColor204(this,n);
+      ctx.fillRect(baseX,baseY,edgeX204,th);
+      ctx.fillRect(baseX+tw-edgeX204,baseY,edgeX204,th);
+      ctx.fillRect(baseX,baseY,tw,edgeY204);
+      ctx.fillRect(baseX,baseY+th-edgeY204,tw,edgeY204);
     }
     ctx.restore();
     nativeBorder83(this,n,ctx,args.canvas,baseX,baseY,viewW,viewH,sc);
