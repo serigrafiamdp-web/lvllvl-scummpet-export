@@ -172,7 +172,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  }catch(e){
  console.warn('[RICO TEST189] Exportador de prueba no admite esta combinacion; pasando al motor anterior:',e.message);
  try{return previous.apply(this,arguments);}
- catch(f){console.error('[RICO TEST189] Error del exportador anterior:',f);alert('Error real de exportacion: '+f.message);return false;}
+ catch(f){console.error('[RICO TEST189] Error del exportador anterior:',f);console.error('[RICO TEST190] Error tecnico en motor previo (sin cartel):',f.message);return false;}
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
