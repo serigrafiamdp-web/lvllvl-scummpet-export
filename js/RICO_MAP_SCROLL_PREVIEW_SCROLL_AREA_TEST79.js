@@ -4,7 +4,7 @@ if(typeof Frames==='undefined'||typeof Graphic==='undefined'||typeof TileSet==='
 var FIELD='ricoMapScrollV1', DEF=6, DEF_PIX=1, PAL_TICK_MS=20, activeFrames58=null, previewLoop58=false, stepping79=false;
 var pause79={paused:false,rawStart:0,offset:0,frozen:0};
 var autoFit177=null;
-var OPTS=[['','No'],['left','Scroll Left'],['right','Scroll Right'],['up','Scroll Up'],['down','Scroll Down'],['pingpong-left','Ping Pong Left'],['pingpong-right','Ping Pong Right'],['pingpong-up','Ping Pong Up'],['pingpong-down','Ping Pong Down'],['move-left','Move Out Left'],['move-right','Move Out Right'],['move-up','Move Out Up'],['move-down','Move Out Down'],['movein-left','Move In Left'],['movein-right','Move In Right'],['movein-up','Move In Up'],['movein-down','Move In Down']];
+var OPTS=[['','No'],['left','Scroll Left'],['right','Scroll Right'],['up','Scroll Up'],['down','Scroll Down'],['diag-up-left','Diagonal Up Left'],['diag-up-right','Diagonal Up Right'],['diag-down-left','Diagonal Down Left'],['diag-down-right','Diagonal Down Right'],['pingpong-left','Ping Pong Left'],['pingpong-right','Ping Pong Right'],['pingpong-up','Ping Pong Up'],['pingpong-down','Ping Pong Down'],['move-left','Move Out Left'],['move-right','Move Out Right'],['move-up','Move Out Up'],['move-down','Move Out Down'],['movein-left','Move In Left'],['movein-right','Move In Right'],['movein-up','Move In Up'],['movein-down','Move In Down']];
 function rawTick79(){var ms=0;try{if(typeof getTimestamp==='function')ms=getTimestamp();else if(typeof performance!=='undefined'&&performance.now)ms=performance.now();else ms=Date.now();}catch(e){ms=Date.now();}return Math.floor(ms/PAL_TICK_MS);}
 function tick(){var r=rawTick79();return pause79.paused?pause79.frozen:(r-pause79.offset);}
 function updatePause79(){var b=$('#ricoMapScrollPause79');if(b.length)b.text(pause79.paused?'PLAY':'PAUSE');}
@@ -102,6 +102,10 @@ Graphic.prototype.drawFrame=function(a){
 
   var p=phase(this,n,cfg,tick()),dist=p*cfg.pixelsPerStep,dxs=0,dys=0,wrapX=false,wrapY=false;
   switch(cfg.type){
+    case'diag-up-left':dxs=-(dist%areaW);dys=-(dist%areaH);wrapX=wrapY=true;break;
+    case'diag-up-right':dxs=dist%areaW;dys=-(dist%areaH);wrapX=wrapY=true;break;
+    case'diag-down-left':dxs=-(dist%areaW);dys=dist%areaH;wrapX=wrapY=true;break;
+    case'diag-down-right':dxs=dist%areaW;dys=dist%areaH;wrapX=wrapY=true;break;
     case'left':dxs=-(dist%areaW);wrapX=true;break;
     case'right':dxs=dist%areaW;wrapX=true;break;
     case'up':dys=-(dist%areaH);wrapY=true;break;
@@ -122,7 +126,11 @@ Graphic.prototype.drawFrame=function(a){
   var dx=dxs*sc,dy=dys*sc,ctx=a.context;
   ctx.save();ctx.beginPath();ctx.rect(clipX,clipY,clipW,clipH);ctx.clip();
   ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.fillStyle=bgCSS(this,n);ctx.fillRect(clipX,clipY,clipW,clipH);
-  if(wrapX){ctx.drawImage(s,areaOx+dx-areaMW,areaOy);ctx.drawImage(s,areaOx+dx,areaOy);ctx.drawImage(s,areaOx+dx+areaMW,areaOy);}
+  if(wrapX&&wrapY){
+    for(var ry=-1;ry<=1;ry++)for(var rx=-1;rx<=1;rx++)
+      ctx.drawImage(s,areaOx+dx+rx*areaMW,areaOy+dy+ry*areaMH);
+  }
+  else if(wrapX){ctx.drawImage(s,areaOx+dx-areaMW,areaOy);ctx.drawImage(s,areaOx+dx,areaOy);ctx.drawImage(s,areaOx+dx+areaMW,areaOy);}
   else if(wrapY){ctx.drawImage(s,areaOx,areaOy+dy-areaMH);ctx.drawImage(s,areaOx,areaOy+dy);ctx.drawImage(s,areaOx,areaOy+dy+areaMH);}
   else{ctx.drawImage(s,areaOx+dx,areaOy+dy);}
   ctx.restore();
@@ -140,5 +148,5 @@ window.RICO_TEST58_MAP_SCROLL=window.RICO_TEST75_MAP_SCROLL;
 window.RICO_TEST57_MAP_SCROLL=window.RICO_TEST75_MAP_SCROLL;
 window.RICO_TEST56_MAP_SCROLL=window.RICO_TEST75_MAP_SCROLL;
 window.RICO_TEST37_MAP_SCROLL=window.RICO_TEST75_MAP_SCROLL;
-console.log("[RICO TEST79 UI] Rico's Map Scroll: proven TEST75 base + frame navigation + global PAUSE/PLAY");
+console.log("[RICO TEST196 UI] Four diagonal Map Scroll directions, independent X/Y wrapping, same Ticks/Step and Pixels/Step.");
 })();
