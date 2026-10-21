@@ -250,7 +250,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  var ed=this.editor,s=ed&&size(ed),cfg=ed&&getCfg(ed,0),t=cfg&&cfg.type;
  if(!s||s.w<=40||t!=='left'&&t!=='right')return previous.apply(this,arguments);
  try{
-   var d=collect(this),text=build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test203.prg';this.prg=prg;
+   var d=collect(this),text=window.RICO_TEST186_HORIZONTAL.build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test203.prg';this.prg=prg;
    if(args&&args.download===false)return prg;
    if(!/\.prg$/i.test(name))name+='.prg';
    if(typeof window.download!=='function')throw new Error('No esta disponible window.download');
@@ -263,4 +263,79 @@ ToPRGAdv.prototype.createPRG=function(args){
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
 console.log('[RICO TEST203] Left/Right adaptive changed-color patch lists; IRQ performs sparse writes before screen swap.');
+})();
+
+
+/* TEST218: byte-exact ahead-of-time Color RAM patching for wide horizontal
+ * single-frame exports. No new project restrictions: dense palettes use
+ * the original TEST217 renderer. Never edit the source project. */
+(function(){
+'use strict';
+var engine=window.RICO_TEST186_HORIZONTAL;if(!engine)return;
+var old=engine.build;
+function hex(n){return '$'+('0000'+(n&65535).toString(16)).slice(-4);}
+function b(n){return '$'+('0'+(n&255).toString(16)).slice(-2);}
+function make(d){
+ if(!d.multicolor||d.duration!==undefined||d.disableFast218)return null;
+ var w=d.areaWidth,stride=d.srcStride;
+ if(w<40||w>255||stride!==2*w||d.colors.length<25*stride)return null;
+ var patches=[],estimated=2*w;
+ for(var cam=0;cam<w;cam++){
+  var prev=(cam+(d.type==='left'?w-1:1))%w,groups=Array.from({length:16},function(){return[];});
+  for(var row=0;row<25;row++)for(var x=0;x<40;x++){
+   var offset=row*stride+x,oldColor=d.colors[offset+prev]&15,newColor=d.colors[offset+cam]&15;
+   if(oldColor!==newColor)groups[newColor].push(0xd800+40*row+x);
+  }
+  var fragment=['patch218_camera_'+cam];
+  for(var color=0;color<16;color++)if(groups[color].length){
+   fragment.push(' lda #'+b(color));
+   for(var k=0;k<groups[color].length;k++)fragment.push(' sta '+hex(groups[color][k]));
+   estimated+=2+3*groups[color].length;
+  }
+  fragment.push(' rts');estimated++;
+  patches.push(fragment);
+ }
+ // Reserved RAM windows. If the fully expanded patch code does not fit,
+ // keep the complete previous implementation (no new export constraints).
+ if(estimated>6144)return null;
+ return{base:estimated<=4096?0xc000:0xe000,patches:patches,estimated:estimated};
+}
+function newRenderer(d){
+ var a=['render_fast218',' lda #$00',' sta dst_lo',
+  ' lda #<world_map_data',' sta src_lo',' lda #>world_map_data',' sta src_hi',
+  ' clc',' lda src_lo',' adc camera_x',' sta src_lo',
+  ' lda src_hi',' adc #$00',' sta src_hi',
+  ' lda #$19',' sta tmp_row','render_fast_row218',' ldy #$00','render_fast_col218'];
+ for(var i=0;i<8;i++)a.push(' lda (src_lo),y',' sta (dst_lo),y',' iny');
+ a.push(' cpy #$28',' bne render_fast_col218',
+  ' clc',' lda src_lo',' adc #'+b(d.srcStride&255),' sta src_lo',
+  ' lda src_hi',' adc #'+b(d.srcStride>>8),' sta src_hi',
+  ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+  ' lda dst_hi',' adc #$00',' sta dst_hi',
+  ' dec tmp_row',' beq render_fast_done218',' jmp render_fast_row218',
+  'render_fast_done218',' rts',
+  'apply_patch218',' ldx camera_x',
+  ' lda patch218_ptrlo,x',' sta src_lo',
+  ' lda patch218_ptrhi,x',' sta src_hi',
+  ' jmp (src_lo)');
+ return a.join('\n')+'\n';
+}
+engine.build=function(d){
+ var p=make(d),s=old(d);
+ if(!p)return s;
+ var before=' jsr render_to_dst\n jsr prepare_sparse_colors203';
+ var after=' jsr render_fast218';
+ var commitBefore=' jsr commit_sparse_colors203\n jsr swap_screens';
+ var commitAfter=' jsr apply_patch218\n jsr swap_screens';
+ if(s.split(before).length!==2||s.split(commitBefore).length!==2)throw new Error('TEST218: anchor mismatch, no silent fallback');
+ s=s.replace(before,after).replace(commitBefore,commitAfter);
+ // Render initial double screen/color buffers and initialize Color RAM as
+ // before. The fast routine is used only for subsequent screen updates.
+ s=s.replace('*=$3000\ncharset_bank1',newRenderer(d)+'*=$3000\ncharset_bank1');
+ var tail=['*='+hex(p.base),'patch218_ptrlo','!byte '+p.patches.map(function(_,i){return '<patch218_camera_'+i;}).join(','),
+  'patch218_ptrhi','!byte '+p.patches.map(function(_,i){return '>patch218_camera_'+i;}).join(',')];
+ for(var j=0;j<p.patches.length;j++)tail.push.apply(tail,p.patches[j]);
+ return s+'\n'+tail.join('\n')+'\n';
+};
+window.RICO_TEST218_FAST_COLOR={version:218,plan:make,oldBuild:old};
 })();
