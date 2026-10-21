@@ -9,6 +9,7 @@ var DIRECTIONS={
  'diag-up-left':{x:-1,y:-1}, 'diag-up-right':{x:1,y:-1},
  'diag-down-left':{x:-1,y:1},'diag-down-right':{x:1,y:1}
 };
+function hex4_202(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
 function h(v){return '$'+('0'+((v||0)&255).toString(16)).slice(-2);}
 function hex4(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
 function emitBytes(dst,items){for(var i=0;i<items.length;i+=16)dst.push('!byte '+Array.prototype.slice.call(items,i,i+16).map(h).join(','));}
@@ -255,12 +256,21 @@ function build(d){
  // Commit only AFTER screen swap, during raster IRQ at line $FA.
  // Sequential top-to-bottom copy runs ahead of the PAL raster beam in a
  // typical frame; C64 has no real double-buffered Color RAM.
- if(!d.uniformColor)e('commit_colors199',' ldx #$00','commit_color_pages199',
-     ' lda $0c00,x',' sta $d800,x',
-     ' lda $0d00,x',' sta $d900,x',
-     ' lda $0e00,x',' sta $da00,x',
-     ' lda $0f00,x',' sta $db00,x',
-     ' inx',' bne commit_color_pages199',' rts');
+ // TEST202: contiguous Color RAM pages, top to bottom. 16-copy
+ // unrolling saves IRQ cycles and keeps BNE within 6502 branch reach.
+ if(!d.uniformColor){
+   e('commit_colors199');
+   for(var page202=0;page202<4;page202++){
+     var srcPage202=0x0c00+(page202<<8),dstPage202=0xd800+(page202<<8);
+     var label202='color_page'+page202+'_202';
+     e(' ldx #$00',label202);
+     for(var batch202=0;batch202<16;batch202++)
+       e(' lda '+hex4_202(srcPage202)+',x',
+                  ' sta '+hex4_202(dstPage202)+',x',' inx');
+     e(' bne '+label202);
+   }
+   e(' rts');
+ }
  e('world_rows_lo');
  var los=[],his=[],clo=[],chi=[];
  for(var i=0;i<d.areaHeight;i++){
@@ -347,5 +357,5 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST196_DIAGONAL={collect:collect,build:build,directions:DIRECTIONS};
-console.log('[RICO TEST201] Diagonal multicolor Color RAM commit at frame-start raster 0; mono and speed preserve TEST198.');
+console.log('[RICO TEST202] Diagonal multicolor Color RAM commit at frame-start raster 0; mono and speed preserve TEST198.');
 })();
