@@ -97,6 +97,47 @@ function collect(self){
    edgeMask:cfg.diagonalEdgeMask!==false,uniformColor:uniformColor,solidColor:colors[0]||0,
    fastRows:fastRows,rowStride:fastRows?area.width*2:area.width};
 }
+
+function colorSparse203(add){
+ // Per page: $1000+p*256 holds changed column indexes; $1400+p*256 colors.
+ // $50..$53 = counts mod 256, $54..$57 = full-page (256 changes) flags.
+ add('prepare_sparse_colors203');
+ for(var p203=0;p203<4;p203++){
+   var src203='$'+(0x0c00+p203*256).toString(16),
+       dst203='$'+(0xd800+p203*256).toString(16),
+       idx203='$'+(0x1000+p203*256).toString(16),
+       val203='$'+(0x1400+p203*256).toString(16),
+       count203='$'+(0x50+p203).toString(16),
+       full203='$'+(0x54+p203).toString(16),
+       scan203='color_scan203_'+p203,
+       next203='color_next203_'+p203;
+   add(' ldx #$00',' ldy #$00',' lda #$00',' sta '+full203,scan203,
+       ' lda '+dst203+',x',' and #$0f',' cmp '+src203+',x',
+       ' beq '+next203,
+       ' lda '+src203+',x',' sta '+val203+',y',
+       ' txa',' sta '+idx203+',y',
+       ' iny',' bne '+next203,
+       ' lda #$01',' sta '+full203,
+       next203,' inx',' bne '+scan203,' sty '+count203);
+ }
+ add(' rts','commit_sparse_colors203');
+ for(var page203=0;page203<4;page203++){
+   var addr203='$'+(0xd800+page203*256).toString(16),
+       pos203='$'+(0x1000+page203*256).toString(16),
+       color203='$'+(0x1400+page203*256).toString(16),
+       countp203='$'+(0x50+page203).toString(16),
+       fullp203='$'+(0x54+page203).toString(16),
+       nextp203='color_done203_'+page203,
+       loopp203='color_apply203_'+page203;
+   add(' lda '+countp203,' ora '+fullp203,' beq '+nextp203,
+       ' ldy #$00',loopp203,
+       ' lda '+pos203+',y',' tax',' lda '+color203+',y',' sta '+addr203+',x',
+       ' iny',' cpy '+countp203,' bne '+loopp203,
+       nextp203);
+ }
+ add(' rts');
+}
+
 function build(d){
  var out=[],e=function(){for(var i=0;i<arguments.length;i++)out.push(arguments[i]);};
  e('; TEST196: independent diagonal Map Scroll, 1..8 pixels/step, no speed veto.',
@@ -130,18 +171,18 @@ function build(d){
    ' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
    'main_loop',' lda prep_request',' beq main_group',' lda prep_ready',' bne main_group',
    ' lda #$01',' sta main_busy',
-   ' lda back_hi',' sta dst_hi',' jsr render_to_dst',
-   ' lda #$01',' sta prep_ready',
+   ' lda back_hi',' sta dst_hi',' jsr render_to_dst');
+ if(!d.uniformColor)e(' jsr prepare_sparse_colors203');
+ e(' lda #$01',' sta prep_ready',
    ' lda #$00',' sta main_busy',' jmp main_loop',
    'main_group',' lda group182_pending',' beq main_loop',' jsr group182_step',' jmp main_loop',
    'irq',' pha',' txa',' pha',' tya',' pha',
    ' lda #$01',' sta $d019',
    ' lda main_busy',' bne irq_group',
    ' lda prep_request',' beq irq_tick',
-   ' lda prep_ready',' beq irq_group',
-   ' jsr swap_screens');
- if(!d.uniformColor)e(' jsr commit_colors199');
- e(' lda pending_x',' sta camera_x',' lda pending_y',' sta camera_y',
+   ' lda prep_ready',' beq irq_group');
+ if(!d.uniformColor)e(' jsr commit_sparse_colors203');
+ e(' jsr swap_screens',' lda pending_x',' sta camera_x',' lda pending_y',' sta camera_y',
    ' lda next_fx',' sta fine_x',' lda next_fy',' sta fine_y',
    ' jsr apply_fine',
    ' lda #$00',' sta prep_request',' sta prep_ready',
@@ -271,6 +312,7 @@ function build(d){
  }
  emitBytes(out,los);e('world_rows_hi');emitBytes(out,his);
  e('color_rows_lo');emitBytes(out,clo);e('color_rows_hi');emitBytes(out,chi);
+ if(!d.uniformColor)colorSparse203(e);
  e('*=$3000','charset_bank1');emitBytes(out,d.bank1);
  e('*=$3800','charset_bank2');emitBytes(out,d.bank2);
  e('*=$4000','world_map_data');emitBytes(out,d.map);
@@ -336,7 +378,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   var data=collect(this),source=build(data),prg=assemble(this,source);
   this.prg=prg;args=args||{};
   if(args.download===false)return prg;
-  var name=args.filename||'rico-diagonal-test199.prg';
+  var name=args.filename||'rico-diagonal-test203.prg';
   if(!/\.prg$/i.test(name))name+='.prg';
   window.download(prg,name,'application/prg');
   return prg;
@@ -347,5 +389,5 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST196_DIAGONAL={collect:collect,build:build,directions:DIRECTIONS};
-console.log('[RICO TEST199] Diagonal Map Scroll: stage multicolor Color RAM at $0C00 and commit on raster swap, preserving TEST198 speed path.');
+console.log('[RICO TEST203] Diagonal adaptive changed-color patch lists; IRQ commits sparse changes before raster swap.');
 })();
