@@ -27,7 +27,7 @@ function areaConfig(g,frame){
 function supportedMovement(cfg){
   // TEST179: horizontal Map Scroll must obey the same Window mask
   // as TEST178's approved vertical mode. Leave OFF and legacy 40x25 alone.
-  return cfg && /^(?:up|down|left|right|pingpong-up|pingpong-down|pingpong-left|pingpong-right|move-up|move-down|move-left|move-right|movein-up|movein-down|movein-left|movein-right)$/.test(cfg.type||'');
+  return cfg && /^(?:up|down|left|right|diag-up-left|diag-up-right|diag-down-left|diag-down-right|pingpong-up|pingpong-down|pingpong-left|pingpong-right|move-up|move-down|move-left|move-right|movein-up|movein-down|movein-left|movein-right)$/.test(cfg.type||'');
 }
 function state(view){
   try {
@@ -153,6 +153,6 @@ GridView2d.prototype.draw=function(){
   return result;
 };
 window.RICO_TEST178_PREVIEW_BORDER={enabled:true,verticalMapOnly:false,horizontalMap:true,test179:true,test180:true,c64BorderOnly:true,sourceUntouched:true,
-  windowUntouched:true,exporterUntouched:true,getState:state};
-console.log('[RICO TEST180] C64 32px border only; editor exterior black and blank screen cells use background color.');
+  windowUntouched:true,exporterUntouched:true,diagonalScroll:true,diagonalGridMask:true,getState:state};
+console.log('[RICO TEST204] TEST180 C64 32px border, clean GridView outside Rico Window for all four diagonal directions too.');
 })();
