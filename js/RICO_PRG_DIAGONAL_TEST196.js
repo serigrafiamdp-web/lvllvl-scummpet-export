@@ -75,11 +75,13 @@ function collect(self){
  // These are actual C64 address-space constraints, not performance limits.
  if(map.length>=0x3000)throw new Error('El mapa supera los 12 KB disponibles en $4000-$6FFF.');
  if(colors.length>=0x3000)throw new Error('Los colores superan los 12 KB disponibles en $7000-$9FFF.');
+ var uniformColor=colors.every(function(c){return c===colors[0];});
  var b1=glyphs(ts.tileData),b2=store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData?glyphs(store.ricoCharsetBank2.tileData):b1;
  var bg=Number(layer.getBackgroundColor(0))&15,border=Number(layer.getBorderColor(0))&15;
  return{direction:cfg.type,dir:dir,ticks:ticks,pixels:pixels,areaWidth:area.width,areaHeight:area.height,
    cameraX:w.x-area.x,cameraY:w.y-area.y,bank:fr.charsetBank===2?2:1,bg:bg,border:border,
-   map:map,colors:colors,bank1:b1,bank2:b2,group:groupFromStore(ts,store)};
+   map:map,colors:colors,bank1:b1,bank2:b2,group:groupFromStore(ts,store),
+   edgeMask:cfg.diagonalEdgeMask!==false,uniformColor:uniformColor,solidColor:colors[0]||0};
 }
 function build(d){
  var out=[],e=function(){for(var i=0;i<arguments.length;i++)out.push(arguments[i]);};
@@ -141,8 +143,8 @@ function build(d){
    'update_d018',' lda front_hi',' cmp #$04',' bne screen0800',
    ' lda #$10',' jmp d018_charset','screen0800',' lda #$20',
    'd018_charset',' ora charset_bits',' sta $d018',' rts',
-   'apply_fine',' lda fine_x',' and #$07',' ora #$08',' sta $d016',
-   ' lda fine_y',' and #$07',' ora #$18',' sta $d011',' rts',
+   'apply_fine',' lda fine_x',' and #$07',' ora #'+h(d.edgeMask?0:8),' sta $d016',
+   ' lda fine_y',' and #$07',' ora #'+h(d.edgeMask?0x10:0x18),' sta $d011',' rts',
    'plan_step',
    ' lda #$00',' sta boundary',
    ' lda camera_x',' sta pending_x',' lda camera_y',' sta pending_y');
@@ -228,6 +230,37 @@ function build(d){
  }else {
    e('*=$a000','group182_pending','!byte $00','group182_irq_tick',' rts','group182_step',' rts');
  }
+ // TEST197: fixed-color maps initialize the VIC color RAM once.
+ // Multicolor maps retain the original per-character color update path.
+ if(d.uniformColor){
+   var colorSetup=[
+     ' lda #'+h(d.solidColor),' ldx #$00','init_uniform_color197',
+     ' sta $d800,x',' sta $d900,x',' sta $da00,x',' sta $db00,x',
+     ' inx',' bne init_uniform_color197'
+   ];
+   var setupAt=out.indexOf(' lda camera_x');
+   if(setupAt<0)throw new Error('TEST197: startup color initialization point missing.');
+   out.splice.apply(out,[setupAt,0].concat(colorSetup));
+   var oldColorLines={
+     ' sta color_dst_lo':true,' lda #$d8':true,' sta color_dst_hi':true,
+     ' lda color_rows_lo,x':true,' sta color_src_lo':true,
+     ' lda color_rows_hi,x':true,' sta color_src_hi':true,
+     ' lda (color_src_lo),y':true,' sta tmp_col':true,
+     ' lda tmp_col':true,' sta (color_dst_lo),y':true,
+     ' lda color_dst_lo':true,' sta color_dst_lo':true,
+     ' lda color_dst_hi':true,' sta color_dst_hi':true
+   };
+   // Two source-pointer ADD/ADC instructions and an unconditional CLC are also
+   // eliminated together with the per-row destination color pointer advance.
+   var rowAdvance=out.indexOf(' lda color_dst_lo');
+   if(rowAdvance>=1 && out[rowAdvance-1]===' clc'){
+     var block=out.slice(rowAdvance-1,rowAdvance+7);
+     if(block.join('|')===' clc| lda color_dst_lo| adc #$28| sta color_dst_lo| lda color_dst_hi| adc #$00| sta color_dst_hi'){
+       out.splice(rowAdvance-1,7);
+     }
+   }
+   out=out.filter(function(x){return !oldColorLines[x];});
+ }
  return out.join('\n')+'\n';
 }
 function assemble(self,asm){
@@ -262,5 +295,5 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST196_DIAGONAL={collect:collect,build:build,directions:DIRECTIONS};
-console.log('[RICO TEST196] Diagonal map engine loaded; Group Scroll is optional.');
+console.log('[RICO TEST197] Diagonal Map Scroll: optional 38x24 clean borders and one-time monochrome Color RAM initialization.');
 })();
