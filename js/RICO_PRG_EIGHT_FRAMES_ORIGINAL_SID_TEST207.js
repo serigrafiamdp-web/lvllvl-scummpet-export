@@ -15,6 +15,42 @@ function h2(n){return '$'+('0'+(n&255).toString(16)).slice(-2);}
 function hx(n){return '$'+('0000'+(n&65535).toString(16)).slice(-4);}
 function be16(b,p){return(b[p]<<8)|b[p+1];}
 function be32(b,p){return ((b[p]*0x1000000)+(b[p+1]<<16)+(b[p+2]<<8)+b[p+3])>>>0;}
+// TEST209: Decode a CIA Timer A latch from the SID's OWN 6502 init code,
+// instead of interpreting the PSID CIA bit as a fixed 60 Hz tempo.
+// Supports LDA/LDX/LDY immediate followed by STA/STX/STY to $DC04/$DC05.
+// An ambiguous or undetectable latch retains TEST208's existing fallback.
+function detectCIATimer209(bytes,clockFlag){
+ var stores={0x8d:0xa9,0x8e:0xa2,0x8c:0xa0};
+ function immediateBefore(pc,loadOp){
+   // Restrict to a small basic block preceding this hardware write.
+   for(var p=pc-2;p>=Math.max(0,pc-12);p--)
+     if(bytes[p]===loadOp)return bytes[p+1];
+   return null;
+ }
+ var results=[];
+ for(var i=2;i+2<bytes.length;i++){
+   var op=bytes[i];
+   if(stores[op]===undefined||bytes[i+1]!==4||bytes[i+2]!==0xdc)continue;
+   var lo=immediateBefore(i,stores[op]);if(lo===null)continue;
+   for(var j=i+3;j<=Math.min(i+15,bytes.length-3);j++){
+     var hiOp=bytes[j];
+     if(stores[hiOp]===undefined||bytes[j+1]!==5||bytes[j+2]!==0xdc)continue;
+     var hi=immediateBefore(j,stores[hiOp]);if(hi===null)continue;
+     var latch=lo+(hi<<8);
+     if(latch<1)continue;
+     var cpuClock=clockFlag===2?1022727:985248; // NTSC vs PAL C64.
+     var hz=cpuClock/(latch+1);
+     if(hz<10||hz>200)continue; // Discard probable code/data false matches.
+     results.push({latch:latch,hz:hz,clock:cpuClock});
+   }
+ }
+ // Never guess when multiple distinct timer values were detected.
+ var distinct={};
+ for(var k=0;k<results.length;k++)distinct[results[k].latch]=results[k];
+ var keys=Object.keys(distinct);
+ return keys.length===1?distinct[keys[0]]:null;
+}
+
 function parseSID(raw){
  var data=raw instanceof Uint8Array?raw:ArrayBuffer.isView(raw)?new Uint8Array(raw.buffer,raw.byteOffset,raw.byteLength):raw instanceof ArrayBuffer?new Uint8Array(raw):Array.isArray(raw)?new Uint8Array(raw):null;
  if(!data||data.length<118)throw new Error('SID: falta un archivo PSID valido.');
@@ -39,7 +75,8 @@ function parseSID(raw){
  if(load<MEM.sidStart||load+body.length>MEM.sidEnd)
   throw new Error('TEST207: este PSID carga en '+hx(load)+' y mide '+body.length+' bytes. Primera prueba: carga $1000-$1FFF (4096 B), sin reubicar SID no relocatable.');
  if(init<load||init>=load+body.length||play<load||play>=load+body.length)throw new Error('SID: las direcciones INIT/PLAY deben estar dentro de los bytes cargados, para esta primera prueba.');
- return {version,load,init,play,bytes:body,subtune:startSong-1,songs,speedBits,clockFlag,ciaTiming:!!subtuneBit};
+ var timer209=subtuneBit?detectCIATimer209(body,clockFlag):null;
+ return {version,load,init,play,bytes:body,subtune:startSong-1,songs,speedBits,clockFlag,ciaTiming:!!subtuneBit,ciaTimer:timer209};
 }
 function bytesToAsm(u){
  var result=[];for(var i=0;i<u.length;i+=16)result.push('!byte '+Array.prototype.slice.call(u,i,i+16).map(h2).join(','));
@@ -66,13 +103,28 @@ function makeSource207(source,sid,speed){
  source=replaceOnce(source,' lda #$01\n sta $d01a\n lda #$fa\n sta $d012',
  init+' lda #$01\n sta $d01a\n lda #$fa\n sta $d012');
  // Its play is called in raster IRQ after register saves/IRQ acknowledgment.
- var play=' jsr '+hx(sid.play)+'\n';
+ var fractional209=speed!==1&&speed!==2&&speed!==60;
+ // The three TEST208 modes are kept exactly as before for regression safety.
+ var play=fractional209?'':' jsr '+hx(sid.play)+'\n';
  if(speed===2)play+=' jsr '+hx(sid.play)+'\n';
  if(speed===60){
-   // Extra tick every fifth PAL raster IRQ, ~60Hz average on 50Hz VIC.
+   // Preserve TEST208's previous CIA fallback for tunes with unknown timers.
    play+=' lda sid_phase208\n clc\n adc #$0a\n cmp #$32\n bcc sid_due208\n';
    play+=' sec\n sbc #$32\n sta sid_phase208\n jsr '+hx(sid.play)+'\n jmp sid_end208\n';
    play+='sid_due208\n sta sid_phase208\nsid_end208\n';
+ }
+ var fraction209=0;
+ if(fractional209){
+   var rate256=Math.round(speed*256/50),whole209=Math.floor(rate256/256);
+   fraction209=rate256&255;
+   for(var calls209=0;calls209<whole209;calls209++)play+=' jsr '+hx(sid.play)+'\n';
+   if(fraction209){
+     // 8-bit phase accumulator: for 40Hz on PAL this gives 4 of every 5
+     // 50Hz raster IRQs, rather than TEST208's accelerated 6/5 plays.
+     play+=' lda sid_phase209\n clc\n adc #'+h2(fraction209)+'\n';
+     play+=' sta sid_phase209\n bcc sid_skip209\n';
+     play+=' jsr '+hx(sid.play)+'\nsid_skip209\n';
+   }
  }
  source=replaceOnce(source,'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019',
   'irq\n pha\n txa\n pha\n tya\n pha\n lda #$01\n sta $d019\n'+play.trimEnd());
@@ -80,6 +132,9 @@ function makeSource207(source,sid,speed){
  // compiled music data, because absolute JSR/JMP and embedded pointers exist.
  if(speed===60)source=replaceOnce(source,'*=$3000\ncharset_bank1',
   'sid_phase208\n!byte $00\n*=$3000\ncharset_bank1');
+ if(fractional209&&fraction209)
+   source=replaceOnce(source,'*=$3000\ncharset_bank1',
+    'sid_phase209\n!byte '+h2((256-fraction209)&255)+'\n*=$3000\ncharset_bank1');
  source=replaceOnce(source,'*=$2000\n',
   '*='+hx(sid.load)+'\nSID_ORIGINAL_LVLLVL_TEST207\n'+bytesToAsm(sid.bytes)+'\n*=$2000\n');
  return source;
@@ -89,7 +144,8 @@ function export207(self,args,raw){
  if(!fr.length)throw new Error('TEST208: el proyecto no contiene frames.');
  var sid=parseSID(raw);
  var explicitSpeed=args&&(args.sidSpeed===1||args.sidSpeed===2)?args.sidSpeed:SID_STATE.speed;
- var speed=explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?60:1);
+ var speed=explicitSpeed===1||explicitSpeed===2?explicitSpeed:(sid.ciaTiming?(sid.ciaTimer?sid.ciaTimer.hz:60):1);
+ SID_STATE.lastTempo209=sid.ciaTiming?(sid.ciaTimer?('CIA $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' = '+sid.ciaTimer.hz.toFixed(2)+' Hz'):'CIA sin timer detectable: TEST208 ~60 Hz'):'VBlank PAL 50 Hz';
  var source;
  if(fr.length===1){
    // One-frame export needs no multi-frame storage, and works with horizontal,
@@ -154,7 +210,7 @@ function ensureUI207(){
  box.style.cssText='margin:8px 16px;padding:8px;border:1px solid #666;font-size:12px;';
  box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> SID original LVLLVL — 1 o más frames (TEST208)</label>'
    +'<input id="ricoSid207Input" type="file" accept=".sid" style="width:260px">'
-   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: 50Hz / CIA ~60Hz PAL</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
+   +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto: leer tempo CIA del SID</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
    +'<div id="ricoSid207Status" style="margin-top:5px;color:#bbb">Elegí un archivo .sid. Sólo activa SID cuando tildás la casilla.</div>';
  el.appendChild(box);
  var input=document.getElementById('ricoSid207Input'),flag=document.getElementById('ricoSid207Enabled'),speed=document.getElementById('ricoSid207Speed'),status=document.getElementById('ricoSid207Status');
@@ -167,7 +223,7 @@ function ensureUI207(){
     try {
       var bytes=new Uint8Array(fr.result),info=parseSID(bytes);
       SID_STATE.data=bytes;SID_STATE.name=file.name;SID_STATE.enabled=true;flag.checked=true;
-      message('SID: '+file.name+' · LOAD '+hx(info.load)+' · INIT '+hx(info.init)+' · PLAY '+hx(info.play)+' · '+info.bytes.length+' bytes'+(info.ciaTiming?' · CIA: ~60Hz PAL aproximados':'')+'.');
+      message('SID: '+file.name+' · LOAD '+hx(info.load)+' · INIT '+hx(info.init)+' · PLAY '+hx(info.play)+' · '+info.bytes.length+' bytes'+(info.ciaTiming?(info.ciaTimer?' · CIA $'+('0000'+info.ciaTimer.latch.toString(16)).slice(-4)+' = '+info.ciaTimer.hz.toFixed(2)+' Hz':' · CIA: tempo no detectado, fallback TEST208'):' · VBlank 50 Hz')+'.');
     }catch(e){message('SID incompatible: '+e.message);}
    };
    fr.readAsArrayBuffer(file);
@@ -204,11 +260,11 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST207_ORIGINAL_SID={
- parseSID:parseSID,buildSource:makeSource207,export:export207,
+ parseSID:parseSID,detectTimer:detectCIATimer209,buildSource:makeSource207,export:export207,
  select:function(bytes){var result=parseSID(bytes);SID_STATE.data=bytes;SID_STATE.enabled=true;return result;},
  disable:function(){SID_STATE.enabled=false;},
- getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage};},
+ getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
  memory:MEM
 };
-console.log('[RICO TEST208] SID: 1+ frames, no artificial minimum; CIA ~60Hz fallback; original routes preserved.');
+console.log('[RICO TEST209] SIDTracker64 CIA Timer A auto-detection (e.g. $6037 ~40Hz), TEST208 timing fallback preserved.');
 })();
