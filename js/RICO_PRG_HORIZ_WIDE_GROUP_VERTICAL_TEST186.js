@@ -212,11 +212,11 @@ function build(d){
  ' lda #<world_colors',' sta color_src_lo',' lda #>world_colors',' sta color_src_hi',
  ' clc',' lda color_src_lo',' adc camera_x',' sta color_src_lo',
  ' lda color_src_hi',' adc #$00',' sta color_src_hi');
- // TEST215: conservative four-cell copy (compared with TEST213/TEST214).
- // Exactly 40 cells per row and 25 rows; reduces branching without eight-cell expansion.
- // No change to IRQ, buffers, camera, SID, or Pixels/Step.
+ // TEST217: fast 8-cell copy with legal absolute return to the next row.
+ // Eight cells x five passes = 40 columns. Render all 25 rows.
+ // Fixes TEST214 out-of-range outer BNE; preserves IRQ, buffers, SID.
  emit(' lda #$19',' sta tmp_row','render_row',' ldy #$00','render_column');
- for(var cell215=0;cell215<4;cell215++){
+ for(var cell217=0;cell217<8;cell217++){
   emit(' lda (src_lo),y',' sta (dst_lo),y');
   if(d.multicolor)emit(' lda (color_src_lo),y',' sta (color_dst_lo),y');
   emit(' iny');
@@ -230,7 +230,7 @@ function build(d){
  ' lda dst_hi',' adc #$00',' sta dst_hi');
  if(d.multicolor)emit(' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
  ' lda color_dst_hi',' adc #$00',' sta color_dst_hi');
- emit(' dec tmp_row',' bne render_row',' rts');
+ emit(' dec tmp_row',' beq render_done217',' jmp render_row','render_done217',' rts');
  if(d.multicolor)emit('commit_colors200',' ldx #$00','color_page_loop200',
  ' lda $0c00,x',' sta $d800,x',' lda $0d00,x',' sta $d900,x',
  ' lda $0e00,x',' sta $da00,x',' lda $0f00,x',' sta $db00,x',
