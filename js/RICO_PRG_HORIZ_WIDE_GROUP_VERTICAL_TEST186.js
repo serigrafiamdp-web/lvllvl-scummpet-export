@@ -116,7 +116,7 @@ function build(d){
  emit(' lda #$04',' sta dst_hi',' jsr render_to_dst',' lda #$08',' sta dst_hi',' jsr render_to_dst');
  if(d.multicolor)emit(' jsr commit_colors200');
  emit(' jsr update_d018',' jsr apply_horizontal',
- ' lda #$01',' sta $d01a',' lda #$fa',' sta $d012',' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
+ ' lda #$01',' sta $d01a',' lda #'+h(d.multicolor?0:0xfa),' sta $d012',' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
  'main_loop',' lda prep_request',' beq main_try_group',' lda prep_ready',' bne main_try_group',
  ' lda #$01',' sta main_busy',' lda back_hi',' sta dst_hi',' jsr render_to_dst',
  ' lda #$01',' sta prep_ready',' lda #$00',' sta main_busy',' jmp main_loop',
@@ -205,5 +205,5 @@ ToPRGAdv.prototype.createPRG=function(args){
 }
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
-console.log('[RICO TEST200] Map Scroll Left/Right accepts per-cell multicolor with shadow Color RAM; monochrome fast path kept.');
+console.log('[RICO TEST201] Horizontal multicolor Color RAM commit at frame-start raster 0; monochrome stays on TEST200 timer.');
 })();
