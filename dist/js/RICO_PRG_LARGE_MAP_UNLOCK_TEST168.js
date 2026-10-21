@@ -68,35 +68,79 @@ function isLargeCandidate(self){
   // 40x25 PRG exporter (which drops the user's Map Scroll configuration).
   return s.width!==40||s.height>25;
 }
-// TEST175: a large Screen with active Map Scroll has its own runtime.
-// Keep both independent native-charset clocks and the $D018 Switch clock.
-// The configured group selects the global bank toggle; individual metadata
-// is read separately from each physical charset bank ($3000 and $3800).
+// TEST182: independent character animation and group-scroll discovery.
+// None of these options depends on the presence of Switch Bank.
 function collectAnimations175(ts,data){
-  var rec=ts&&ts.getDocRecord&&ts.getDocRecord();
-  var store=rec&&rec.data||{};
-  var groups=store.ricoGroupAnimationsV1||{};
-  var switches=[].concat(groups.bank1||[],groups.bank2||[]).filter(function(g){return g&&g.type==='switch-bank';});
-  if(!switches.length)return null; // preserve all previously approved non-switch map PRGs
-  var sw=switches[0];
+  var rec=ts&&ts.getDocRecord&&ts.getDocRecord(),store=rec&&rec.data||{};
+  var groups=store.ricoGroupAnimationsV1||{},all=[];
+  (groups.bank1||[]).forEach(function(g){if(g)all.push({bank:1,g:g});});
+  (groups.bank2||[]).forEach(function(g){if(g)all.push({bank:2,g:g});});
+  var switches=all.filter(function(g){return g.g.type==='switch-bank';});
+  var motions=all.filter(function(g){return g.g.type!=='switch-bank';});
+  if(switches.length>1)throw new Error('TEST182: se encontro mas de un Switch Bank. Unificar el contador global de bancos.');
+  if(motions.length>1)throw new Error('TEST182: multiples Group Animate con Map Scroll necesitan planificador de grupos separado. No se exportara sin ellos.');
   var bank2=store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData;
-  if(!bank2||bank2.length<256)throw new Error('Switch Bank necesita el BANK 2 completo.');
+  if(switches.length&&(!bank2||bank2.length<256))throw new Error('Switch Bank necesita BANK 2 completo.');
   var tiles=[ts.tileData,bank2],types={left:0,right:1,up:2,down:3,blink:4},records=[];
-  // Only codes that occur anywhere in the map can appear in the scroll viewport.
-  // Nothing is touched in the source index/Bank 1 or Bank 2 definitions.
+  var motion=motions.length?motions[0]:null,group=null;
+  if(motion){
+    var g=motion.g,w=Number(g.widthTiles),h=Number(g.heightTiles),ticks=Number(g.ticksPerFrame);
+    if(g.type!=='up')throw new Error('TEST182: el Group Scroll combinado con Map Scroll implementa por ahora Scroll Up. No se cambiara la animacion configurada.');
+    if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>256||h>32||!Array.isArray(g.cells)||g.cells.length!==w*h)
+      throw new Error('TEST182: Group Scroll Up debe ser un rectangulo completo de caracteres distintos, maximo 256 tiles.');
+    if(!Number.isInteger(ticks)||ticks<1||ticks>255)throw new Error('TEST182: ticks del Group Scroll deben estar entre 1 y 255.');
+    var cells=Array.from({length:w},function(){return Array(h).fill(-1);}),found={};
+    for(var ci=0;ci<g.cells.length;ci++){
+      var c=g.cells[ci],x=Number(c.x),y=Number(c.y),id=Number(c.tile);
+      if(!Number.isInteger(x)||!Number.isInteger(y)||!Number.isInteger(id)||x<0||x>=w||y<0||y>=h||id<0||id>255||found[id]||cells[x][y]!==-1)
+        throw new Error('TEST182: el Group Scroll necesita codigos de caracter unicos y sin huecos.');
+      found[id]=true;cells[x][y]=id;
+    }
+    if(cells.some(function(col){return col.includes(-1);}))throw new Error('TEST182: faltan caracteres en la seleccion grupal.');
+    var groupBank=motion.bank,groupTiles=tiles[groupBank-1];
+    if(!groupTiles||groupTiles.length<256)throw new Error('TEST182: falta el banco de caracteres del Group Scroll.');
+    var protect=groups.animateEmptyCharacters!==true;
+    var protectedIds={},original=[],addresses=[],protection=[];
+    for(var cx=0;cx<w;cx++){
+      var column=[];
+      for(var cy=0;cy<h;cy++){
+        var code=cells[cx][cy],pix=groupTiles[code]&&groupTiles[code].data&&groupTiles[code].data[0];
+        if(!pix||pix.length!==64)throw new Error('TEST182: falta bitmap original para grupo '+code);
+        var empty=!pix.some(function(v){return !!v;});
+        if(empty&&protect)protectedIds[code]=true;
+        protection.push(empty&&protect?1:0);
+        addresses.push((groupBank===2?0x3800:0x3000)+code*8);
+        for(var yy=0;yy<8;yy++){
+          var mask=0;for(var xx=0;xx<8;xx++)if(pix[yy*8+xx])mask|=1<<(7-xx);
+          column.push(mask);
+        }
+      }
+      original.push(column.concat(column));
+    }
+    group={bank:groupBank,w:w,h:h,ticks:ticks,columns:original,addresses:addresses,protection:protection,codes:found,protectedIds:protectedIds};
+  }
   var used=new Uint8Array(256);
   for(var cell=0;cell<data.length;cell++)used[data[cell]&255]=1;
-  for(var bank=0;bank<2;bank++)for(var code=0;code<256;code++){
-    if(!used[code])continue;
-    var props=tiles[bank]&&tiles[bank][code]&&tiles[bank][code].props||{};
-    var type=props.animated;
-    if(type===null||type===false||type===undefined||type==='')continue;
-    if(!Object.prototype.hasOwnProperty.call(types,type))
-      throw new Error('TEST175: tipo de animacion '+type+' no soportado para BANK '+(bank+1));
-    var ticks=clamp(props.ticksPerFrame,1,255,1);
-    records.push({bank:bank+1,code:code,ticks:ticks,type:types[type],address:(bank?0x3800:0x3000)+code*8});
+  // Preserve active native animation even when no Switch Bank group exists.
+  for(var bank=0;bank<2;bank++){
+    if(!tiles[bank]||tiles[bank].length<256)continue;
+    for(var code=0;code<256;code++){
+      if(!used[code])continue;
+      var props=tiles[bank][code]&&tiles[bank][code].props||{},type=props.animated;
+      if(type===null||type===false||type===undefined||type==='')continue;
+      if(!Object.prototype.hasOwnProperty.call(types,type))throw new Error('TEST182: animacion individual '+type+' aun no soportada en PRG');
+      // The same physical charset bytes cannot be driven by two different
+      // methods. Do not silently choose one and lose the other's settings.
+      if(group&&group.bank===bank+1&&group.codes[code])
+        throw new Error('TEST182: caracter '+code+' BANK '+(bank+1)+' tiene Scroll individual Y grupal. Elegir uno para ese caracter.');
+      var ticksN=clamp(props.ticksPerFrame,1,255,1);
+      records.push({bank:bank+1,code:code,ticks:ticksN,type:types[type],address:(bank?0x3800:0x3000)+code*8});
+    }
   }
-  return {switchTicks:clamp(sw.ticksPerFrame,1,255,1),records:records};
+  var sw=switches.length?switches[0].g:null;
+  // Leave old 40-wide map-only output unchanged if there are no new effects.
+  if(!sw&&!group&&!records.length)return null;
+  return {switchTicks:sw?clamp(sw.ticksPerFrame,1,255,1):0,records:records,group:group};
 }
 
 function collect(self){
@@ -288,9 +332,9 @@ function buildSource(d){
   out.push(' cli');
   out.push('main_loop');
   out.push(' lda prep_request');
-  out.push(d.anim175&&d.anim175.records.length?' beq main176_background':' beq main_loop');
+  out.push(d.anim175&&(d.anim175.records.length||d.anim175.group)?' beq main182_background':' beq main_loop');
   out.push(' lda prep_ready');
-  out.push(d.anim175&&d.anim175.records.length?' bne main176_background':' bne main_loop');
+  out.push(d.anim175&&(d.anim175.records.length||d.anim175.group)?' bne main182_background':' bne main_loop');
   out.push(' lda #$01');
   out.push(' sta main_busy');
   out.push(' lda pixels_per_step');
@@ -310,12 +354,21 @@ function buildSource(d){
   out.push(' lda #$01');
   out.push(' sta prep_ready');
   out.push(' jmp main_loop');
-  if(d.anim175&&d.anim175.records.length){
-    out.push('main176_background');
-    out.push(' lda anim175_pending');
-    out.push(' beq main_loop');
-    out.push(' jsr anim175_tick');  // exactly one record, then yield to map loop
-    out.push(' jmp main_loop');
+  if(d.anim175&&(d.anim175.records.length||d.anim175.group)){
+    out.push('main182_background');
+    if(d.anim175&&d.anim175.group){
+      out.push(' lda group182_pending');
+      out.push(' beq main182_try_individual');
+      out.push(' jsr group182_step'); // one column / iteration; map has priority
+      out.push(' jmp main_loop');
+      out.push('main182_try_individual');
+    }
+    if(d.anim175&&d.anim175.records.length){
+      out.push(' lda anim175_pending');
+      out.push(' beq main_loop');
+      out.push(' jsr anim175_tick');
+      out.push(' jmp main_loop');
+    }else out.push(' jmp main_loop');
   }
   out.push('');
   out.push('irq');
@@ -326,7 +379,8 @@ function buildSource(d){
   // an unbounded IRQ loop that could starve Map Scroll and cause ghost fetches.
   out.push(' lda main_busy');out.push(' bne irq_done_tick');out.push(' jsr frame_tick');
   out.push('irq_done_tick');
-  if(d.anim175)out.push(' jsr anim175_switch_tick');
+  if(d.anim175&&d.anim175.switchTicks)out.push(' jsr anim175_switch_tick');
+  if(d.anim175&&d.anim175.group)out.push(' jsr group182_irq_tick');
   if(d.anim175&&d.anim175.records.length){
     out.push(' lda anim175_pending');
     out.push(' cmp #$ff');
@@ -543,7 +597,7 @@ function buildSource(d){
   // character scroll in BOTH charsets, and global hardware Bank Switch.
   // Routines and their mutable countdowns stay below $3000 so $3000/$3800
   // charsets remain the exact user artwork, never a temporary frame copy.
-  if(d.anim175){
+  if(d.anim175&&d.anim175.switchTicks){
     out.push('anim175_switch_tick');
     out.push(' dec anim175_switch_counter');
     out.push(' beq anim175_do_switch');
@@ -725,6 +779,105 @@ function buildSource(d){
   for(var ri=0;ri<sparse.rows.length;ri++){
     if(sparse.rows[ri].length)emitBytes(out,sparse.rows[ri]);else out.push('!byte $00');
   }
+  }
+  // TEST182: group's immutable double-length source is placed after color
+  // tables, NEVER over the map, charsets, or dynamic raster screen buffers.
+  if(d.anim175&&d.anim175.group){
+    var gg=d.anim175.group, rows=gg.h*8, sourceSize=gg.w*rows*2;
+    var upper=colorMode==='sparse'?sparseBase+d.area.height*3+sparseStoredBytes:COLOR_DATA_BASE+d.colors.length;
+    var groupBase=Math.max(0xa000,(upper+255)&0xff00),groupApprox=sourceSize+gg.w*gg.h*3+700;
+    if(groupBase+groupApprox>0xd000)throw new Error('TEST182: Map Scroll + Group Animate requieren mas RAM segura. No se pisara el color ni el charset.');
+    out.push('*=$'+('0000'+groupBase.toString(16)).slice(-4));
+    out.push('; TEST182: standalone group scroll outside raster IRQ; map-first scheduling.');
+    // IRQ only increments due ticks; full charset copy NEVER runs inside IRQ.
+    out.push('group182_irq_tick');
+    out.push(' dec group182_timer');
+    out.push(' bne group182_irq_done');
+    out.push(' lda #$'+hex2(gg.ticks));
+    out.push(' sta group182_timer');
+    out.push(' lda group182_pending');
+    out.push(' cmp #$ff');
+    out.push(' beq group182_irq_done');
+    out.push(' inc group182_pending');
+    out.push('group182_irq_done');out.push(' rts');
+    out.push('group182_timer');out.push('!byte $'+hex2(gg.ticks));
+    out.push('group182_pending');out.push('!byte $00');
+    out.push('group182_active');out.push('!byte $00');
+    out.push('group182_phase');out.push('!byte $00');
+    out.push('group182_column');out.push('!byte $00');
+    out.push('group182_tile_index');out.push('!byte $00');
+    out.push('group182_col_src_lo');out.push('!byte $00');
+    out.push('group182_col_src_hi');out.push('!byte $00');
+    // 6502 (zp),Y requires pointers in ZERO PAGE: reserve $35-$38.
+    out.push('group182_src_lo=$35');
+    out.push('group182_src_hi=$36');
+    out.push('group182_dest_lo=$37');
+    out.push('group182_dest_hi=$38');
+    out.push('group182_step');
+    out.push(' lda group182_active');out.push(' bne group182_continue');
+    out.push(' inc group182_phase');
+    if(!(gg.w===2&&gg.h===8&&gg.ticks===1))out.push(' inc group182_phase'); // TEST155 legacy 1px/tick
+    if(rows!==256){
+      out.push(' lda group182_phase');out.push(' cmp #$'+hex2(rows));
+      out.push(' bcc group182_phase_done');out.push(' sec');
+      out.push(' sbc #$'+hex2(rows));out.push(' sta group182_phase');
+      out.push('group182_phase_done');
+    }
+    out.push(' lda #$01');out.push(' sta group182_active');
+    out.push(' lda #$00');out.push(' sta group182_column');
+    out.push('group182_continue');
+    out.push(' ldx group182_column');
+    out.push(' lda group182_sources_lo,x');out.push(' clc');out.push(' adc group182_phase');out.push(' sta group182_src_lo');
+    out.push(' lda group182_sources_hi,x');out.push(' adc #$00');out.push(' sta group182_src_hi');
+    // multiply column index by group height (const), at most 256 total tiles
+    out.push(' lda #$00');out.push(' sta group182_tile_index');
+    out.push(' txa');out.push(' tax');
+    out.push(' beq group182_col_base_ready');
+    out.push('group182_col_base_loop');out.push(' clc');out.push(' lda group182_tile_index');
+    out.push(' adc #$'+hex2(gg.h));out.push(' sta group182_tile_index');
+    out.push(' dex');out.push(' bne group182_col_base_loop');
+    out.push('group182_col_base_ready');
+    out.push(' ldx #$'+hex2(gg.h));
+    out.push('group182_each_tile');
+    out.push(' ldy group182_tile_index');
+    out.push(' lda group182_protected,y');
+    out.push(' bne group182_tile_advance');
+    out.push(' lda group182_dest_los,y');out.push(' sta group182_dest_lo');
+    out.push(' lda group182_dest_his,y');out.push(' sta group182_dest_hi');
+    out.push(' ldy #$00');
+    out.push('group182_copy8');
+    out.push(' lda (group182_src_lo),y');out.push(' sta (group182_dest_lo),y');
+    out.push(' iny');out.push(' cpy #$08');out.push(' bne group182_copy8');
+    out.push('group182_tile_advance');
+    out.push(' clc');out.push(' lda group182_src_lo');out.push(' adc #$08');out.push(' sta group182_src_lo');
+    out.push(' lda group182_src_hi');out.push(' adc #$00');out.push(' sta group182_src_hi');
+    out.push(' inc group182_tile_index');
+    out.push(' dex');out.push(' bne group182_each_tile');
+    out.push(' inc group182_column');
+    out.push(' lda group182_column');out.push(' cmp #$'+hex2(gg.w));
+    out.push(' bne group182_step_done');
+    out.push(' lda #$00');out.push(' sta group182_active');
+    out.push(' dec group182_pending');
+    out.push('group182_step_done');out.push(' rts');
+    out.push('group182_sources_lo');
+    // Symbolic low/high tables are NOT supported in LVLLVL !byte; calculate exact
+    // sources from the concrete code-size address later? Instead use absolute
+    // numeric labels with ACME <label syntax in LDA immediates, not !byte.
+    // Source addresses calculated from the fixed-size group source block.
+    // Emit numerical source table using a reserved constant base, independent
+    // of varying assembler instruction lengths via a second * directive.
+    var sourceBase=(groupBase+0x0800+255)&0xff00;
+    var pos=sourceBase,los=[],his=[];
+    for(var col=0;col<gg.w;col++){los.push(pos&255);his.push((pos>>8)&255);pos+=rows*2;}
+    emitBytes(out,los);
+    out.push('group182_sources_hi');emitBytes(out,his);
+    out.push('group182_dest_los');emitBytes(out,gg.addresses.map(function(addr){return addr&255}));
+    out.push('group182_dest_his');emitBytes(out,gg.addresses.map(function(addr){return (addr>>8)&255}));
+    out.push('group182_protected');emitBytes(out,gg.protection);
+    out.push('*=$'+('0000'+sourceBase.toString(16)).slice(-4));
+    out.push('group182_original_sources');
+    gg.columns.forEach(function(col){emitBytes(out,col)});
+    if(pos>0xd000)throw new Error('TEST182: datos del Group Scroll invaden memoria de I/O; reducir el grupo o area de mapa.');
   }
   return out.join('\n');
 }
