@@ -123,8 +123,9 @@ function build(d){
    ' lda #'+h(d.bg),' sta $d021',' lda #'+h(d.border),' sta $d020',
    ' lda camera_x',' sta pending_x',' lda camera_y',' sta pending_y',
    ' lda #$04',' sta dst_hi',' jsr render_to_dst',
-   ' lda #$08',' sta dst_hi',' jsr render_to_dst',
-   ' jsr update_d018',' jsr apply_fine',
+   ' lda #$08',' sta dst_hi',' jsr render_to_dst');
+ if(!d.uniformColor)e(' jsr commit_colors199');
+ e(' jsr update_d018',' jsr apply_fine',
    ' lda #$01',' sta $d01a',' lda #$fa',' sta $d012',
    ' lda #<irq',' sta $fffe',' lda #>irq',' sta $ffff',' cli',
    'main_loop',' lda prep_request',' beq main_group',' lda prep_ready',' bne main_group',
@@ -138,8 +139,9 @@ function build(d){
    ' lda main_busy',' bne irq_group',
    ' lda prep_request',' beq irq_tick',
    ' lda prep_ready',' beq irq_group',
-   ' jsr swap_screens',
-   ' lda pending_x',' sta camera_x',' lda pending_y',' sta camera_y',
+   ' jsr swap_screens');
+ if(!d.uniformColor)e(' jsr commit_colors199');
+ e(' lda pending_x',' sta camera_x',' lda pending_y',' sta camera_y',
    ' lda next_fx',' sta fine_x',' lda next_fy',' sta fine_y',
    ' jsr apply_fine',
    ' lda #$00',' sta prep_request',' sta prep_ready',
@@ -199,7 +201,7 @@ function build(d){
    // TEST198 FAST: row source pointer + camera X once per row, then direct
    // (source),Y -> (screen),Y copies. No per-tile wrap test or X/Y exchange.
    e('render_to_dst',' lda #$00',' sta dst_lo');
-   if(!d.uniformColor)e(' sta color_dst_lo',' lda #$d8',' sta color_dst_hi');
+   if(!d.uniformColor)e(' sta color_dst_lo',' lda #$0c',' sta color_dst_hi');
    e(' lda pending_y',' sta row_id',' lda #$19',' sta rows_left',
      'render_row',' ldx row_id',
      ' lda world_rows_lo,x',' clc',' adc pending_x',' sta src_lo',
@@ -222,7 +224,7 @@ function build(d){
    // Safe fallback for maps whose duplicated row data does not fit RAM.
    e('render_to_dst',
    ' lda #$00',' sta dst_lo',' sta color_dst_lo',
-   ' lda #$d8',' sta color_dst_hi',
+   ' lda #$0c',' sta color_dst_hi',
    ' lda pending_y',' sta row_id',
    ' lda #$19',' sta rows_left',
    'render_row',
@@ -249,6 +251,16 @@ function build(d){
    ' lda #$00',' sta row_id',
    'row_continue',' dec rows_left',' bne render_row',' rts');
  }
+ // TEST199: stage all 1000 colors in shadow VIC RAM ($0C00-$0FE7).
+ // Commit only AFTER screen swap, during raster IRQ at line $FA.
+ // Sequential top-to-bottom copy runs ahead of the PAL raster beam in a
+ // typical frame; C64 has no real double-buffered Color RAM.
+ if(!d.uniformColor)e('commit_colors199',' ldx #$00','commit_color_pages199',
+     ' lda $0c00,x',' sta $d800,x',
+     ' lda $0d00,x',' sta $d900,x',
+     ' lda $0e00,x',' sta $da00,x',
+     ' lda $0f00,x',' sta $db00,x',
+     ' inx',' bne commit_color_pages199',' rts');
  e('world_rows_lo');
  var los=[],his=[],clo=[],chi=[];
  for(var i=0;i<d.areaHeight;i++){
@@ -282,7 +294,7 @@ function build(d){
    if(setupAt<0)throw new Error('TEST197: startup color initialization point missing.');
    out.splice.apply(out,[setupAt,0].concat(colorSetup));
    var oldColorLines={
-     ' sta color_dst_lo':true,' lda #$d8':true,' sta color_dst_hi':true,
+     ' sta color_dst_lo':true,' lda #$d8':true,' lda #$0c':true,' sta color_dst_hi':true,
      ' lda color_rows_lo,x':true,' sta color_src_lo':true,
      ' lda color_rows_hi,x':true,' sta color_src_hi':true,
      ' lda (color_src_lo),y':true,' sta tmp_col':true,
@@ -324,7 +336,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   var data=collect(this),source=build(data),prg=assemble(this,source);
   this.prg=prg;args=args||{};
   if(args.download===false)return prg;
-  var name=args.filename||'rico-diagonal-test198.prg';
+  var name=args.filename||'rico-diagonal-test199.prg';
   if(!/\.prg$/i.test(name))name+='.prg';
   window.download(prg,name,'application/prg');
   return prg;
@@ -335,5 +347,5 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST196_DIAGONAL={collect:collect,build:build,directions:DIRECTIONS};
-console.log('[RICO TEST198] Diagonal Map Scroll: duplicated-row fast 40x25 renderer when RAM permits, legacy fallback for large maps.');
+console.log('[RICO TEST199] Diagonal Map Scroll: stage multicolor Color RAM at $0C00 and commit on raster swap, preserving TEST198 speed path.');
 })();
