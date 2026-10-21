@@ -64,7 +64,9 @@ function emitBytes(out,a){for(var i=0;i<a.length;i+=16)out.push(bytesLine(Array.
 
 function isLargeCandidate(self){
   var ed=self&&self.editor;if(!ed)return false;var s=gridSize(ed);
-  return s.width===40&&s.height>25;
+  // TEST181: width != 40 must not silently fall through to the classic
+  // 40x25 PRG exporter (which drops the user's Map Scroll configuration).
+  return s.width!==40||s.height>25;
 }
 // TEST175: a large Screen with active Map Scroll has its own runtime.
 // Keep both independent native-charset clocks and the $D018 Switch clock.
@@ -792,6 +794,65 @@ function exportRicoWindowOnly(self,args){
   }finally{self.editor=orig;}
 }
 
+// TEST181: Vertical Map Scroll is a 40-character VIC viewport, not a
+// requirement that the *editable source Screen* be exactly 40 columns wide.
+// Translate only the 40 columns selected by Rico's Window into the existing,
+// byte-tested 40xN vertical player. Keep all source rows for scroll and all
+// original artwork/Window/Scroll Area metadata unchanged after exporting.
+function exportWideVerticalWindow(self,args){
+  var originalEditor=self.editor,graphic0=originalEditor.graphic;
+  var size=gridSize(originalEditor),numFrames=frameCount(originalEditor);
+  if(numFrames!==1)throw new Error('Map Scroll vertical de Screen ancho requiere un solo frame hasta implementar transiciones multiframe.');
+  var cfg=getCfg(originalEditor,0)||{};
+  if(cfg.type!=='up'&&cfg.type!=='down')throw new Error('Solo Up/Down tienen hoy un motor vertical para Screen ancho. No se exportara un PRG clasico sin scroll.');
+  var window0=getWindowCfg(originalEditor,0)||{},area0=getScrollAreaCfg(originalEditor,0)||{};
+  var wx=Number(window0.x)||0,wy=Number(window0.y)||0;
+  var ww=Number(window0.width)||0,wh=Number(window0.height)||0;
+  var ax=Number(area0.x)||0,ay=Number(area0.y)||0;
+  var aw=Number(area0.width)||0,ah=Number(area0.height)||0;
+  if(!Number.isInteger(wx)||!Number.isInteger(wy)||!Number.isInteger(ax)||!Number.isInteger(ay)||
+     !Number.isInteger(ww)||!Number.isInteger(wh)||!Number.isInteger(aw)||!Number.isInteger(ah))
+    throw new Error('Window y Scroll Area necesitan coordenadas enteras de caracteres.');
+  if(ww!==40||(wh!==24&&wh!==25))
+    throw new Error("Para Map Scroll vertical, Rico's Window debe medir 40x24 o 40x25. El Screen original no se modifica.");
+  if(wx<0||wy<0||wx+40>size.width||wy+wh>size.height)
+    throw new Error("La Rico's Window esta fuera del Screen "+size.width+'x'+size.height+'.');
+  if(ax<0||ay<0||aw<40||ah<25||ax+aw>size.width||ay+ah>size.height ||
+     wx<ax||wx+40>ax+aw || wy<ay||wy+wh>ay+ah)
+    throw new Error("La Rico's Window debe estar completamente contenida en Rico's Scroll Area.");
+  var originalLayer=originalEditor.layers&&originalEditor.layers.getSelectedLayerObject&&originalEditor.layers.getSelectedLayerObject();
+  if(!originalLayer||typeof originalLayer.getCell!=='function')throw new Error('No se encontro la capa Grid del mapa grande.');
+  var virtualGraphic=Object.create(graphic0);
+  virtualGraphic.frames=[Object.assign({},graphic0.frames[0],{
+    ricoWindowDimensionV1:{version:1,x:0,y:wy,width:40,height:wh,clearOutside:false},
+    ricoScrollAreaV1:{version:1,x:0,y:ay,width:40,height:ah,clearOutside:false}
+  })];
+  virtualGraphic.getGridWidth=function(){return 40;};
+  virtualGraphic.getGridHeight=function(){return size.height;};
+  var virtualLayer=Object.create(originalLayer);
+  virtualLayer.getCell=function(pos){
+    // 0..39 in PRG source is Window X..X+39 in the real 45/50/... Screen.
+    return originalLayer.getCell.call(originalLayer,Object.assign({},pos,{x:pos.x+wx}));
+  };
+  var virtualLayers=Object.create(originalEditor.layers);
+  virtualLayers.getSelectedLayerObject=function(){return virtualLayer;};
+  var virtualEditor=Object.create(originalEditor);
+  virtualEditor.graphic=virtualGraphic;
+  virtualEditor.layers=virtualLayers;
+  var opts=Object.assign({},args,{gridWidth:40,gridHeight:size.height});
+  self.editor=virtualEditor;
+  try{
+    console.log('[RICO TEST181] Vertical Up/Down: Screen '+size.width+'x'+size.height+
+      ' -> temporary 40x'+size.height+' source at Window X='+wx+', Y='+wy+
+      '; Scroll Area Y='+ay+', H='+ah+' (source unchanged)');
+    // The existing TEST168 40xN path now owns compilation, color tables,
+    // double buffering, both charsets and switch bank; never copy the old map.
+    return ToPRGAdv.prototype.createPRG.call(self,opts);
+  }finally{
+    self.editor=originalEditor;
+  }
+}
+
 // TEST168 lateral maps: export the requested 25-row viewport using the existing
 // tested 40x25 horizontal player. No changed editor state or user artwork.
 function isHorizontalProject(self){
@@ -846,6 +907,14 @@ ToPRGAdv.prototype.createPRG=function(args){
     // TEST173: no Map Scroll selected => export the configured Rico's Window
     // through the native character-animation/bank-switch runtime.
     if(!hasActiveMapScroll(this))return exportRicoWindowOnly(this,args);
+    // TEST181: never silently export an old 40x25 PRG for wide maps.
+    // For vertical motion the original Window selects a non-destructive
+    // 40-column source; for horizontal motion a full-width scroller is needed.
+    var originalSize=gridSize(this.editor);
+    if(originalSize.width!==40){
+      if(isHorizontalProject(this))throw new Error('Map Scroll horizontal sobre un Screen de '+originalSize.width+' columnas necesita un motor de ancho variable. TEST181 no recorta el mapa ni genera un PRG sin scroll.');
+      return exportWideVerticalWindow(this,args);
+    }
     if(isHorizontalProject(this))return exportHorizontalProject(this,args);
     var d=collect(this),source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
     console.log('[RICO TEST168 LARGE MAP] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
@@ -855,5 +924,5 @@ ToPRGAdv.prototype.createPRG=function(args){
 
 window.RICO_TEST173_WINDOW_STATIC_EXPORT={hasActiveMapScroll:hasActiveMapScroll,exportRicoWindowOnly:exportRicoWindowOnly};
 window.RICO_TEST168_PRG_LARGE_MAP={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],sourceMapSeparateFromVIC:true,colorMapBase:COLOR_DATA_BASE,perCellColors:true,sparseColorCommit:true,blankCellsUseDominantVisibleColor:true,doubleBuffer:true,pipelined8px:true,maxPalSpeed:'8px/frame'};
-console.log('[RICO TEST168 LARGE MAP] Large vertical map exporter loaded with pipelined 8px/frame PAL max-speed path.');
+console.log('[RICO TEST181] 40-column viewport export from wide source Screen, no classic fallback.');
 })();
