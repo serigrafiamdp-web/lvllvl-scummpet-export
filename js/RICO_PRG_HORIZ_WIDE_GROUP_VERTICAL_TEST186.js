@@ -205,11 +205,11 @@ function build(d){
  ' lda #<world_colors',' sta color_src_lo',' lda #>world_colors',' sta color_src_hi',
  ' clc',' lda color_src_lo',' adc camera_x',' sta color_src_lo',
  ' lda color_src_hi',' adc #$00',' sta color_src_hi');
- // TEST214: copy eight consecutive cells per inner-loop iteration.
- // Exact same 1000 cells and shadow colors; fewer loop branches.
+ // TEST215: conservative four-cell copy (compared with TEST213/TEST214).
+ // Exactly 40 cells per row and 25 rows; reduces branching without eight-cell expansion.
  // No change to IRQ, buffers, camera, SID, or Pixels/Step.
  emit(' lda #$19',' sta tmp_row','render_row',' ldy #$00','render_column');
- for(var cell214=0;cell214<8;cell214++){
+ for(var cell215=0;cell215<4;cell215++){
   emit(' lda (src_lo),y',' sta (dst_lo),y');
   if(d.multicolor)emit(' lda (color_src_lo),y',' sta (color_dst_lo),y');
   emit(' iny');
