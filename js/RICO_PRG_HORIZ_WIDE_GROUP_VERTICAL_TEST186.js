@@ -167,7 +167,9 @@ function build(d){
  ' lda main_busy',' bne irq_only_group',' lda prep_request',' beq irq_map_step',' lda prep_ready',' beq irq_only_group');
  if(d.multicolor)emit(' jsr commit_sparse_colors203');
  emit(' jsr swap_screens',' jsr apply_horizontal',' lda #$00',' sta prep_request',' sta prep_ready',
- ' jmp irq_only_group',
+ // TEST213: same 3-byte JMP, but process the current raster's map tick.
+ // Screen/color commit finishes before the movement scheduler runs.
+ ' jmp irq_map_step',
  'irq_map_step',
  ' inc step_tick_lo',' bne irq_tick_check',' inc step_tick_hi',
  'irq_tick_check',' lda step_tick_hi',' cmp #'+h((d.ticks>>8)&255),' bne irq_tick_wait',
