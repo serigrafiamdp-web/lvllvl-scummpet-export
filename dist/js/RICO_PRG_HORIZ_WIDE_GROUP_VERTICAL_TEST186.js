@@ -96,7 +96,7 @@ function build(d){
  // VIC bank 0, two screen buffers, banked charsets, and independent group scheduler.
  emit('; TEST186 RICO WIDE HORIZONTAL MAP + VERTICAL GROUP UP/DOWN', '*=$0801','!byte $0b,$08,$0a,$00,$9e,$38,$31,$39,$32,$00,$00,$00','*=$2000',
  'src_lo=$0a','src_hi=$0b','dst_lo=$0c','dst_hi=$0d','front_hi=$0e','back_hi=$0f','camera_x=$11','prep_request=$13','prep_ready=$14','main_busy=$17','fine_pos=$18','step_ticks=$19','tmp_row=$1a','charset_bits=$1b',
- 'start',' sei',' lda #$7f',' sta $dc0d',' sta $dd0d',' lda $dc0d',' lda $dd0d',
+ 'start',' sei',' lda #$35',' sta $01',' lda #$7f',' sta $dc0d',' sta $dd0d',' lda $dc0d',' lda $dd0d',
  ' lda $dd00',' and #$fc',' ora #$03',' sta $dd00',
  ' lda #$04',' sta front_hi',' lda #$08',' sta back_hi',' lda #'+h(d.initialX),' sta camera_x',
  ' lda #$00',' sta prep_request',' sta prep_ready',' sta main_busy',
