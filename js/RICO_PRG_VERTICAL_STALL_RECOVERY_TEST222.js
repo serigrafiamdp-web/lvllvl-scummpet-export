@@ -41,7 +41,7 @@ function runtime(d,plan,modes){
  var pages=up?[0,1,2]:[2,1,0];
  if(!up){
   lines.push(' ldy #$bf','color222_down_tail',
-     ' lda $db00,y',' sta $db28,y',' dey',' bpl color222_down_tail');
+     ' lda $db00,y',' sta $db28,y',' dey',' cpy #$ff',' bne color222_down_tail');
  }
  for(var i=0;i<pages.length;i++){
   var p=pages[i],tag='color222_'+(up?'up':'down')+'_page'+p;
