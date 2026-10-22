@@ -1189,7 +1189,7 @@ ToPRGAdv.prototype.createPRG=function(args){
       return exportWideVerticalWindow(this,args);
     }
     if(isHorizontalProject(this))return exportHorizontalProject(this,args);
-    var d=collect(this),source=buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
+    var d=collect(this),source=window.RICO_TEST168_PRG_LARGE_MAP.buildSource(d),bytes=assemblePRG(this,source),fn=args.filename||'rico-large-map-40x'+d.height+'.prg';if(!/\.prg$/i.test(fn))fn+='.prg';
     console.log('[RICO TEST168 LARGE MAP] LARGE MAP exported: Screen 40x'+d.height+' | Window 40x'+d.window.height+' | Scroll Area 40x'+d.area.height+' | '+d.type+' | '+d.pixels+'px/'+d.ticks+'t');
     if(args.download===false)return bytes;if(typeof window.download==='function'){window.download(bytes,fn,'application/prg');return bytes;}throw new Error('download() missing');
   }catch(e){console.error('[RICO TEST168 LARGE MAP]',e);console.error('[RICO TEST190] Error tecnico de exportacion (sin cartel):',e.message);return false;}
