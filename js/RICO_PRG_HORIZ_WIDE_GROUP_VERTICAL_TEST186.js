@@ -250,7 +250,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  var ed=this.editor,s=ed&&size(ed),cfg=ed&&getCfg(ed,0),t=cfg&&cfg.type;
  if(!s||s.w<=40||t!=='left'&&t!=='right')return previous.apply(this,arguments);
  try{
-   var d=collect(this),text=build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test203.prg';this.prg=prg;
+   var d=collect(this),text=window.RICO_TEST186_HORIZONTAL.build(d),prg=assemble(this,text),name=(args&&args.filename)||'rico-horizontal-wide-test203.prg';this.prg=prg;
    if(args&&args.download===false)return prg;
    if(!/\.prg$/i.test(name))name+='.prg';
    if(typeof window.download!=='function')throw new Error('No esta disponible window.download');
@@ -263,4 +263,176 @@ ToPRGAdv.prototype.createPRG=function(args){
 };
 window.RICO_TEST186_HORIZONTAL={collect:collect,build:build,groupASM:groupASM};
 console.log('[RICO TEST203] Left/Right adaptive changed-color patch lists; IRQ performs sparse writes before screen swap.');
+})();
+
+
+
+/* TEST218: compressed, export-time Color RAM deltas. Full 40x25 renderer.
+ * Projects without room for lookup tables use the original generic code. */
+(function(){
+'use strict';
+var H=window.RICO_TEST186_HORIZONTAL;if(!H)return;
+var normal=H.build;
+function num(n){return '$'+('0000'+(n&65535).toString(16)).slice(-4);}
+function byt(n){return '$'+('0'+(n&255).toString(16)).slice(-2);}
+function plan(d){
+ if(!d.multicolor||d.duration!==undefined||d.group||d.disableFast218)return null;
+ var width=d.areaWidth,stride=d.srcStride;
+ if(width<40||width>255||stride!==2*width||d.colors.length<25*stride)return null;
+ var lists=[],total=2*width;
+ for(var cam=0;cam<width;cam++){
+  var prev=(cam+(d.type==='left'?width-1:1))%width,byColor=Array.from({length:16},function(){return[];});
+  for(var row=0;row<25;row++)for(var x=0;x<40;x++){
+   var position=row*stride+x,old=d.colors[position+prev]&15,now=d.colors[position+cam]&15;
+   if(old!==now)byColor[now].push(0xd800+40*row+x);
+  }
+  var words=[];
+  for(var color=0;color<16;color++)if(byColor[color].length){
+   var aa=byColor[color],cnt=aa.length;words.push(color,cnt&255,cnt>>8);
+   for(var n=0;n<cnt;n++)words.push(aa[n]&255,aa[n]>>8);
+  }
+  words.push(255);lists.push(words);total+=words.length;
+ }
+ // Normal one-file PRGs must not write across VIC/SID/CIA I/O $D000.
+ // No group: use spare $A100-$AFFF, then $B800-$CFFF.
+ // With group: reserve its $A000+ engine and use only $B800-$CFFF.
+ // $B000-$B7FF stays free for the SID relocation ABI.
+ var origin=d.group?0xb800:0xa100,ptr=origin+2*width,extra=0xb800,addresses=[],usingExtra=false;
+ for(var k=0;k<lists.length;k++){
+  var size=lists[k].length,limit=d.group?0xd000:0xb000;
+  if(!usingExtra&&ptr+size<=limit){addresses.push(ptr);ptr+=size;}
+  else if(!d.group&&extra+size<=0xd000){usingExtra=true;addresses.push(extra);extra+=size;}
+  else return null;
+ }
+ return{base:origin,lists:lists,addresses:addresses,bytes:total};
+}
+function newScreen(d){
+ var arr=['render_fast218',' lda #$00',' sta dst_lo',
+ ' lda #<world_map_data',' sta src_lo',' lda #>world_map_data',' sta src_hi',
+ ' clc',' lda src_lo',' adc camera_x',' sta src_lo',
+ ' lda src_hi',' adc #$00',' sta src_hi',
+ ' lda #$19',' sta tmp_row','render_fast_row218',' ldy #$00','render_fast_col218'];
+ for(var k=0;k<8;k++)arr.push(' lda (src_lo),y',' sta (dst_lo),y',' iny');
+ arr.push(' cpy #$28',' bne render_fast_col218',
+ ' clc',' lda src_lo',' adc #'+byt(d.srcStride&255),' sta src_lo',
+ ' lda src_hi',' adc #'+byt(d.srcStride>>8),' sta src_hi',
+ ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+ ' lda dst_hi',' adc #$00',' sta dst_hi',
+ ' dec tmp_row',' beq render_fast_done218',' jmp render_fast_row218',
+ 'render_fast_done218',' rts',
+ 'apply_patch218',' ldx camera_x',
+ ' lda patch218_ptrlo,x',' sta src_lo',
+ ' lda patch218_ptrhi,x',' sta src_hi',
+ 'patch_group218',' ldy #$00',' lda (src_lo),y',
+ ' cmp #$ff',' bne patch_group_begin218',' rts',
+ 'patch_group_begin218',' sta step_ticks',
+ ' iny',' lda (src_lo),y',' sta color_src_lo',
+ ' iny',' lda (src_lo),y',' sta color_src_hi',
+ ' clc',' lda src_lo',' adc #$03',' sta src_lo',
+ ' bcc patch_group_nocarry218',' inc src_hi',
+ 'patch_group_nocarry218',
+ 'patch_cell_check218',' lda color_src_lo',' ora color_src_hi',
+ ' bne patch_cell218',' jmp patch_group218',
+ 'patch_cell218',' ldy #$00',
+ ' lda (src_lo),y',' sta dst_lo',
+ ' iny',' lda (src_lo),y',' sta dst_hi',
+ ' ldy #$00',' lda step_ticks',' sta (dst_lo),y',
+ ' clc',' lda src_lo',' adc #$02',' sta src_lo',
+ ' bcc patch_cell_nocarry218',' inc src_hi',
+ 'patch_cell_nocarry218',' lda color_src_lo',' bne patch_dec218',
+ ' dec color_src_hi','patch_dec218',' dec color_src_lo',
+ ' jmp patch_cell_check218');
+ return arr.join('\n')+'\n';
+}
+function outputData(p){
+ var arr=[],lows=p.addresses.map(function(x){return x&255;}),highs=p.addresses.map(function(x){return x>>8;});
+ arr.push('*='+num(p.base),'patch218_ptrlo');
+ for(var j=0;j<lows.length;j+=16)arr.push('!byte '+lows.slice(j,j+16).map(byt).join(','));
+ arr.push('patch218_ptrhi');
+ for(j=0;j<highs.length;j+=16)arr.push('!byte '+highs.slice(j,j+16).map(byt).join(','));
+ for(var i=0;i<p.lists.length;i++){
+  arr.push('*='+num(p.addresses[i]),'patch218_list_'+i);
+  var data=p.lists[i];
+  for(j=0;j<data.length;j+=16)arr.push('!byte '+data.slice(j,j+16).map(byt).join(','));
+ }
+ return arr.join('\n')+'\n';
+}
+H.build=function(d){
+ var p=plan(d),src=normal(d);if(!p)return src;
+ var stage=' jsr render_to_dst\n jsr prepare_sparse_colors203';
+ var commit=' jsr commit_sparse_colors203\n jsr swap_screens';
+ if(src.split(stage).length!==2||src.split(commit).length!==2)throw new Error('TEST218: source anchors changed');
+ src=src.replace(stage,' jsr render_fast218').replace(commit,' jsr apply_patch218\n jsr swap_screens');
+ var anchor='*=$3000\ncharset_bank1';
+ if(src.split(anchor).length!==2)throw new Error('TEST218: charset anchor changed');
+ src=src.replace(anchor,newScreen(d)+anchor);
+ return src+'\n'+outputData(p);
+};
+window.RICO_TEST218_FAST_COLOR={plan:plan,normal:normal,version:218};
+})();
+
+
+/* TEST219 — horizontal incremental screen copies: direct indexed 6502 moves
+ * from front to back, then inject only new 25-cell map column. Fast only for
+ * single-frame uniform-color and TEST218 precalculated color pipelines.
+ * Dense multi-color and multi-frame routes remain unchanged. */
+(function(){
+'use strict';
+var H=window.RICO_TEST186_HORIZONTAL;if(!H)return;
+var previous=H.build;
+function hex(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
+function hex8(v){return '$'+('0'+(v&255).toString(16)).slice(-2);}
+function shiftRoutine(d){
+ var out=['shift_back219',' lda front_hi',' cmp #$04',' beq shift_04_08_219',' jmp shift_08_04_219'];
+ var delta=d.type==='left'?1:-1;
+ [[0x0400,0x0800,'04_08'],[0x0800,0x0400,'08_04']].forEach(function(pair){
+  var front=pair[0],back=pair[1],id=pair[2],prefix='shift_'+id+'_219';
+  out.push(prefix,' ldx #$00',prefix+'_page');
+  for(var page=0;page<3;page++){
+   out.push(' lda '+hex(front+256*page+delta)+',x',
+            ' sta '+hex(back+256*page)+',x');
+  }
+  out.push(' inx',' bne '+prefix+'_page',' ldx #$00',prefix+'_tail');
+  out.push(' lda '+hex(front+768+delta)+',x',
+           ' sta '+hex(back+768)+',x',
+           ' inx',' cpx #$e8',' bne '+prefix+'_tail',
+           ' jmp shift_column219');
+ });
+ var extra=d.type==='left'?39:0;
+ out.push('shift_column219',
+  ' lda #<world_map_data',' sta src_lo',
+  ' lda #>world_map_data',' sta src_hi',
+  ' clc',' lda src_lo',' adc camera_x',' sta src_lo',
+  ' lda src_hi',' adc #$00',' sta src_hi');
+ if(extra)out.push(' clc',' lda src_lo',' adc #$27',' sta src_lo',
+                  ' lda src_hi',' adc #$00',' sta src_hi');
+ out.push(' lda #'+hex8(extra),' sta dst_lo',
+          ' lda back_hi',' sta dst_hi',
+          ' lda #$19',' sta tmp_row',
+          'shift_new_column219',' ldy #$00',
+          ' lda (src_lo),y',' sta (dst_lo),y',
+          ' clc',' lda src_lo',' adc #'+hex8(d.srcStride&255),' sta src_lo',
+          ' lda src_hi',' adc #'+hex8(d.srcStride>>8),' sta src_hi',
+          ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+          ' lda dst_hi',' adc #$00',' sta dst_hi',
+          ' dec tmp_row',' beq shift_column_done219',
+          ' jmp shift_new_column219',
+          'shift_column_done219',' rts');
+ return out.join('\n')+'\n';
+}
+H.build=function(d){
+ var src=previous(d);
+ if(d.duration!==undefined||d.group)return src;
+ var sparseFast=src.includes(' jsr render_fast218\n'), uniform=!d.multicolor;
+ if(!sparseFast&&!uniform)return src;
+ var call=sparseFast?' jsr render_fast218\n':' jsr render_to_dst\n';
+ var stage=' lda back_hi\n sta dst_hi\n'+call+' lda #$01\n sta prep_ready';
+ if(src.split(stage).length!==2)throw new Error('TEST219 screen stage anchor mismatch');
+ src=src.replace(stage,' lda back_hi\n sta dst_hi\n jsr shift_back219\n lda #$01\n sta prep_ready');
+ var anchor='*=$3000\ncharset_bank1';
+ if(src.split(anchor).length!==2)throw new Error('TEST219 charset anchor mismatch');
+ src=src.replace(anchor,shiftRoutine(d)+anchor);
+ return src;
+};
+window.RICO_TEST219_HORIZONTAL_DIRECT_SHIFT={version:219,buildShift:shiftRoutine,legacy:previous};
 })();
