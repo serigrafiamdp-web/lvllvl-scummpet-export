@@ -4,13 +4,13 @@
    jaammees/lvllvl/src/js/textMode/c64export/export.asm
    Same PSID load/init/play contracts and IRQ play convention, NOT SCUMM.
    TEST208: 1 or more frames; 8 is a test target, NEVER a minimum.
-   Tested/isolated resident PSIDs loaded in $1000-$1fff. */
+   TEST229 expands non-relocatable PSID range to $1000-$2FFF when a safe core slot exists. */
 if(typeof ToPRGAdv==='undefined'||!window.RICO_TEST206_COMPACT_FRAMES){
   console.error('[RICO TEST207] TEST206 compact engine missing');return;
 }
 var preceding=ToPRGAdv.prototype.createPRG,compact=window.RICO_TEST206_COMPACT_FRAMES;
 var SID_STATE={data:null,enabled:false,name:'',speed:0,lastMessage:''};
-var MEM={sidStart:0x1000,sidEnd:0x2000,patchStart:0xb000,patchEnd:0xb800};
+var MEM={sidStart:0x1000,sidEnd:0x3000,patchStart:0xb000,patchEnd:0xb800};
 function h2(n){return '$'+('0'+(n&255).toString(16)).slice(-2);}
 function hx(n){return '$'+('0000'+(n&65535).toString(16)).slice(-4);}
 function be16(b,p){return(b[p]<<8)|b[p+1];}
@@ -72,7 +72,7 @@ function parseSID(raw){
  var subtuneBit=startSong<=32?((speedBits>>>(startSong-1))&1):0;
  // PSID speed bit requests CIA timing: emulate ~60Hz on PAL by playing
  // six times every five 50Hz frames. Do not reject compatible PSIDs.
- if(load<MEM.sidStart||load+body.length>0x3000)
+ if(load<MEM.sidStart||load+body.length>MEM.sidEnd)
   throw new Error('TEST229: el PSID carga en '+hx(load)+' y mide '+body.length+' bytes. El banco SID admitido es $1000-$2FFF (8 KB), sin reubicar la musica; $3000 empieza el charset.');
  if(init<load||init>=load+body.length||play<load||play>=load+body.length)throw new Error('SID: las direcciones INIT/PLAY deben estar dentro de los bytes cargados, para esta primera prueba.');
  var timer209=subtuneBit?detectCIATimer209(body,clockFlag):null;
@@ -463,8 +463,8 @@ ToPRGAdv.prototype.createPRG=function(args){
  try{return exportSelectedEngine228(this,args,chosen);}
  catch(e){
    window.RICO_TEST207_LAST_ERROR=e.message;
-   console.error('[RICO TEST228] SID + native Map Scroll failed:',e);
-   if(typeof window.alert==='function')window.alert('RICO TEST228 SID: '+e.message);
+   console.error('[RICO TEST229] SID memory + native Map Scroll failed:',e);
+   if(typeof window.alert==='function')window.alert('RICO TEST229 SID: '+e.message);
    return false;
  }
 };
@@ -477,5 +477,5 @@ window.RICO_TEST207_ORIGINAL_SID={
  memory:MEM
 };
 window.RICO_SID_SHARED_ABI_V1={version:211,zeroPageStart:0xf0,zeroPageLength:16,timerRegisters:['$DC04','$DC05'],irqSources:['CIA1 Timer A','VIC-II raster'],initContract:'INIT(A=subtune) then capture SID ZP',playContract:'private SID ZP around PLAY',starting:'first VIC raster after INIT',debugCounters:['sid_audio_ticks_lo211','sid_audio_ticks_hi211','sid_video_ticks_lo211','sid_video_ticks_hi211']};
-console.log('[RICO TEST228 READY] SID integrated over native export source; AUTO CIA preserved.');
+console.log('[RICO TEST229 READY] PSID up to 8KB with validated core relocation; native scroll and CIA kept.');
 })();
