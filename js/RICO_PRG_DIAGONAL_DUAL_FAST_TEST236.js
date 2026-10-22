@@ -173,7 +173,69 @@ function invisibleSparseFallback(d,s){
  var out=[];bytes(out,Array.from(tagged));
  s=s.slice(0,at)+marker+out.join(NL)+NL+s.slice(stop);
  for(var page=0;page<4;page++){
-  var src=w(0x0c00+page*256),dest=w(0xd800+page*256);
+  var src='
+  var label='color_scan203_'+page+NL;
+  var old=label+' lda '+dest+',x'+NL+' and #$0f'+NL+' cmp '+src+',x';
+  var safer=label+' lda '+src+',x'+NL+' bmi color_next203_'+page+
+    NL+' lda '+dest+',x'+NL+' and #$0f'+NL+' cmp '+src+',x';
+  if(s.split(old).length!==2)throw Error('TEST240: sparse scan anchor missing page '+page);
+  s=s.replace(old,safer);
+ }
+ return{source:s,hidden: hidden,cellCount:tagged.length};
+}
+E.build=function(d){
+ var s=previous(d),info={selected:false,direction:d&&d.direction,pixels:d&&d.pixels,
+    mode:'original fallback',reason:'fast RLE not selected'};
+ if(!d||!d.fastRows||d.uniformColor||d.group){
+  info.reason='uniform / group / large source';window.RICO_TEST236_LAST_BUILD=info;return s;
+ }
+ var start=NL+'diag_rle_apply221'+NL,stop='diag_rle_phase221'+NL+'!byte $00',
+     isRLE=s.includes(start);
+ if(isRLE){
+  var length=d.areaWidth/gcd(d.areaWidth,d.areaHeight)*d.areaHeight;
+  var si=s.indexOf(start),ei=s.indexOf(stop,si);
+  if(si<0||ei<0||length>255)throw Error('TEST236: RLE code layout changed');
+  s=s.slice(0,si)+NL+executor(length)+s.slice(ei+stop.length);
+  info={selected:true,direction:d.direction,pixels:d.pixels,mode:'RLE-optimized-executor',
+   changed:'single-cell and short vertical runs',irqCommit:'RLE',colorScan:false};
+  window.RICO_TEST236_LAST_BUILD=info;
+  console.log('[TEST236 FAST DIAGONAL]',info);
+  return s;
+ }
+ var p=plan(d);
+ if(!p){
+  var opacity=invisibleSparseFallback(d,s);
+  if(opacity){
+   info={selected:true,direction:d.direction,pixels:d.pixels,
+    mode:'visibility-sparse-fallback',visibilityAware:true,
+    hiddenCells:opacity.hidden,totalCells:opacity.cellCount,
+    colorScan:true,irqCommit:'original sparse writer',
+    screenCopy:'unchanged',introColor:'low nibble unchanged'};
+   window.RICO_TEST236_LAST_BUILD=info;
+   console.log('[TEST240 INVISIBLE SPARSE FALLBACK]',info);
+   return opacity.source;
+  }
+  window.RICO_TEST236_LAST_BUILD=info;return s;
+ }
+ var prep=' jsr diag_colors221'+NL+' jsr prepare_sparse_colors203',
+     colorIRQ=' jsr commit_sparse_colors203'+NL+' jsr swap_screens',
+     charsets='*=$3000'+NL+'charset_bank1';
+ if(s.split(prep).length!==2||s.split(colorIRQ).length!==2||s.split(charsets).length!==2)
+  throw Error('TEST236: diagonal safe-stage anchors changed');
+ s=s.replace(prep,'').replace(colorIRQ,' jsr diag_rle_apply221'+NL+' jsr swap_screens');
+ s=s.replace(charsets,executor(p.len)+charsets);
+ s+=NL+tables(p);
+ info={selected:true,direction:d.direction,pixels:d.pixels,mode:'deduplicated-RLE-fast',
+  uniquePhases:p.totalUnique,phases:p.originalPhases,compressedBytes:p.compressedBytes,
+  colorWrites:p.colorWrites,legacyColorDifferences:p.legacyColorDifferences,
+  skippedInvisibleColorWrites:p.skippedInvisibleColorWrites,visibilityAware:true,
+  changed:'one-pass diagonal + accelerated color runs',irqCommit:'RLE',colorScan:false};
+ window.RICO_TEST236_LAST_BUILD=info;
+ console.log('[TEST236 FAST DIAGONAL]',info);
+ return s;
+};
+window.RICO_TEST236_DIAGONAL={version:236,previous:previous,plan:plan,executor:executor,tables:tables};
+})();+(0x0c00+page*256).toString(16),dest=w(0xd800+page*256);
   var label='color_scan203_'+page+NL;
   var old=label+' lda '+dest+',x'+NL+' and #$0f'+NL+' cmp '+src+',x';
   var safer=label+' lda '+src+',x'+NL+' bmi color_next203_'+page+
