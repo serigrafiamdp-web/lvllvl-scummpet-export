@@ -67,6 +67,7 @@ function data(p){
 V.buildSource=function(d){
  var asm=old(d),p=plan(d,asm);
  window.RICO_TEST224_LAST_BUILD={selected:!!p,reason:p?'sparse-glyph-changes':'legacy',changedCells:p?.total||null,maxPerFrame:p?.max||null};
+ if(d.pixels===8)console.log('[RICO TEST224 VERTICAL]',d.type,p?'GLYPH DELTA':'FULL COPY',p?'max '+p.max+' updated cells/step':'original render retained');
  if(!p)return asm;
  var from=['main_prepare_shift',' jsr prepare_back_shift'].join(NL),
      to=['main_prepare_shift',' jsr render_delta224'].join(NL);
