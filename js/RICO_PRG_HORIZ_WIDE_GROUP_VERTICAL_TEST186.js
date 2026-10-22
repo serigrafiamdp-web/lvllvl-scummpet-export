@@ -267,7 +267,7 @@ console.log('[RICO TEST203] Left/Right adaptive changed-color patch lists; IRQ p
 
 
 
-/* TEST218: compressed, export-time Color RAM deltas. Full 40x25 renderer.
+/* TEST220: vertically RLE-compressed, export-time Color RAM deltas. Full 40x25 renderer.
  * Projects without room for lookup tables use the original generic code. */
 (function(){
 'use strict';
@@ -279,32 +279,38 @@ function plan(d){
  if(!d.multicolor||d.duration!==undefined||d.group||d.disableFast218)return null;
  var width=d.areaWidth,stride=d.srcStride;
  if(width<40||width>255||stride!==2*width||d.colors.length<25*stride)return null;
- var lists=[],total=2*width;
+ var lists=[],total=2*width,runs=0;
  for(var cam=0;cam<width;cam++){
-  var prev=(cam+(d.type==='left'?width-1:1))%width,byColor=Array.from({length:16},function(){return[];});
-  for(var row=0;row<25;row++)for(var x=0;x<40;x++){
-   var position=row*stride+x,old=d.colors[position+prev]&15,now=d.colors[position+cam]&15;
-   if(old!==now)byColor[now].push(0xd800+40*row+x);
+  var prev=(cam+(d.type==='left'?width-1:1))%width,stream=[];
+  // TEST220: exact vertical run-length representation of changed colors:
+  // (run length, Color RAM address lo, address hi, new color), 0 terminates.
+  // A 25-row vertical color stripe needs 4 bytes, not 25 addresses.
+  for(var x=0;x<40;x++)for(var row=0;row<25;){
+   var offset=row*stride+x,oldColor=d.colors[offset+prev]&15,newColor=d.colors[offset+cam]&15;
+   if(oldColor===newColor){row++;continue;}
+   var startRow=row++,count=1;
+   while(row<25){
+    var at=row*stride+x,was=d.colors[at+prev]&15,now=d.colors[at+cam]&15;
+    if(was===now||now!==newColor)break;
+    row++;count++;
+   }
+   var dest=0xd800+startRow*40+x;
+   stream.push(count,dest&255,dest>>8,newColor);
+   runs++;
   }
-  var words=[];
-  for(var color=0;color<16;color++)if(byColor[color].length){
-   var aa=byColor[color],cnt=aa.length;words.push(color,cnt&255,cnt>>8);
-   for(var n=0;n<cnt;n++)words.push(aa[n]&255,aa[n]>>8);
-  }
-  words.push(255);lists.push(words);total+=words.length;
+  stream.push(0);lists.push(stream);total+=stream.length;
  }
- // Normal one-file PRGs must not write across VIC/SID/CIA I/O $D000.
- // No group: use spare $A100-$AFFF, then $B800-$CFFF.
- // With group: reserve its $A000+ engine and use only $B800-$CFFF.
- // $B000-$B7FF stays free for the SID relocation ABI.
- var origin=d.group?0xb800:0xa100,ptr=origin+2*width,extra=0xb800,addresses=[],usingExtra=false;
+ // Optional tables only: dense artwork uses the original generic renderer
+ // without changing the user's configurations or introducing restrictions.
+ // $A100-$AFFF and $B800-$CFFF, never SID ABI $B000-$B7FF or I/O $D000+.
+ var origin=0xa100,ptr=origin+2*width,extra=0xb800,addresses=[],usingExtra=false;
  for(var k=0;k<lists.length;k++){
-  var size=lists[k].length,limit=d.group?0xd000:0xb000;
-  if(!usingExtra&&ptr+size<=limit){addresses.push(ptr);ptr+=size;}
-  else if(!d.group&&extra+size<=0xd000){usingExtra=true;addresses.push(extra);extra+=size;}
+  var size=lists[k].length;
+  if(!usingExtra&&ptr+size<=0xb000){addresses.push(ptr);ptr+=size;}
+  else if(extra+size<=0xd000){usingExtra=true;addresses.push(extra);extra+=size;}
   else return null;
  }
- return{base:origin,lists:lists,addresses:addresses,bytes:total};
+ return{base:origin,lists:lists,addresses:addresses,bytes:total,runs:runs,encoding:'vertical-run-220'};
 }
 function newScreen(d){
  var arr=['render_fast218',' lda #$00',' sta dst_lo',
@@ -324,24 +330,19 @@ function newScreen(d){
  ' lda patch218_ptrlo,x',' sta src_lo',
  ' lda patch218_ptrhi,x',' sta src_hi',
  'patch_group218',' ldy #$00',' lda (src_lo),y',
- ' cmp #$ff',' bne patch_group_begin218',' rts',
- 'patch_group_begin218',' sta step_ticks',
- ' iny',' lda (src_lo),y',' sta color_src_lo',
- ' iny',' lda (src_lo),y',' sta color_src_hi',
- ' clc',' lda src_lo',' adc #$03',' sta src_lo',
- ' bcc patch_group_nocarry218',' inc src_hi',
- 'patch_group_nocarry218',
- 'patch_cell_check218',' lda color_src_lo',' ora color_src_hi',
- ' bne patch_cell218',' jmp patch_group218',
- 'patch_cell218',' ldy #$00',
- ' lda (src_lo),y',' sta dst_lo',
+ ' bne patch_read_run220',' rts',
+ 'patch_read_run220',' sta tmp_row',
+ ' iny',' lda (src_lo),y',' sta dst_lo',
  ' iny',' lda (src_lo),y',' sta dst_hi',
- ' ldy #$00',' lda step_ticks',' sta (dst_lo),y',
- ' clc',' lda src_lo',' adc #$02',' sta src_lo',
- ' bcc patch_cell_nocarry218',' inc src_hi',
- 'patch_cell_nocarry218',' lda color_src_lo',' bne patch_dec218',
- ' dec color_src_hi','patch_dec218',' dec color_src_lo',
- ' jmp patch_cell_check218');
+ ' iny',' lda (src_lo),y',' sta color_src_hi',
+ ' clc',' lda src_lo',' adc #$04',' sta src_lo',
+ ' bcc patch_no_carry220',' inc src_hi',
+ 'patch_no_carry220','patch_write220',
+ ' ldy #$00',' lda color_src_hi',' sta (dst_lo),y',
+ ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+ ' lda dst_hi',' adc #$00',' sta dst_hi',
+ ' dec tmp_row',' bne patch_write220',
+ ' jmp patch_group218');
  return arr.join('\n')+'\n';
 }
 function outputData(p){
@@ -368,7 +369,7 @@ H.build=function(d){
  src=src.replace(anchor,newScreen(d)+anchor);
  return src+'\n'+outputData(p);
 };
-window.RICO_TEST218_FAST_COLOR={plan:plan,normal:normal,version:218};
+window.RICO_TEST218_FAST_COLOR={plan:plan,normal:normal,version:220};
 })();
 
 
