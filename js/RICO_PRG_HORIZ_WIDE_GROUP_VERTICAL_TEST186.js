@@ -293,8 +293,15 @@ function plan(d){
   }
   words.push(255);lists.push(words);total+=words.length;
  }
- if(total>6144)return null;
- return{base:total<=4096?0xc000:0xe000,lists:lists,bytes:total};
+ // Spread stream data across separate RAM windows (never I/O or IRQ vectors).
+ var low=0xc000+2*width,high=0xe000,addresses=[];
+ for(var k=0;k<lists.length;k++){
+  var len=lists[k].length;
+  if(low+len<=0xd000){addresses.push(low);low+=len;}
+  else if(high+len<=0xff00){addresses.push(high);high+=len;}
+  else return null;
+ }
+ return{base:0xc000,lists:lists,addresses:addresses,bytes:total};
 }
 function newScreen(d){
  var arr=['render_fast218',' lda #$00',' sta dst_lo',
@@ -335,17 +342,15 @@ function newScreen(d){
  return arr.join('\n')+'\n';
 }
 function outputData(p){
- var arr=[],ptr= p.base+2*p.lists.length;
- var lows=[],highs=[];
- for(var i=0;i<p.lists.length;i++){lows.push(ptr&255);highs.push(ptr>>8);ptr+=p.lists[i].length;}
- arr.push('*='+num(p.base),'patch218_ptrlo');
- for(var x=0;x<lows.length;x+=16)arr.push('!byte '+lows.slice(x,x+16).map(byt).join(','));
+ var arr=[],lows=p.addresses.map(function(x){return x&255;}),highs=p.addresses.map(function(x){return x>>8;});
+ arr.push('*='+num(0xc000),'patch218_ptrlo');
+ for(var j=0;j<lows.length;j+=16)arr.push('!byte '+lows.slice(j,j+16).map(byt).join(','));
  arr.push('patch218_ptrhi');
- for(x=0;x<highs.length;x+=16)arr.push('!byte '+highs.slice(x,x+16).map(byt).join(','));
- for(i=0;i<p.lists.length;i++){
-  arr.push('patch218_list_'+i);
+ for(j=0;j<highs.length;j+=16)arr.push('!byte '+highs.slice(j,j+16).map(byt).join(','));
+ for(var i=0;i<p.lists.length;i++){
+  arr.push('*='+num(p.addresses[i]),'patch218_list_'+i);
   var data=p.lists[i];
-  for(x=0;x<data.length;x+=16)arr.push('!byte '+data.slice(x,x+16).map(byt).join(','));
+  for(j=0;j<data.length;j+=16)arr.push('!byte '+data.slice(j,j+16).map(byt).join(','));
  }
  return arr.join('\n')+'\n';
 }
