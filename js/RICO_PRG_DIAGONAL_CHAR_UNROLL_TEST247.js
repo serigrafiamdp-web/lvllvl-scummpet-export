@@ -60,8 +60,8 @@ E.build=function(d){
     !d.fastRows||d.uniformColor||d.group||!d.dir||d.dir.y!==-1){
    window.RICO_TEST247_LAST_BUILD=info;return s;
  }
- var begin='diag_shift221'+NL,
-     finish='diag_edge_column221'+NL,
+ var begin=NL+'diag_shift221'+NL,
+     finish=NL+'diag_edge_column221'+NL,
      at=s.indexOf(begin),end=at<0?-1:s.indexOf(finish,at+begin.length);
  if(at<0||end<0||s.indexOf(begin,at+begin.length)>=0||
     s.split(finish).length!==2||
@@ -74,7 +74,7 @@ E.build=function(d){
     s.includes('*=$e000')||s.includes('*=$1800')||
     s.includes('*=$ac41')||s.includes('*=$c341'))
    throw Error('TEST247: baseline/memory layout incompatible');
- s=s.slice(0,at)+updated+s.slice(end);
+ s=s.slice(0,at)+NL+updated+s.slice(end+1);
  s+=NL+emit(d);
  info={version:247,selected:true,mode:'unrolled-char-copy-plus-test244',
     copiesPerScreen:936,cycleEstimatePerScreen:936*8+6+12,
