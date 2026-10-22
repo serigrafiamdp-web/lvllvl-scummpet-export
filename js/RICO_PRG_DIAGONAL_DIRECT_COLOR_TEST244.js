@@ -11,26 +11,23 @@ var E=window.RICO_TEST196_DIAGONAL;if(!E||!E.build)return;
 var previous=E.build,NL='\n';
 function h(v){return '$'+('0'+(v&255).toString(16)).slice(-2);}
 function w(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
-function copyChunks(a,label,start,end,stride){
- for(var k=start,idx=0;k<end;idx++){
-  var count=Math.min(256,end-k),tag=label+'_'+idx;
-  a.push(' ldx #$00',tag,
-    ' lda '+w(0xd800+k+stride)+',x',
-    ' sta '+w(0xd800+k)+',x',
-    ' inx');
-  if(count===256)a.push(' bne '+tag);
-  else a.push(' cpx #'+h(count),' bne '+tag);
-  k+=count;
- }
+function unrolled244(d){
+ var stride=40+(d.dir.x===-1?1:-1);
+ var lines=['; TEST244 generated direct absolute LDA/STA copies (8 cycles per cell)',
+  '; $A100-$AFFF and $B800-$CFFF used, never SID $B000-$B7FF',
+  '*=$a100','color_upper244'];
+ for(var i=0;i<480;i++)
+  lines.push(' lda '+w(0xd800+i+stride),' sta '+w(0xd800+i));
+ lines.push(' rts','*=$b800','color_lower244');
+ for(var i=480;i<960;i++)
+  lines.push(' lda '+w(0xd800+i+stride),' sta '+w(0xd800+i));
+ lines.push(' rts');
+ return lines.join(NL)+NL;
 }
 function routine(d){
- var sx=d.dir.x===-1?1:-1,step=40+sx,edgeX=sx===1?39:0;
- var a=['; TEST244 direct two-phase Color RAM (no 1000-cell scan)',
-  'color_upper244'];
- copyChunks(a,'c244_upper',0,480,step);
- a.push(' rts','color_lower244');
- copyChunks(a,'c244_lower',480,960,step);
- a.push(' rts','color_edges244',
+ var sx=d.dir.x===-1?1:-1,edgeX=sx===1?39:0;
+ var a=['; TEST244 65 edge colors (no 1000-cell scan)',
+  'color_edges244',
   ' lda pending_y',' sta row_id',
   ' lda #$19',' sta rows_left',
   ' lda #'+h((0xd800+edgeX)&255),' sta color_dst_lo',
@@ -38,7 +35,7 @@ function routine(d){
   'c244_edge_column',
   ' ldx row_id',
   ' lda color_rows_lo,x',' clc',' adc pending_x',' sta color_src_lo',
-  ' lda color_rows_hi,x',' adc #$00',' sta color_src_hi');
+  ' lda color_rows_hi,x',' adc #$00',' sta color_src_hi'];
  if(edgeX)a.push(
   ' clc',' lda color_src_lo',' adc #'+h(edgeX),' sta color_src_lo',
   ' lda color_src_hi',' adc #$00',' sta color_src_hi');
@@ -116,10 +113,10 @@ E.build=function(d){
  if(j<0)throw Error('TEST244: IRQ end missing');
  s=s.slice(0,i)+NL+irq244()+s.slice(j);
  s=s.replace(charset,routine(d)+charset);
- s+=NL+'*=$a008'+NL+'color_stage244'+NL+'!byte $00'+NL;
+ s+=NL+'*=$a008'+NL+'color_stage244'+NL+'!byte $00'+NL+unrolled244(d);
  stat={version:244,selected:true,mode:'two-stage-raster-direct-color',
    direction:d.direction,sourceStep:40+(d.dir.x===-1?1:-1),
-   colorWrites:1025,scanColorPages:false,extraSparsePlanner:false,
+   colorWrites:1025,unrolledCyclesPerHalf:3846,scanColorPages:false,extraSparsePlanner:false,
    rasterMid:160,rasterBottom:250,
    irq:'upper half behind beam; lower + edges then screen swap',
    unchanged:'charset banks, character diagonal copy, SID, group, other scroll directions'};
@@ -127,5 +124,5 @@ E.build=function(d){
  console.log('[TEST244 TWO-PHASE COLOR RAM]',stat);
  return s;
 };
-window.RICO_TEST244_DIAGONAL={version:244,routine:routine,irq:irq244,previous:previous};
+window.RICO_TEST244_DIAGONAL={version:244,routine:routine,unrolled:unrolled244,irq:irq244,previous:previous};
 })();
