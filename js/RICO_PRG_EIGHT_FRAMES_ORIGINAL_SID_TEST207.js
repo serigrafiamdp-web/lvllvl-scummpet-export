@@ -72,8 +72,8 @@ function parseSID(raw){
  var subtuneBit=startSong<=32?((speedBits>>>(startSong-1))&1):0;
  // PSID speed bit requests CIA timing: emulate ~60Hz on PAL by playing
  // six times every five 50Hz frames. Do not reject compatible PSIDs.
- if(load<MEM.sidStart||load+body.length>MEM.sidEnd)
-  throw new Error('TEST207: este PSID carga en '+hx(load)+' y mide '+body.length+' bytes. Primera prueba: carga $1000-$1FFF (4096 B), sin reubicar SID no relocatable.');
+ if(load<MEM.sidStart||load+body.length>0x3000)
+  throw new Error('TEST229: el PSID carga en '+hx(load)+' y mide '+body.length+' bytes. El banco SID admitido es $1000-$2FFF (8 KB), sin reubicar la musica; $3000 empieza el charset.');
  if(init<load||init>=load+body.length||play<load||play>=load+body.length)throw new Error('SID: las direcciones INIT/PLAY deben estar dentro de los bytes cargados, para esta primera prueba.');
  var timer209=subtuneBit?detectCIATimer209(body,clockFlag):null;
  return {version,load,init,play,bytes:body,subtune:startSong-1,songs,speedBits,clockFlag,ciaTiming:!!subtuneBit,ciaTimer:timer209};
@@ -145,7 +145,60 @@ function buildSidShared211(sid,useHardwareCIA){
  );
  return out.join('\n');
 }
+
+// TEST229: keep non-relocatable SID bytes at their declared LOAD address.
+// Move LVLLVL core ($2000-$2FFF) to unoccupied RAM when SID overlaps it.
+// The BASIC SYS entry must follow the core. Never touch charset $3000/$3800.
+function sidSourceRegions229(source){
+ var chunks=[],at=-1,block=null,lines=source.split(/\r?\n/);
+ for(var i=0;i<lines.length;i++){
+  var line=lines[i].split(';')[0].trim(),m=line.match(/^\*=\$([0-9a-f]{4})$/i);
+  if(m){at=parseInt(m[1],16);block={start:at,end:at,core:at===0x2000};chunks.push(block);continue;}
+  if(!block||!line)continue;
+  var count=0;
+  if(/^!byte\s+/i.test(line))count=line.replace(/^!byte\s+/i,'').split(',').length;
+  else if(/^!word\s+/i.test(line))count=2*line.replace(/^!word\s+/i,'').split(',').length;
+  else if(/^!fill\s+/i.test(line)){var q=line.match(/^!fill\s+(\d+)/i);if(!q)throw new Error('TEST229: directiva !fill no verificable');count=+q[1];}
+  else if(/^!text\s+/i.test(line))throw new Error('TEST229: !text sin tamaño fiable');
+  else if(/^[a-z]{3}(?:\s|$)/i.test(line))count=3; // safe upper bound for 6502 instruction
+  at+=count;block.end=at;
+ }
+ return chunks;
+}
+function chooseCoreSlot229(source){
+ var blocks=sidSourceRegions229(source),main=blocks.filter(function(x){return x.core;});
+ if(main.length!==1)throw new Error('TEST229: se esperaba un único bloque de motor en $2000.');
+ // Leave 4 KB for the core PLUS SID helper. If an existing source segment
+ // overlaps the slot, reject it; never corrupt art/frames or SID buffers.
+ var slots=[0xc000,0x9000,0x8000,0x6000,0x5000];
+ for(var j=0;j<slots.length;j++){
+  var start=slots[j],end=start+0x1000;
+  var occupied=blocks.some(function(b){return !b.core&&b.start<end&&b.end>start;});
+  if(!occupied)return start;
+ }
+ throw new Error('TEST229: no hay banco de 4 KB libre para trasladar el motor; reduce el mapa/frames o revisa las tablas de color. No se genera un PRG corrupto.');
+}
+function relocateCoreForSID229(source,sid){
+ var s0=sid.load,s1=sid.load+sid.bytes.length;
+ if(s1<=0x2000||s0>=0x3000)return source; // legacy SID exactly unchanged
+ var base=chooseCoreSlot229(source);
+ var sys=String(base),ascii=Array.from(sys).map(function(v){return h2(v.charCodeAt(0));});
+ var next=0x0801+6+ascii.length;
+ var header='!byte '+[h2(next),h2(next>>8),'$0a','$00','$9e'].concat(ascii,['$00','$00','$00']).join(',');
+ // The original BASIC SYS8192 header uses 4 digits; the new SYS
+ // is usually 5 digits. Calculate linked-list pointer from actual size.
+ var re=/!byte \$0b,\$08,\$0a,\$00,\$9e,\$38,\$31,\$39,\$32,\$00,\$00,\$00(?:[^\n]*)?/i;
+ if(!re.test(source))throw new Error('TEST229: cabecera BASIC SYS8192 no reconocida.');
+ source=source.replace(re,header+' ; 10 SYS'+sys);
+ source=replaceOnce(source,'*=$2000\n','*='+hx(base)+'\n');
+ window.RICO_TEST229_LAST_LAYOUT={sidStart:hx(s0),sidEnd:hx(s1-1),coreStart:hx(base),coreEnd:hx(base+0xfff),sys:base};
+ console.log('[RICO TEST229] SID ampliado sin reubicacion:',window.RICO_TEST229_LAST_LAYOUT);
+ return source;
+}
+
 function makeSource207(source,sid,speed){
+ window.RICO_TEST229_LAST_LAYOUT=null;
+ source=relocateCoreForSID229(source,sid);
  if(/^\*=\$1[0-9a-f]{3}\s*$/im.test(source))
   throw new Error('TEST228: el player visual ocupa $1000-$1FFF, reservado para el SID.');
  // Only relocate the sparse color lists if the output contains them.
@@ -205,8 +258,9 @@ function makeSource207(source,sid,speed){
  // No SCUMM addresses are copied; BANK$B000 can be used by compact frames.
  source=replaceOnce(source,'*=$3000\ncharset_bank1',
   buildSidShared211(sid,hardware)+'\n*=$3000\ncharset_bank1');
- source=replaceOnce(source,'*=$2000\n',
-  '*='+hx(sid.load)+'\nSID_ORIGINAL_LVLLVL_TEST211\n'+bytesToAsm(sid.bytes)+'\n*=$2000\n');
+ var coreAnchor=window.RICO_TEST229_LAST_LAYOUT&&sid.load+sid.bytes.length>0x2000?'*='+window.RICO_TEST229_LAST_LAYOUT.coreStart+'\n':'*=$2000\n';
+ source=replaceOnce(source,coreAnchor,
+  '*='+hx(sid.load)+'\nSID_ORIGINAL_LVLLVL_TEST211\n'+bytesToAsm(sid.bytes)+'\n'+coreAnchor);
  return source;
 }
 function export207(self,args,raw){
@@ -415,6 +469,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST207_ORIGINAL_SID={
+ sidMemoryPlanner229:{regions:sidSourceRegions229,choose:chooseCoreSlot229,relocate:relocateCoreForSID229},
  parseSID:parseSID,detectTimer:detectCIATimer209,buildSource:makeSource207,export:exportSelectedEngine228,legacyExport207:export207,exportSelectedEngine228:exportSelectedEngine228,
  select:function(bytes){var result=parseSID(bytes);SID_STATE.data=bytes;SID_STATE.enabled=true;return result;},
  disable:function(){SID_STATE.enabled=false;},
