@@ -419,7 +419,8 @@ function generator(d){
            ' sta '+num(to+256*page+off)+',x');
    }
   }
-  a.push(' txa',' clc',' adc #$08',' tax',' bne '+name+'_copy',
+  a.push(' txa',' clc',' adc #$08',' tax',' beq '+name+'_copy_done',
+   ' jmp '+name+'_copy',name+'_copy_done',
    ' ldx #$00',name+'_tail');
   for(var off=0;off<8;off++){
    a.push(' lda '+num(frm+768+stride+off)+',x',
