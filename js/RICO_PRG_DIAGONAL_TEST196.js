@@ -411,16 +411,22 @@ function generator(d){
         ' beq diag_0408_221',' jmp diag_0804_221'];
  [[0x0400,0x0800,'0408'],[0x0800,0x0400,'0804']].forEach(function(q){
   var frm=q[0],to=q[1],name='diag_'+q[2]+'_221';
+  // TEST237: eight adjacent indexed bytes per branch, same addresses.
   a.push(name,' ldx #$00',name+'_copy');
   for(var page=0;page<3;page++){
-   a.push(' lda '+num(frm+256*page+stride)+',x',
-          ' sta '+num(to+256*page)+',x');
+   for(var off=0;off<8;off++){
+    a.push(' lda '+num(frm+256*page+stride+off)+',x',
+           ' sta '+num(to+256*page+off)+',x');
+   }
   }
-  a.push(' inx',' bne '+name+'_copy',
-   ' ldx #$00',name+'_tail',
-   ' lda '+num(frm+768+stride)+',x',
-   ' sta '+num(to+768)+',x',
-   ' inx',' cpx #$e8',' bne '+name+'_tail',
+  a.push(' txa',' clc',' adc #$08',' tax',' bne '+name+'_copy',
+   ' ldx #$00',name+'_tail');
+  for(var off=0;off<8;off++){
+   a.push(' lda '+num(frm+768+stride+off)+',x',
+          ' sta '+num(to+768+off)+',x');
+  }
+  a.push(' txa',' clc',' adc #$08',' tax',
+   ' cpx #$e8',' bne '+name+'_tail',
    ' jmp diag_edge_column221');
  });
  // In both axes the pending camera already points at the next frame.
