@@ -109,7 +109,7 @@ function executor(len){
  'diag_rle_short_setup236',
  ' ldy #$00',' lda tmp_col',
  'diag_rle_short_loop236',
- ' sta (dst_lo),y',' tya',' clc',' adc #$28',' tay',
+ ' sta (dst_lo),y',' tya',' clc',' adc #$28',' tay',' lda tmp_col',
  ' dec rows_left',' bne diag_rle_short_loop236',
  ' jmp diag_rle_loop236',
  'diag_rle_phase221','!byte $00'
