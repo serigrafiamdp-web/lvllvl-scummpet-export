@@ -375,7 +375,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  var t=fr&&fr.ricoMapScrollV1&&fr.ricoMapScrollV1.type;
  if(!DIRECTIONS[t])return previous.apply(this,arguments);
  try{
-  var data=collect(this),source=build(data),prg=assemble(this,source);
+  var data=collect(this),source=window.RICO_TEST196_DIAGONAL.build(data),prg=assemble(this,source);
   this.prg=prg;args=args||{};
   if(args.download===false)return prg;
   var name=args.filename||'rico-diagonal-test203.prg';
@@ -390,4 +390,114 @@ ToPRGAdv.prototype.createPRG=function(args){
 };
 window.RICO_TEST196_DIAGONAL={collect:collect,build:build,directions:DIRECTIONS};
 console.log('[RICO TEST203] Diagonal adaptive changed-color patch lists; IRQ commits sparse changes before raster swap.');
+})();
+
+/* TEST221: incremental 40x25 diagonal char shift, adapting the proven
+ * horizontal TEST220 and vertical TEST168 techniques.
+ * Only fastRows path. Original color shadow remains exact for multicolor;
+ * unsupported configurations use the original builder unchanged. */
+(function(){
+'use strict';
+var mod=window.RICO_TEST196_DIAGONAL;if(!mod)return;
+var previous=mod.build;
+function num(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
+function b(v){return '$'+('0'+(v&255).toString(16)).slice(-2);}
+function generator(d){
+ var horizontal=d.dir.x===-1?1:-1;
+ var vertical=d.dir.y===-1?1:-1;
+ var stride=horizontal+40*vertical;
+ var entryX=horizontal===1?39:0,entryY=vertical===1?24:0;
+ var a=['diag_shift221',' lda front_hi',' cmp #$04',
+        ' beq diag_0408_221',' jmp diag_0804_221'];
+ [[0x0400,0x0800,'0408'],[0x0800,0x0400,'0804']].forEach(function(q){
+  var frm=q[0],to=q[1],name='diag_'+q[2]+'_221';
+  a.push(name,' ldx #$00',name+'_copy');
+  for(var page=0;page<3;page++){
+   a.push(' lda '+num(frm+256*page+stride)+',x',
+          ' sta '+num(to+256*page)+',x');
+  }
+  a.push(' inx',' bne '+name+'_copy',
+   ' ldx #$00',name+'_tail',
+   ' lda '+num(frm+768+stride)+',x',
+   ' sta '+num(to+768)+',x',
+   ' inx',' cpx #$e8',' bne '+name+'_tail',
+   ' jmp diag_edge_column221');
+ });
+ // In both axes the pending camera already points at the next frame.
+ // Add 25 new edge cells, then overwrite entire exposed top/bottom row.
+ a.push('diag_edge_column221',
+  ' lda pending_y',' sta row_id',
+  ' lda #$19',' sta rows_left',
+  ' lda #'+b(entryX),' sta dst_lo',
+  ' lda back_hi',' sta dst_hi',
+  'diag_edge_row221',
+  ' ldx row_id',
+  ' lda world_rows_lo,x',' clc',' adc pending_x',' sta src_lo',
+  ' lda world_rows_hi,x',' adc #$00',' sta src_hi');
+ if(entryX)a.push(' clc',' lda src_lo',' adc #'+b(entryX),' sta src_lo',
+                  ' lda src_hi',' adc #$00',' sta src_hi');
+ a.push(' ldy #$00',' lda (src_lo),y',' sta (dst_lo),y',
+  ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+  ' lda dst_hi',' adc #$00',' sta dst_hi',
+  ' inc row_id',' lda row_id',' cmp #'+b(d.areaHeight),
+  ' bne diag_edge_next221',' lda #$00',' sta row_id',
+  'diag_edge_next221',
+  ' dec rows_left',' beq diag_edge_row_end221',
+  ' jmp diag_edge_row221',
+  'diag_edge_row_end221');
+ if(entryY){
+  a.push(' lda pending_y',' clc',' adc #$18',
+   ' cmp #'+b(d.areaHeight),' bcc diag_edge_yready221',
+   ' sec',' sbc #'+b(d.areaHeight),'diag_edge_yready221',
+   ' tax');
+ }else a.push(' ldx pending_y');
+ a.push(' lda world_rows_lo,x',' clc',' adc pending_x',' sta src_lo',
+  ' lda world_rows_hi,x',' adc #$00',' sta src_hi',
+  ' lda #'+b(entryY?0xc0:0),' sta dst_lo',
+  ' lda back_hi');
+ if(entryY)a.push(' clc',' adc #$03');
+ a.push(' sta dst_hi',
+  ' ldy #$00','diag_edge_full_row221',
+  ' lda (src_lo),y',' sta (dst_lo),y',
+  ' iny',' cpy #$28',' bne diag_edge_full_row221',' rts');
+ if(!d.uniformColor){
+  // Color RAM is shared by VIC screens, so preserve TEST203 sparse-color
+  // commit. Build its shadow without redundantly redrawing glyphs.
+  a.push('diag_colors221',
+   ' lda #$00',' sta color_dst_lo',
+   ' lda #$0c',' sta color_dst_hi',
+   ' lda pending_y',' sta row_id',
+   ' lda #$19',' sta rows_left',
+   'diag_color_row221',' ldx row_id',
+   ' lda color_rows_lo,x',' clc',' adc pending_x',' sta color_src_lo',
+   ' lda color_rows_hi,x',' adc #$00',' sta color_src_hi',
+   ' ldy #$00','diag_color_column221',
+   ' lda (color_src_lo),y',' sta (color_dst_lo),y',
+   ' iny',' cpy #$28',' bne diag_color_column221',
+   ' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
+   ' lda color_dst_hi',' adc #$00',' sta color_dst_hi',
+   ' inc row_id',' lda row_id',' cmp #'+b(d.areaHeight),
+   ' bne diag_color_next221',' lda #$00',' sta row_id',
+   'diag_color_next221',
+   ' dec rows_left',' beq diag_color_done221',
+   ' jmp diag_color_row221',
+   'diag_color_done221',' rts');
+ }
+ return a.join('\n')+'\n';
+}
+mod.build=function(d){
+ var src=previous(d);
+ if(!d.fastRows)return src;
+ var stage=' lda #$01\n sta main_busy\n lda back_hi\n sta dst_hi\n jsr render_to_dst';
+ if(src.split(stage).length!==2)throw Error('TEST221: diagonal stage changed');
+ src=src.replace(stage,stage.replace(' jsr render_to_dst',' jsr diag_shift221'+(d.uniformColor?'':'\n jsr diag_colors221')));
+ var commit=' jsr apply_fine\n lda #$00\n sta prep_request\n sta prep_ready\n jmp irq_group\nirq_tick';
+ if(src.split(commit).length!==2)throw Error('TEST221: diagonal IRQ commit changed');
+ src=src.replace(commit,commit.replace(' jmp irq_group\nirq_tick',' jmp irq_tick\nirq_tick'));
+ var label='*=$3000\ncharset_bank1';
+ if(src.split(label).length!==2)throw Error('TEST221: diagonal charset label missing');
+ src=src.replace(label,generator(d)+label);
+ return src;
+};
+mod.TEST221={incrementalDiagonal:true,fallbackForNonDoubleRows:true,buildShift:generator};
 })();
