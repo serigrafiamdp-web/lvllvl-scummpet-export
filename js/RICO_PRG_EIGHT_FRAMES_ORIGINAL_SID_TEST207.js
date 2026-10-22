@@ -261,6 +261,16 @@ function makeSource207(source,sid,speed){
  var coreAnchor=window.RICO_TEST229_LAST_LAYOUT&&sid.load+sid.bytes.length>0x2000?'*='+window.RICO_TEST229_LAST_LAYOUT.coreStart+'\n':'*=$2000\n';
  source=replaceOnce(source,coreAnchor,
   '*='+hx(sid.load)+'\nSID_ORIGINAL_LVLLVL_TEST211\n'+bytesToAsm(sid.bytes)+'\n'+coreAnchor);
+ // Additional safety: verify the relocated code still fits in its full 4KB
+ // and that no other source region intrudes after INIT/PLAY integration.
+ if(window.RICO_TEST229_LAST_LAYOUT){
+  var home=window.RICO_TEST229_LAST_LAYOUT.sys,regions=sidSourceRegions229(source);
+  var core=regions.filter(function(r){return r.start===home;});
+  if(core.length!==1||core[0].end>home+0x1000)
+   throw new Error('TEST229: motor + rutinas SID superan 4 KB del banco reubicado.');
+  if(regions.some(function(r){return r!==core[0]&&r.start<home+0x1000&&r.end>home;}))
+   throw new Error('TEST229: se detecto solapamiento de recursos con el motor reubicado.');
+ }
  return source;
 }
 function export207(self,args,raw){
@@ -398,9 +408,9 @@ function exportSelectedEngine228(self,args,raw){
   requestedMode:requested===0?'AUTO':requested===1?'MANUAL_50':'MANUAL_100'
  };
  window.RICO_TEST212_LAST_EXPORT=window.RICO_TEST228_LAST_EXPORT;
- console.log('[RICO TEST228 SID + native Map Scroll]',window.RICO_TEST228_LAST_EXPORT);
+ console.log('[RICO TEST229 SID + native Map Scroll]',window.RICO_TEST228_LAST_EXPORT);
  var status=typeof document!=='undefined'&&document.getElementById('ricoSid207Status');
- if(status)status.textContent='TEST228 SID + scroll: '+window.RICO_TEST228_LAST_EXPORT.mode+' / '+frames.length+' frame(s)';
+ if(status)status.textContent='TEST229 SID 8KB + scroll: '+window.RICO_TEST228_LAST_EXPORT.mode+' / '+frames.length+' frame(s)';
  if(args.download===false)return bytes;
  var name=args.filename||'rico-mapscroll-sid-test228.prg';
  if(!/\.prg$/i.test(name))name+='.prg';
@@ -416,7 +426,7 @@ function ensureUI207(){
  var box=document.createElement('div');
  box.id='ricoSid207Panel';
  box.style.cssText='margin:8px 16px;padding:8px;border:1px solid #666;font-size:12px;';
- box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST228 — SID CIA Auto / Map Scroll todas direcciones</label>'
+ box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST229 — SID hasta 8KB / Map Scroll todas direcciones</label>'
    +'<input id="ricoSid207Input" type="file" accept=".sid" style="width:260px">'
    +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto — CIA original o VBlank 50 Hz</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
    +'<div id="ricoSid207Status" style="margin-top:5px;color:#bbb">Elegí un archivo .sid. Sólo activa SID cuando tildás la casilla.</div>';
