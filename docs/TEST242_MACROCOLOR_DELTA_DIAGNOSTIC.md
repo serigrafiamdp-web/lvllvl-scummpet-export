@@ -1,5 +1,10 @@
 # TEST242 — DIAGONAL / MACRO COLOR DELTA (45×32 / 6 bloques)
 
+**RESULTADO REAL VICE 22/10/2026: FAIL — perdió fluidez.** El usuario confirmó además que el enfoque depende de bloques rectangulares y no es una solución general. No integrar en MASTER ni reemplazar el motor aprobado. Las simulaciones de exactitud no constituyen PASS de rendimiento.
+
+## Lección técnica
+La generación de fronteras rectangulares reduce celdas candidatas, pero la rutina `m242_cell` recalcula punteros, página e índices y prepara buffers indirectos por cada candidato; el overhead por celda sigue siendo alto. Para la alternativa general: precalcular durante exportación qué posiciones cambian de color para la dirección diagonal elegida, independiente de cámara y estructura del arte; conservar todos los colores y la sincronización raster, sin asumir rectángulos ni un ciclo <=255.
+
 **Base:** TEST241, con TEST239 BANK1 fix y fallback TEST240. No reemplaza MASTER ni index raíz de gh-pages. **Fuente y simulación: PASS; ensamblado y VICE: PENDIENTE**.
 
 ## PRG comparados realmente
