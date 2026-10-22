@@ -297,11 +297,11 @@ function plan(d){
  // No group: use spare $A100-$AFFF, then $B800-$CFFF.
  // With group: reserve its $A000+ engine and use only $B800-$CFFF.
  // $B000-$B7FF stays free for the SID relocation ABI.
- var origin=d.group?0xb800:0xa100,ptr=origin+2*width,extra=0xb800,addresses=[];
+ var origin=d.group?0xb800:0xa100,ptr=origin+2*width,extra=0xb800,addresses=[],usingExtra=false;
  for(var k=0;k<lists.length;k++){
   var size=lists[k].length,limit=d.group?0xd000:0xb000;
-  if(ptr+size<=limit){addresses.push(ptr);ptr+=size;}
-  else if(!d.group&&extra+size<=0xd000){addresses.push(extra);extra+=size;}
+  if(!usingExtra&&ptr+size<=limit){addresses.push(ptr);ptr+=size;}
+  else if(!d.group&&extra+size<=0xd000){usingExtra=true;addresses.push(extra);extra+=size;}
   else return null;
  }
  return{base:origin,lists:lists,addresses:addresses,bytes:total};
