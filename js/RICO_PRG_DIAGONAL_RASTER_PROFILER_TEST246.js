@@ -92,7 +92,8 @@ E.build=function(d){
     ' lda #$07'+NL+' sta $d020'+NL+' jsr color_lower244');
  src=replaceOnce(src,
    ' lda prep_request'+NL+' beq irq_tick'+NL+' jmp irq_group'+NL+'irq_bottom_ready244',
-   ' lda prep_request'+NL+' beq irq_tick'+NL+
+   ' lda prep_request'+NL+' bne t246_bottom_pending'+NL+
+    ' jmp irq_tick'+NL+'t246_bottom_pending'+NL+
     ' inc trace_pending_bottom246'+NL+' jmp irq_group'+NL+'irq_bottom_ready244');
  // Restore original project's border color immediately after the swap.
  src=replaceOnce(src,
