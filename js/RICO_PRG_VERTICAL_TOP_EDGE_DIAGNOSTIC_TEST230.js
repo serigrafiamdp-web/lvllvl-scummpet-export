@@ -11,8 +11,7 @@ var original=E.buildSource;
 var query='',mode='25';
 try{
  query=String(window.location&&window.location.search||'');
- var p=new URLSearchParams(query);
- if(p.get('topguard')==='24')mode='24';
+ if(/(?:\?|&)topguard=24(?:&|$)/.test(query))mode='24';
 }catch(e){}
 var target='apply_scroll_regs\n lda fine_pos\n and #$07\n ora #$18\n sta $d011';
 var adapted='apply_scroll_regs\n lda fine_pos\n and #$07\n ora #$10\n sta $d011';
