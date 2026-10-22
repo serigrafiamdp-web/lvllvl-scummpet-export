@@ -149,7 +149,8 @@ function makeSource207(source,sid,speed){
  // Only relocate the sparse color lists if the output contains them.
  var edits=0;
  source=source.replace(/\$(1[0-7])00,([xy])/gi,function(_,hi,reg){edits++;return '$'+(0xb0+parseInt(hi,16)-0x10).toString(16)+'00,'+reg;});
- if(edits!==0&&edits!==16)throw new Error('TEST211: reubicacion de color incompleta ('+edits+' referencias).');
+ // TEST228: horizontal TEST220 may have 40 legitimate color-index references.
+ if(edits&&edits%8!==0)throw new Error('TEST228: reubicacion de color inconsistente ('+edits+' referencias).');
  if(/\$(?:1[0-7])00,[xy]/i.test(source))throw new Error('TEST211: quedan referencias a listas de color en la RAM del SID.');
 
  // Audio INIT leaves zero-page private variables at $F0-$FF.
@@ -290,6 +291,65 @@ function export207(self,args,raw){
  window.download(output,name,'application/prg');
  return output;
 }
+
+function exportSelectedEngine228(self,args,raw){
+ args=args||{};
+ var sid=parseSID(raw);
+ var control=typeof document!=='undefined'&&document.getElementById('ricoSid207Speed');
+ var requested=control?Number(control.value):SID_STATE.speed;
+ if(Object.prototype.hasOwnProperty.call(args,'sidPlaybackMode212'))requested=Number(args.sidPlaybackMode212);
+ if(requested!==1&&requested!==2)requested=0;
+ SID_STATE.speed=requested;
+ var nativeCIA=sid.ciaTiming&&!!sid.ciaTimer&&requested===0;
+ var speed=nativeCIA?'cia-hardware210':requested===1||requested===2?requested:(sid.ciaTiming?60:1);
+ var assembler=typeof g_app!=='undefined'&&g_app&&g_app.assembler;
+ if(!assembler||typeof assembler.assemble!=='function')throw new Error('TEST228: ensamblador no disponible.');
+ var oldAssemble=assembler.assemble,oldExport=ToPRGAdv.prototype.createPRG;
+ var count=0,attempts=0,output,parsedSource=null;
+ try{
+  // Reuse exact native source chosen by preceding: Up/Down TEST227,
+  // Left/Right TEST220, four TEST221 diagonals, or multiframe TEST206.
+  assembler.assemble=function(src,entry){
+   attempts++;
+   if(typeof src!=='string')throw new Error('TEST228: el exportador no entregó ASM textual.');
+   parsedSource=makeSource207(src,sid,speed);
+   count++;
+   return oldAssemble.call(this,parsedSource,entry);
+  };
+  // The TEST168 wide vertical viewport calls the public prototype again.
+  // Point that recursive call to the underlying visual exporter while busy.
+  ToPRGAdv.prototype.createPRG=preceding;
+  var silent=Object.assign({},args,{download:false,music:null,sidData:null});
+  output=preceding.call(self,silent);
+  if(!count)throw new Error('TEST228: esta ruta no llamó al ensamblador; no se exporta sin música.');
+  if(!output||output===false||!output.length)
+   throw new Error('TEST228: el exportador visual no pudo generar el PRG con SID.');
+ }finally{
+  assembler.assemble=oldAssemble;
+  ToPRGAdv.prototype.createPRG=oldExport;
+ }
+ var bytes=output instanceof Uint8Array?output:new Uint8Array(output);
+ self.prg=bytes;
+ var frames=self.editor&&self.editor.graphic&&self.editor.graphic.frames||[];
+ window.RICO_TEST228_LAST_EXPORT={
+  integrated:true,directions:frames.map(function(f){return f&&f.ricoMapScrollV1&&f.ricoMapScrollV1.type||'';}),
+  frames:frames.length,assemblers:attempts,patches:count,
+  mode:nativeCIA?'CIA1 hardware':speed===1?'PAL 50 Hz':speed===2?'PAL 100 Hz':speed===60?'~60 Hz':'fractional PAL',
+  sidLoad:hx(sid.load),sidInit:hx(sid.init),sidPlay:hx(sid.play),
+  requestedMode:requested===0?'AUTO':requested===1?'MANUAL_50':'MANUAL_100'
+ };
+ window.RICO_TEST212_LAST_EXPORT=window.RICO_TEST228_LAST_EXPORT;
+ console.log('[RICO TEST228 SID + native Map Scroll]',window.RICO_TEST228_LAST_EXPORT);
+ var status=typeof document!=='undefined'&&document.getElementById('ricoSid207Status');
+ if(status)status.textContent='TEST228 SID + scroll: '+window.RICO_TEST228_LAST_EXPORT.mode+' / '+frames.length+' frame(s)';
+ if(args.download===false)return bytes;
+ var name=args.filename||'rico-mapscroll-sid-test228.prg';
+ if(!/\.prg$/i.test(name))name+='.prg';
+ if(typeof window.download!=='function')throw new Error('TEST228: descarga no disponible.');
+ window.download(bytes,name,'application/prg');
+ return bytes;
+}
+
 function ensureUI207(){
  if(typeof document==='undefined')return;
  var el=document.getElementById('exportPRGAdvTools');
@@ -341,7 +401,7 @@ ToPRGAdv.prototype.createPRG=function(args){
   }
   return preceding.apply(this,arguments);
  }
- try{return export207(this,args,chosen);}
+ try{return exportSelectedEngine228(this,args,chosen);}
  catch(e){
    window.RICO_TEST207_LAST_ERROR=e.message;
    console.error('[RICO TEST207] original LVLLVL SID+8frames failed:',e);
@@ -350,12 +410,12 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST207_ORIGINAL_SID={
- parseSID:parseSID,detectTimer:detectCIATimer209,buildSource:makeSource207,export:export207,
+ parseSID:parseSID,detectTimer:detectCIATimer209,buildSource:makeSource207,export:export207,exportSelectedEngine228:exportSelectedEngine228,
  select:function(bytes){var result=parseSID(bytes);SID_STATE.data=bytes;SID_STATE.enabled=true;return result;},
  disable:function(){SID_STATE.enabled=false;},
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
  memory:MEM
 };
 window.RICO_SID_SHARED_ABI_V1={version:211,zeroPageStart:0xf0,zeroPageLength:16,timerRegisters:['$DC04','$DC05'],irqSources:['CIA1 Timer A','VIC-II raster'],initContract:'INIT(A=subtune) then capture SID ZP',playContract:'private SID ZP around PLAY',starting:'first VIC raster after INIT',debugCounters:['sid_audio_ticks_lo211','sid_audio_ticks_hi211','sid_video_ticks_lo211','sid_video_ticks_hi211']};
-console.log('[RICO TEST212 READY] Dedicated SID Auto mode always wins over legacy args.sidSpeed; native CIA hardware if PSID has valid latch.');
+console.log('[RICO TEST228 READY] SID integrated over native export source; AUTO CIA preserved.');
 })();
