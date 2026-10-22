@@ -293,15 +293,14 @@ function plan(d){
   }
   words.push(255);lists.push(words);total+=words.length;
  }
- // Spread stream data across separate RAM windows (never I/O or IRQ vectors).
- var low=0xc000+2*width,high=0xe000,addresses=[];
+ // $E000-$FEFF is reserved for optional fast tables in RAM below KERNAL.
+ // Group Scroll data always stays below $D000, so no shared-space collision.
+ var ptr=0xe000+2*width,addresses=[];
  for(var k=0;k<lists.length;k++){
-  var len=lists[k].length;
-  if(low+len<=0xd000){addresses.push(low);low+=len;}
-  else if(high+len<=0xff00){addresses.push(high);high+=len;}
-  else return null;
+  if(ptr+lists[k].length>0xff00)return null;
+  addresses.push(ptr);ptr+=lists[k].length;
  }
- return{base:0xc000,lists:lists,addresses:addresses,bytes:total};
+ return{base:0xe000,lists:lists,addresses:addresses,bytes:total};
 }
 function newScreen(d){
  var arr=['render_fast218',' lda #$00',' sta dst_lo',
@@ -343,7 +342,7 @@ function newScreen(d){
 }
 function outputData(p){
  var arr=[],lows=p.addresses.map(function(x){return x&255;}),highs=p.addresses.map(function(x){return x>>8;});
- arr.push('*='+num(0xc000),'patch218_ptrlo');
+ arr.push('*='+num(p.base),'patch218_ptrlo');
  for(var j=0;j<lows.length;j+=16)arr.push('!byte '+lows.slice(j,j+16).map(byt).join(','));
  arr.push('patch218_ptrhi');
  for(j=0;j<highs.length;j+=16)arr.push('!byte '+highs.slice(j,j+16).map(byt).join(','));
