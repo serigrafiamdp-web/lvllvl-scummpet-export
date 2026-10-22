@@ -276,7 +276,7 @@ var normal=H.build;
 function num(n){return '$'+('0000'+(n&65535).toString(16)).slice(-4);}
 function byt(n){return '$'+('0'+(n&255).toString(16)).slice(-2);}
 function plan(d){
- if(!d.multicolor||d.duration!==undefined||d.disableFast218)return null;
+ if(!d.multicolor||d.duration!==undefined||d.group||d.disableFast218)return null;
  var width=d.areaWidth,stride=d.srcStride;
  if(width<40||width>255||stride!==2*width||d.colors.length<25*stride)return null;
  var lists=[],total=2*width;
@@ -369,4 +369,70 @@ H.build=function(d){
  return src+'\n'+outputData(p);
 };
 window.RICO_TEST218_FAST_COLOR={plan:plan,normal:normal,version:218};
+})();
+
+
+/* TEST219 — horizontal incremental screen copies: direct indexed 6502 moves
+ * from front to back, then inject only new 25-cell map column. Fast only for
+ * single-frame uniform-color and TEST218 precalculated color pipelines.
+ * Dense multi-color and multi-frame routes remain unchanged. */
+(function(){
+'use strict';
+var H=window.RICO_TEST186_HORIZONTAL;if(!H)return;
+var previous=H.build;
+function hex(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
+function hex8(v){return '$'+('0'+(v&255).toString(16)).slice(-2);}
+function shiftRoutine(d){
+ var out=['shift_back219',' lda front_hi',' cmp #$04',' beq shift_04_08_219',' jmp shift_08_04_219'];
+ var delta=d.type==='left'?1:-1;
+ [[0x0400,0x0800,'04_08'],[0x0800,0x0400,'08_04']].forEach(function(pair){
+  var front=pair[0],back=pair[1],id=pair[2],prefix='shift_'+id+'_219';
+  out.push(prefix,' ldx #$00',prefix+'_page');
+  for(var page=0;page<3;page++){
+   out.push(' lda '+hex(front+256*page+delta)+',x',
+            ' sta '+hex(back+256*page)+',x');
+  }
+  out.push(' inx',' bne '+prefix+'_page',' ldx #$00',prefix+'_tail');
+  out.push(' lda '+hex(front+768+delta)+',x',
+           ' sta '+hex(back+768)+',x',
+           ' inx',' cpx #$e8',' bne '+prefix+'_tail',
+           ' jmp shift_column219');
+ });
+ var extra=d.type==='left'?39:0;
+ out.push('shift_column219',
+  ' lda #<world_map_data',' sta src_lo',
+  ' lda #>world_map_data',' sta src_hi',
+  ' clc',' lda src_lo',' adc camera_x',' sta src_lo',
+  ' lda src_hi',' adc #$00',' sta src_hi');
+ if(extra)out.push(' clc',' lda src_lo',' adc #$27',' sta src_lo',
+                  ' lda src_hi',' adc #$00',' sta src_hi');
+ out.push(' lda #'+hex8(extra),' sta dst_lo',
+          ' lda back_hi',' sta dst_hi',
+          ' lda #$19',' sta tmp_row',
+          'shift_new_column219',' ldy #$00',
+          ' lda (src_lo),y',' sta (dst_lo),y',
+          ' clc',' lda src_lo',' adc #'+hex8(d.srcStride&255),' sta src_lo',
+          ' lda src_hi',' adc #'+hex8(d.srcStride>>8),' sta src_hi',
+          ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+          ' lda dst_hi',' adc #$00',' sta dst_hi',
+          ' dec tmp_row',' beq shift_column_done219',
+          ' jmp shift_new_column219',
+          'shift_column_done219',' rts');
+ return out.join('\n')+'\n';
+}
+H.build=function(d){
+ var src=previous(d);
+ if(d.duration!==undefined||d.group)return src;
+ var sparseFast=src.includes(' jsr render_fast218\n'), uniform=!d.multicolor;
+ if(!sparseFast&&!uniform)return src;
+ var call=sparseFast?' jsr render_fast218\n':' jsr render_to_dst\n';
+ var stage=' lda back_hi\n sta dst_hi\n'+call+' lda #$01\n sta prep_ready';
+ if(src.split(stage).length!==2)throw new Error('TEST219 screen stage anchor mismatch');
+ src=src.replace(stage,' lda back_hi\n sta dst_hi\n jsr shift_back219\n lda #$01\n sta prep_ready');
+ var anchor='*=$3000\ncharset_bank1';
+ if(src.split(anchor).length!==2)throw new Error('TEST219 charset anchor mismatch');
+ src=src.replace(anchor,shiftRoutine(d)+anchor);
+ return src;
+};
+window.RICO_TEST219_HORIZONTAL_DIRECT_SHIFT={version:219,buildShift:shiftRoutine,legacy:previous};
 })();
