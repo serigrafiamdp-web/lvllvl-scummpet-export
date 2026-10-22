@@ -266,76 +266,99 @@ console.log('[RICO TEST203] Left/Right adaptive changed-color patch lists; IRQ p
 })();
 
 
-/* TEST218: byte-exact ahead-of-time Color RAM patching for wide horizontal
- * single-frame exports. No new project restrictions: dense palettes use
- * the original TEST217 renderer. Never edit the source project. */
+
+/* TEST218: compressed, export-time Color RAM deltas. Full 40x25 renderer.
+ * Projects without room for lookup tables use the original generic code. */
 (function(){
 'use strict';
-var engine=window.RICO_TEST186_HORIZONTAL;if(!engine)return;
-var old=engine.build;
-function hex(n){return '$'+('0000'+(n&65535).toString(16)).slice(-4);}
-function b(n){return '$'+('0'+(n&255).toString(16)).slice(-2);}
-function make(d){
+var H=window.RICO_TEST186_HORIZONTAL;if(!H)return;
+var normal=H.build;
+function num(n){return '$'+('0000'+(n&65535).toString(16)).slice(-4);}
+function byt(n){return '$'+('0'+(n&255).toString(16)).slice(-2);}
+function plan(d){
  if(!d.multicolor||d.duration!==undefined||d.disableFast218)return null;
- var w=d.areaWidth,stride=d.srcStride;
- if(w<40||w>255||stride!==2*w||d.colors.length<25*stride)return null;
- var patches=[],estimated=2*w;
- for(var cam=0;cam<w;cam++){
-  var prev=(cam+(d.type==='left'?w-1:1))%w,groups=Array.from({length:16},function(){return[];});
+ var width=d.areaWidth,stride=d.srcStride;
+ if(width<40||width>255||stride!==2*width||d.colors.length<25*stride)return null;
+ var lists=[],total=2*width;
+ for(var cam=0;cam<width;cam++){
+  var prev=(cam+(d.type==='left'?width-1:1))%width,byColor=Array.from({length:16},function(){return[];});
   for(var row=0;row<25;row++)for(var x=0;x<40;x++){
-   var offset=row*stride+x,oldColor=d.colors[offset+prev]&15,newColor=d.colors[offset+cam]&15;
-   if(oldColor!==newColor)groups[newColor].push(0xd800+40*row+x);
+   var position=row*stride+x,old=d.colors[position+prev]&15,now=d.colors[position+cam]&15;
+   if(old!==now)byColor[now].push(0xd800+40*row+x);
   }
-  var fragment=['patch218_camera_'+cam];
-  for(var color=0;color<16;color++)if(groups[color].length){
-   fragment.push(' lda #'+b(color));
-   for(var k=0;k<groups[color].length;k++)fragment.push(' sta '+hex(groups[color][k]));
-   estimated+=2+3*groups[color].length;
+  var words=[];
+  for(var color=0;color<16;color++)if(byColor[color].length){
+   var aa=byColor[color],cnt=aa.length;words.push(color,cnt&255,cnt>>8);
+   for(var n=0;n<cnt;n++)words.push(aa[n]&255,aa[n]>>8);
   }
-  fragment.push(' rts');estimated++;
-  patches.push(fragment);
+  words.push(255);lists.push(words);total+=words.length;
  }
- // Reserved RAM windows. If the fully expanded patch code does not fit,
- // keep the complete previous implementation (no new export constraints).
- if(estimated>6144)return null;
- return{base:estimated<=4096?0xc000:0xe000,patches:patches,estimated:estimated};
+ if(total>6144)return null;
+ return{base:total<=4096?0xc000:0xe000,lists:lists,bytes:total};
 }
-function newRenderer(d){
- var a=['render_fast218',' lda #$00',' sta dst_lo',
-  ' lda #<world_map_data',' sta src_lo',' lda #>world_map_data',' sta src_hi',
-  ' clc',' lda src_lo',' adc camera_x',' sta src_lo',
-  ' lda src_hi',' adc #$00',' sta src_hi',
-  ' lda #$19',' sta tmp_row','render_fast_row218',' ldy #$00','render_fast_col218'];
- for(var i=0;i<8;i++)a.push(' lda (src_lo),y',' sta (dst_lo),y',' iny');
- a.push(' cpy #$28',' bne render_fast_col218',
-  ' clc',' lda src_lo',' adc #'+b(d.srcStride&255),' sta src_lo',
-  ' lda src_hi',' adc #'+b(d.srcStride>>8),' sta src_hi',
-  ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
-  ' lda dst_hi',' adc #$00',' sta dst_hi',
-  ' dec tmp_row',' beq render_fast_done218',' jmp render_fast_row218',
-  'render_fast_done218',' rts',
-  'apply_patch218',' ldx camera_x',
-  ' lda patch218_ptrlo,x',' sta src_lo',
-  ' lda patch218_ptrhi,x',' sta src_hi',
-  ' jmp (src_lo)');
- return a.join('\n')+'\n';
+function newScreen(d){
+ var arr=['render_fast218',' lda #$00',' sta dst_lo',
+ ' lda #<world_map_data',' sta src_lo',' lda #>world_map_data',' sta src_hi',
+ ' clc',' lda src_lo',' adc camera_x',' sta src_lo',
+ ' lda src_hi',' adc #$00',' sta src_hi',
+ ' lda #$19',' sta tmp_row','render_fast_row218',' ldy #$00','render_fast_col218'];
+ for(var k=0;k<8;k++)arr.push(' lda (src_lo),y',' sta (dst_lo),y',' iny');
+ arr.push(' cpy #$28',' bne render_fast_col218',
+ ' clc',' lda src_lo',' adc #'+byt(d.srcStride&255),' sta src_lo',
+ ' lda src_hi',' adc #'+byt(d.srcStride>>8),' sta src_hi',
+ ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+ ' lda dst_hi',' adc #$00',' sta dst_hi',
+ ' dec tmp_row',' beq render_fast_done218',' jmp render_fast_row218',
+ 'render_fast_done218',' rts',
+ 'apply_patch218',' ldx camera_x',
+ ' lda patch218_ptrlo,x',' sta src_lo',
+ ' lda patch218_ptrhi,x',' sta src_hi',
+ 'patch_group218',' ldy #$00',' lda (src_lo),y',
+ ' cmp #$ff',' bne patch_group_begin218',' rts',
+ 'patch_group_begin218',' sta step_ticks',
+ ' iny',' lda (src_lo),y',' sta color_src_lo',
+ ' iny',' lda (src_lo),y',' sta color_src_hi',
+ ' clc',' lda src_lo',' adc #$03',' sta src_lo',
+ ' bcc patch_group_nocarry218',' inc src_hi',
+ 'patch_group_nocarry218',
+ 'patch_cell_check218',' lda color_src_lo',' ora color_src_hi',
+ ' bne patch_cell218',' jmp patch_group218',
+ 'patch_cell218',' ldy #$00',
+ ' lda (src_lo),y',' sta dst_lo',
+ ' iny',' lda (src_lo),y',' sta dst_hi',
+ ' ldy #$00',' lda step_ticks',' sta (dst_lo),y',
+ ' clc',' lda src_lo',' adc #$02',' sta src_lo',
+ ' bcc patch_cell_nocarry218',' inc src_hi',
+ 'patch_cell_nocarry218',' lda color_src_lo',' bne patch_dec218',
+ ' dec color_src_hi','patch_dec218',' dec color_src_lo',
+ ' jmp patch_cell_check218');
+ return arr.join('\n')+'\n';
 }
-engine.build=function(d){
- var p=make(d),s=old(d);
- if(!p)return s;
- var before=' jsr render_to_dst\n jsr prepare_sparse_colors203';
- var after=' jsr render_fast218';
- var commitBefore=' jsr commit_sparse_colors203\n jsr swap_screens';
- var commitAfter=' jsr apply_patch218\n jsr swap_screens';
- if(s.split(before).length!==2||s.split(commitBefore).length!==2)throw new Error('TEST218: anchor mismatch, no silent fallback');
- s=s.replace(before,after).replace(commitBefore,commitAfter);
- // Render initial double screen/color buffers and initialize Color RAM as
- // before. The fast routine is used only for subsequent screen updates.
- s=s.replace('*=$3000\ncharset_bank1',newRenderer(d)+'*=$3000\ncharset_bank1');
- var tail=['*='+hex(p.base),'patch218_ptrlo','!byte '+p.patches.map(function(_,i){return '<patch218_camera_'+i;}).join(','),
-  'patch218_ptrhi','!byte '+p.patches.map(function(_,i){return '>patch218_camera_'+i;}).join(',')];
- for(var j=0;j<p.patches.length;j++)tail.push.apply(tail,p.patches[j]);
- return s+'\n'+tail.join('\n')+'\n';
+function outputData(p){
+ var arr=[],ptr= p.base+2*p.lists.length;
+ var lows=[],highs=[];
+ for(var i=0;i<p.lists.length;i++){lows.push(ptr&255);highs.push(ptr>>8);ptr+=p.lists[i].length;}
+ arr.push('*='+num(p.base),'patch218_ptrlo');
+ for(var x=0;x<lows.length;x+=16)arr.push('!byte '+lows.slice(x,x+16).map(byt).join(','));
+ arr.push('patch218_ptrhi');
+ for(x=0;x<highs.length;x+=16)arr.push('!byte '+highs.slice(x,x+16).map(byt).join(','));
+ for(i=0;i<p.lists.length;i++){
+  arr.push('patch218_list_'+i);
+  var data=p.lists[i];
+  for(x=0;x<data.length;x+=16)arr.push('!byte '+data.slice(x,x+16).map(byt).join(','));
+ }
+ return arr.join('\n')+'\n';
+}
+H.build=function(d){
+ var p=plan(d),src=normal(d);if(!p)return src;
+ var stage=' jsr render_to_dst\n jsr prepare_sparse_colors203';
+ var commit=' jsr commit_sparse_colors203\n jsr swap_screens';
+ if(src.split(stage).length!==2||src.split(commit).length!==2)throw new Error('TEST218: source anchors changed');
+ src=src.replace(stage,' jsr render_fast218').replace(commit,' jsr apply_patch218\n jsr swap_screens');
+ var anchor='*=$3000\ncharset_bank1';
+ if(src.split(anchor).length!==2)throw new Error('TEST218: charset anchor changed');
+ src=src.replace(anchor,newScreen(d)+anchor);
+ return src+'\n'+outputData(p);
 };
-window.RICO_TEST218_FAST_COLOR={version:218,plan:make,oldBuild:old};
+window.RICO_TEST218_FAST_COLOR={plan:plan,normal:normal,version:218};
 })();
