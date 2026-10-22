@@ -26,41 +26,49 @@ function unrolled244(d){
 }
 function routine(d){
  var sx=d.dir.x===-1?1:-1,edgeX=sx===1?39:0;
- var a=['; TEST244 65 edge colors (no 1000-cell scan)',
-  'color_edges244',
-  ' lda pending_y',' sta row_id',
-  ' lda #$19',' sta rows_left',
-  ' lda #'+h((0xd800+edgeX)&255),' sta color_dst_lo',
-  ' lda #'+h((0xd800+edgeX)>>8),' sta color_dst_hi',
-  'c244_edge_column',
-  ' ldx row_id',
-  ' lda color_rows_lo,x',' clc',' adc pending_x',' sta color_src_lo',
-  ' lda color_rows_hi,x',' adc #$00',' sta color_src_hi'];
- if(edgeX)a.push(
-  ' clc',' lda color_src_lo',' adc #'+h(edgeX),' sta color_src_lo',
-  ' lda color_src_hi',' adc #$00',' sta color_src_hi');
- a.push(' ldy #$00',
-  ' lda (color_src_lo),y',
-  ' and #$0f',' sta (color_dst_lo),y',
-  ' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
-  ' lda color_dst_hi',' adc #$00',' sta color_dst_hi',
-  ' inc row_id',' lda row_id',' cmp #'+h(d.areaHeight),
-  ' bne c244_next_row',
-  ' lda #$00',' sta row_id',
-  'c244_next_row',
-  ' dec rows_left',' bne c244_edge_column',
-  '; copy full incoming last color row (row 24)',
+ var a=['; TEST244 entering column split across two raster phases'];
+ function colPart(first,count,tag){
+  var dest=0xd800+first*40+edgeX;
+  a.push('color_edges_'+tag+'244',' lda pending_y');
+  if(first){
+   a.push(' clc',' adc #'+h(first),
+    ' cmp #'+h(d.areaHeight),' bcc c244_y_start_'+tag,
+    ' sec',' sbc #'+h(d.areaHeight),
+    'c244_y_start_'+tag);
+  }
+  a.push(' sta row_id',
+   ' lda #'+h(count),' sta rows_left',
+   ' lda #'+h(dest&255),' sta color_dst_lo',
+   ' lda #'+h(dest>>8),' sta color_dst_hi',
+   'c244_col_'+tag,
+   ' ldx row_id',
+   ' lda color_rows_lo,x',' clc',' adc pending_x',' sta color_src_lo',
+   ' lda color_rows_hi,x',' adc #$00',' sta color_src_hi');
+  if(edgeX)a.push(
+   ' clc',' lda color_src_lo',' adc #'+h(edgeX),' sta color_src_lo',
+   ' lda color_src_hi',' adc #$00',' sta color_src_hi');
+  a.push(' ldy #$00',' lda (color_src_lo),y',' and #$0f',
+   ' sta (color_dst_lo),y',
+   ' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
+   ' lda color_dst_hi',' adc #$00',' sta color_dst_hi',
+   ' inc row_id',' lda row_id',' cmp #'+h(d.areaHeight),
+   ' bne c244_next_'+tag,' lda #$00',' sta row_id',
+   'c244_next_'+tag,
+   ' dec rows_left',' bne c244_col_'+tag);
+ }
+ colPart(0,10,'upper');
+ a.push(' rts');
+ colPart(10,15,'lower');
+ a.push('; full entering last color row after all diagonal copies',
   ' lda pending_y',' clc',' adc #$18',
-  ' cmp #'+h(d.areaHeight),
-  ' bcc c244_lastrow_ready',
+  ' cmp #'+h(d.areaHeight),' bcc c244_lastrow_ready',
   ' sec',' sbc #'+h(d.areaHeight),
   'c244_lastrow_ready',' tax',
   ' lda color_rows_lo,x',' clc',' adc pending_x',' sta color_src_lo',
   ' lda color_rows_hi,x',' adc #$00',' sta color_src_hi',
   ' ldy #$00','c244_lastrow',
   ' lda (color_src_lo),y',' and #$0f',' sta $dbc0,y',
-  ' iny',' cpy #$28',' bne c244_lastrow',
-  ' rts');
+  ' iny',' cpy #$28',' bne c244_lastrow',' rts');
  return a.join(NL)+NL;
 }
 function irq244(){
@@ -73,7 +81,7 @@ function irq244(){
  ' lda #$a0',' sta $d012',
  ' lda color_stage244',' beq irq_tick',
  ' jsr color_lower244',
- ' jsr color_edges244',
+ ' jsr color_edges_lower244',
  ' jsr swap_screens',
  ' lda pending_x',' sta camera_x',' lda pending_y',' sta camera_y',
  ' lda next_fx',' sta fine_x',' lda next_fy',' sta fine_y',
@@ -88,6 +96,7 @@ function irq244(){
  ' lda prep_ready',' beq irq_group',
  ' lda color_stage244',' bne irq_group',
  ' jsr color_upper244',
+ ' jsr color_edges_upper244',
  ' lda #$01',' sta color_stage244',
  ' jmp irq_group'
  ].join(NL);
@@ -95,7 +104,7 @@ function irq244(){
 E.build=function(d){
  var s=previous(d),base=window.RICO_TEST236_LAST_BUILD||{};
  var stat={version:244,selected:false,reason:'not eligible; stable TEST239 fallback'};
- if(!d||!d.fastRows||d.uniformColor||d.group||!d.dir||d.dir.y!==-1||
+ if(!d||!d.fastRows||d.uniformColor||d.group||!d.dir||d.dir.y!==-1||d.areaHeight>231||
     (base.selected&&base.mode!=='original fallback')){
   window.RICO_TEST244_LAST_BUILD=stat;return s;
  }
