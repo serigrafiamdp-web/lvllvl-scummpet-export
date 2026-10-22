@@ -501,3 +501,104 @@ mod.build=function(d){
 };
 mod.TEST221={incrementalDiagonal:true,fallbackForNonDoubleRows:true,buildShift:generator};
 })();
+
+/* TEST221B: TEST220's lossless vertical-run Color RAM deltas along
+ * the actual diagonal camera cycle. No new limitations: full generic
+ * multicolor routine remains available whenever data won't fit safely. */
+(function(){
+'use strict';
+var M=window.RICO_TEST196_DIAGONAL;if(!M)return;
+var old=M.build;
+function h(v){return '$'+('0'+(v&255).toString(16)).slice(-2);}
+function w(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
+function gcd(a,b){while(b){var t=a%b;a=b;b=t;}return a;}
+function plan(d){
+ if(!d.fastRows||d.uniformColor||d.group)return null;
+ var len=d.areaWidth/gcd(d.areaWidth,d.areaHeight)*d.areaHeight;
+ if(len<1||len>255)return null;
+ var sx=d.dir.x===-1?1:-1,sy=d.dir.y===-1?1:-1,
+     stride=d.rowStride,streams=[],bytes=2*len;
+ for(var t=0;t<len;t++){
+  var oldX=(d.cameraX+t*sx)%d.areaWidth,oldY=(d.cameraY+t*sy)%d.areaHeight,
+      newX=(d.cameraX+(t+1)*sx)%d.areaWidth,newY=(d.cameraY+(t+1)*sy)%d.areaHeight;
+  if(oldX<0)oldX+=d.areaWidth;if(oldY<0)oldY+=d.areaHeight;
+  if(newX<0)newX+=d.areaWidth;if(newY<0)newY+=d.areaHeight;
+  var output=[];
+  for(var x=0;x<40;x++)for(var row=0;row<25;){
+   var yOld=(oldY+row)%d.areaHeight,yNew=(newY+row)%d.areaHeight;
+   var prev=d.colors[yOld*stride+oldX+x]&15,
+       value=d.colors[yNew*stride+newX+x]&15;
+   if(prev===value){row++;continue;}
+   var start=row++,cnt=1;
+   while(row<25){
+    yOld=(oldY+row)%d.areaHeight;yNew=(newY+row)%d.areaHeight;
+    var o=d.colors[yOld*stride+oldX+x]&15,n=d.colors[yNew*stride+newX+x]&15;
+    if(o===n||n!==value)break;
+    row++;cnt++;
+   }
+   var address=0xd800+40*start+x;
+   output.push(cnt,address&255,address>>8,value);
+  }
+  output.push(0);streams.push(output);bytes+=output.length;
+ }
+ var start=0xa100,low=start+2*len,hi=0xb800,addresses=[],upper=false;
+ for(var k=0;k<len;k++){
+  var size=streams[k].length;
+  if(!upper&&low+size<=0xb000){addresses.push(low);low+=size;}
+  else if(hi+size<=0xd000){upper=true;addresses.push(hi);hi+=size;}
+  else return null;
+ }
+ return{len:len,streams:streams,addresses:addresses,total:bytes,base:start};
+}
+function bytes(out,arr){
+ for(var j=0;j<arr.length;j+=16)out.push('!byte '+arr.slice(j,j+16).map(h).join(','));
+}
+function data(p){
+ var out=['*='+w(p.base),'diag_rle_lo221'];bytes(out,p.addresses.map(function(x){return x&255;}));
+ out.push('diag_rle_hi221');bytes(out,p.addresses.map(function(x){return x>>8;}));
+ for(var i=0;i<p.streams.length;i++){
+  out.push('*='+w(p.addresses[i]),'diag_rle_stream_'+i);bytes(out,p.streams[i]);
+ }
+ return out.join('\n')+'\n';
+}
+function runtime(p){
+ var a=['diag_rle_apply221',
+  ' ldx diag_rle_phase221',
+  ' lda diag_rle_lo221,x',' sta src_lo',
+  ' lda diag_rle_hi221,x',' sta src_hi',
+  ' inc diag_rle_phase221',
+  ' lda diag_rle_phase221',' cmp #'+h(p.len),
+  ' bne diag_rle_process221',
+  ' lda #$00',' sta diag_rle_phase221',
+  'diag_rle_process221',
+  'diag_rle_next221',' ldy #$00',' lda (src_lo),y',
+  ' bne diag_rle_open221',' rts',
+  'diag_rle_open221',' sta rows_left',
+  ' iny',' lda (src_lo),y',' sta dst_lo',
+  ' iny',' lda (src_lo),y',' sta dst_hi',
+  ' iny',' lda (src_lo),y',' sta tmp_col',
+  ' clc',' lda src_lo',' adc #$04',' sta src_lo',
+  ' bcc diag_rle_nocarry221',' inc src_hi',
+  'diag_rle_nocarry221','diag_rle_write221',
+  ' ldy #$00',' lda tmp_col',' sta (dst_lo),y',
+  ' clc',' lda dst_lo',' adc #$28',' sta dst_lo',
+  ' lda dst_hi',' adc #$00',' sta dst_hi',
+  ' dec rows_left',' bne diag_rle_write221',
+  ' jmp diag_rle_next221',
+  'diag_rle_phase221','!byte $00'];
+ return a.join('\n')+'\n';
+}
+M.build=function(d){
+ var p=plan(d),s=old(d);
+ if(!p)return s;
+ var from=' jsr diag_colors221\n jsr prepare_sparse_colors203';
+ var before=' jsr commit_sparse_colors203\n jsr swap_screens';
+ if(s.split(from).length!==2||s.split(before).length!==2)throw Error('TEST221: diagonal multicolor optimization anchors changed');
+ s=s.replace(from,'').replace(before,' jsr diag_rle_apply221\n jsr swap_screens');
+ var marker='*=$3000\ncharset_bank1';
+ if(s.split(marker).length!==2)throw Error('TEST221: diagonal code anchor missing');
+ s=s.replace(marker,runtime(p)+marker);
+ return s+'\n'+data(p);
+};
+M.TEST221.rlePlanner=plan;
+})();
