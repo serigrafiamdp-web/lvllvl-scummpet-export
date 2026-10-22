@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-// TEST244 — Direct Color RAM diagonal shift split behind VIC-II beam.
+// TEST245 — Direct Color RAM raster split: trim redundant edge writes, unroll last row.
 // Phase 1: at raster $A0, shift top 12 rows (already scanned).
 // Phase 2: at raster $FA, shift remaining 12 rows + entering edges,
 //          then flip completed character screen before next text scan.
@@ -12,15 +12,19 @@ var previous=E.build,NL='\n';
 function h(v){return '$'+('0'+(v&255).toString(16)).slice(-2);}
 function w(v){return '$'+('0000'+(v&65535).toString(16)).slice(-4);}
 function unrolled244(d){
- var stride=40+(d.dir.x===-1?1:-1);
- var lines=['; TEST244 generated direct absolute LDA/STA copies (8 cycles per cell)',
+ var stride=40+(d.dir.x===-1?1:-1),edgeX=d.dir.x===-1?39:0;
+ var lines=['; TEST245 omit incoming column (replaced by precise world colors)',
   '; $A100-$AFFF and $B800-$CFFF used, never SID $B000-$B7FF',
   '*=$a100','color_upper244'];
- for(var i=0;i<480;i++)
+ for(var i=0;i<480;i++){
+  if(i%40===edgeX)continue; // TEST245: edge column overwritten in this same frame
   lines.push(' lda '+w(0xd800+i+stride),' sta '+w(0xd800+i));
+ }
  lines.push(' rts','*=$b800','color_lower244');
- for(var i=480;i<960;i++)
+ for(var i=480;i<960;i++){
+  if(i%40===edgeX)continue;
   lines.push(' lda '+w(0xd800+i+stride),' sta '+w(0xd800+i));
+ }
  lines.push(' rts');
  return lines.join(NL)+NL;
 }
@@ -47,7 +51,7 @@ function routine(d){
   if(edgeX)a.push(
    ' clc',' lda color_src_lo',' adc #'+h(edgeX),' sta color_src_lo',
    ' lda color_src_hi',' adc #$00',' sta color_src_hi');
-  a.push(' ldy #$00',' lda (color_src_lo),y',' and #$0f',
+  a.push(' ldy #$00',' lda (color_src_lo),y',
    ' sta (color_dst_lo),y',
    ' clc',' lda color_dst_lo',' adc #$28',' sta color_dst_lo',
    ' lda color_dst_hi',' adc #$00',' sta color_dst_hi',
@@ -66,9 +70,14 @@ function routine(d){
   'c244_lastrow_ready',' tax',
   ' lda color_rows_lo,x',' clc',' adc pending_x',' sta color_src_lo',
   ' lda color_rows_hi,x',' adc #$00',' sta color_src_hi',
-  ' ldy #$00','c244_lastrow',
-  ' lda (color_src_lo),y',' and #$0f',' sta $dbc0,y',
-  ' iny',' cpy #$28',' bne c244_lastrow',' rts');
+  ' ldy #$00');
+ // TEST245: unroll the entire last row; no loop compare/branch,
+ // no AND because collect() stores each world foreground in 0..15.
+ for(var x245=0;x245<40;x245++){
+  a.push(' lda (color_src_lo),y',' sta $dbc0,y');
+  if(x245!==39)a.push(' iny');
+ }
+ a.push(' rts');
  return a.join(NL)+NL;
 }
 function irq244(){
@@ -106,13 +115,13 @@ function irq244(){
 }
 E.build=function(d){
  var s=previous(d),base=window.RICO_TEST236_LAST_BUILD||{};
- var stat={version:244,selected:false,reason:'not eligible; stable TEST239 fallback'};
+ var stat={version:245,selected:false,reason:'not eligible; stable TEST239 fallback'};
  if(!d||!d.fastRows||d.uniformColor||d.group||!d.dir||d.dir.y!==-1||d.areaHeight>231||
     (base.selected&&base.mode!=='original fallback')){
-  window.RICO_TEST244_LAST_BUILD=stat;return s;
+  window.RICO_TEST245_LAST_BUILD=stat;return s;
  }
  // No original RLE/Color RAM alternative may be active.
- if(base.selected){window.RICO_TEST244_LAST_BUILD=stat;return s;}
+ if(base.selected){window.RICO_TEST245_LAST_BUILD=stat;return s;}
  var stage=' jsr diag_colors221'+NL+' jsr prepare_sparse_colors203';
  var irqStart=NL+'irq'+NL,irqEnd=NL+'irq_tick'+NL;
  var charset='*=$3000'+NL+'charset_bank1';
@@ -126,15 +135,15 @@ E.build=function(d){
  s=s.slice(0,i)+NL+irq244()+s.slice(j);
  s=s.replace(charset,routine(d)+charset);
  s+=NL+'*=$a008'+NL+'color_stage244'+NL+'!byte $00'+NL+unrolled244(d);
- stat={version:244,selected:true,mode:'two-stage-raster-direct-color',
+ stat={version:245,selected:true,mode:'two-stage-raster-direct-color-trimmed',
    direction:d.direction,sourceStep:40+(d.dir.x===-1?1:-1),
-   colorWrites:1025,unrolledCyclesPerHalf:3846,scanColorPages:false,extraSparsePlanner:false,
+   colorWrites:1001,unrolledCyclesPerHalf:3750,scanColorPages:false,extraSparsePlanner:false,
    rasterMid:160,rasterBottom:250,
    irq:'upper half behind beam; lower + edges then screen swap',
-   unchanged:'charset banks, character diagonal copy, SID, group, other scroll directions'};
- window.RICO_TEST244_LAST_BUILD=stat;
- console.log('[TEST244 TWO-PHASE COLOR RAM]',stat);
+   unchanged:'raster timings, charset banks, diagonal char copy, SID, other directions'};
+ window.RICO_TEST245_LAST_BUILD=stat;
+ console.log('[TEST245 TWO-PHASE COLOR RAM OPTIMIZED]',stat);
  return s;
 };
-window.RICO_TEST244_DIAGONAL={version:244,routine:routine,unrolled:unrolled244,irq:irq244,previous:previous};
+window.RICO_TEST245_DIAGONAL={version:245,routine:routine,unrolled:unrolled244,irq:irq244,previous:previous};
 })();
