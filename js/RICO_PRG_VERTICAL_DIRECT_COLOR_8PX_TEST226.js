@@ -1,6 +1,6 @@
 (function(){
 'use strict';
-// TEST226: compile changes of C64 Color RAM into direct STA instructions.
+// TEST227: fix TEST226 freeze by replacing wrongly encoded indirect JMP with self-modified absolute JMP.
 // Only Up/Down, 8px, dynamic color, single-frame. All other paths unchanged.
 var V=window.RICO_TEST168_PRG_LARGE_MAP;if(!V)return;
 var previous=V.buildSource,NL=String.fromCharCode(10);
@@ -58,9 +58,12 @@ function compiled(p){
 function runtime(){
  return ['commit_direct_color226',
   ' ldx camera_row',
-  ' lda color226_ptrlo,x',' sta color_tbl_lo',
-  ' lda color226_ptrhi,x',' sta color_tbl_hi',
-  ' jmp (color_tbl_lo)'].join(NL)+NL;
+  // The LVLLVL assembler does NOT encode JMP ($0018) correctly;
+  // TEST226 emitted $4C $00 $00 -> JMP $0000 and froze.
+  // Use an absolute JMP whose two operand bytes are patched at runtime.
+  ' lda color226_ptrlo,x',' sta color226_jump227+1',
+  ' lda color226_ptrhi,x',' sta color226_jump227+2',
+  'color226_jump227',' jmp color226_frame_0'].join(NL)+NL;
 }
 V.buildSource=function(d){
  var source=previous(d),p=plan(d,source);
@@ -71,7 +74,7 @@ V.buildSource=function(d){
   size:p?p.end-p.origin:null
  };
  if(d.pixels===8&&(d.type==='up'||d.type==='down'))
-  console.log('[RICO TEST226 VERTICAL 8PX]',
+  console.log('[RICO TEST227 VERTICAL 8PX]',
    p?'DIRECT COLOR RAM':'LEGACY COLOR',p?'max '+window.RICO_TEST226_LAST_BUILD.maxWrites+' STA/frame':'');
  if(!p)return source;
  var from=NL+'commit_fast8'+NL;
@@ -93,5 +96,5 @@ V.buildSource=function(d){
  else source+=NL+compiled(p);
  return source;
 };
-window.RICO_TEST226_VERTICAL_DIRECT_COLOR={version:226,plan:plan,previous:previous};
+window.RICO_TEST226_VERTICAL_DIRECT_COLOR={version:227,plan:plan,previous:previous};
 })();
