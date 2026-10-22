@@ -415,7 +415,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  }
 };
 window.RICO_TEST207_ORIGINAL_SID={
- parseSID:parseSID,detectTimer:detectCIATimer209,buildSource:makeSource207,export:export207,exportSelectedEngine228:exportSelectedEngine228,
+ parseSID:parseSID,detectTimer:detectCIATimer209,buildSource:makeSource207,export:exportSelectedEngine228,legacyExport207:export207,exportSelectedEngine228:exportSelectedEngine228,
  select:function(bytes){var result=parseSID(bytes);SID_STATE.data=bytes;SID_STATE.enabled=true;return result;},
  disable:function(){SID_STATE.enabled=false;},
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
