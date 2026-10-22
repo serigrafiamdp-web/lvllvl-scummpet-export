@@ -62,8 +62,8 @@ function bytetable(a,name,items){
 }
 function assembler(d,p){
  var a=['; TEST242 fast multicolor: only rectangle boundary cells',
- 'm242_x=$29','m242_y=$2a','m242_left=$2b','m242_ptr=$2c',
- 'm242_page=$2d','m242_pos=$2e','m242_val=$2f'];
+ 'm242_x=$1c','m242_y=$1d','m242_left=$1e','m242_ptr=$1f',
+ 'm242_page=$20','m242_pos=$27','m242_val=$28'];
  a.push('prepare_macro_colors242',
   ' lda #$00',
   ' sta $50',' sta $51',' sta $52',' sta $53',
