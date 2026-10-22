@@ -42,9 +42,9 @@ E.build=function(d){
  ' lda back_hi',' sta dst_hi',' jsr diag_shift221'
  ].join(NL);
  src=replaceOnce(src,start,startNew);
- const ready=' jsr diag_shift221'+NL+' lda #$01'+NL+' sta prep_ready';
+ const ready=' jsr diag_shift221'+NL+NL+' lda #$01'+NL+' sta prep_ready';
  const readyNew=[
- ' jsr diag_shift221',
+ ' jsr diag_shift221','',
  ' lda $d012',' sta trace_end_lo246',
  ' lda $d011',' and #$80',' sta trace_end_hi246',
  ' lda #$05',' sta $d020', // GREEN = main preparation ready
