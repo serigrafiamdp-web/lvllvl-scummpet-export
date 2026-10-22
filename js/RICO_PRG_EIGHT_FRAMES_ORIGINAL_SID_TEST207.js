@@ -146,11 +146,16 @@ function buildSidShared211(sid,useHardwareCIA){
  return out.join('\n');
 }
 function makeSource207(source,sid,speed){
+ if(/^\*=\$1[0-9a-f]{3}\s*$/im.test(source))
+  throw new Error('TEST228: el player visual ocupa $1000-$1FFF, reservado para el SID.');
  // Only relocate the sparse color lists if the output contains them.
  var edits=0;
  source=source.replace(/\$(1[0-7])00,([xy])/gi,function(_,hi,reg){edits++;return '$'+(0xb0+parseInt(hi,16)-0x10).toString(16)+'00,'+reg;});
  // TEST228: horizontal TEST220 may have 40 legitimate color-index references.
- if(edits&&edits%8!==0)throw new Error('TEST228: reubicacion de color inconsistente ('+edits+' referencias).');
+ // Verify memory banking collisions instead of requiring a specific reference count.
+ // The working Color RAM indices move into $B000-$B7FF when SID occupies $1000+.
+ if(edits&&/^\*=\$b[0-7][0-9a-f]{2}\s*$/im.test(source))
+  throw new Error('TEST228: tablas compactas ocupan $B000-$B7FF, reservado para los índices de colores cuando hay SID.');
  if(/\$(?:1[0-7])00,[xy]/i.test(source))throw new Error('TEST211: quedan referencias a listas de color en la RAM del SID.');
 
  // Audio INIT leaves zero-page private variables at $F0-$FF.
@@ -357,7 +362,7 @@ function ensureUI207(){
  var box=document.createElement('div');
  box.id='ricoSid207Panel';
  box.style.cssText='margin:8px 16px;padding:8px;border:1px solid #666;font-size:12px;';
- box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST212 — SID CIA Auto REAL / SCUMM (1 o más frames)</label>'
+ box.innerHTML='<label style="display:block;margin-bottom:5px"><input type="checkbox" id="ricoSid207Enabled"> TEST228 — SID CIA Auto / Map Scroll todas direcciones</label>'
    +'<input id="ricoSid207Input" type="file" accept=".sid" style="width:260px">'
    +' <select id="ricoSid207Speed" title="Tasa de reproducción SID"><option value="0">Auto — CIA original o VBlank 50 Hz</option><option value="1">50 Hz</option><option value="2">100 Hz</option></select>'
    +'<div id="ricoSid207Status" style="margin-top:5px;color:#bbb">Elegí un archivo .sid. Sólo activa SID cuando tildás la casilla.</div>';
@@ -404,8 +409,8 @@ ToPRGAdv.prototype.createPRG=function(args){
  try{return exportSelectedEngine228(this,args,chosen);}
  catch(e){
    window.RICO_TEST207_LAST_ERROR=e.message;
-   console.error('[RICO TEST207] original LVLLVL SID+8frames failed:',e);
-   if(typeof window.alert==='function')window.alert('RICO TEST207 SID: '+e.message);
+   console.error('[RICO TEST228] SID + native Map Scroll failed:',e);
+   if(typeof window.alert==='function')window.alert('RICO TEST228 SID: '+e.message);
    return false;
  }
 };
