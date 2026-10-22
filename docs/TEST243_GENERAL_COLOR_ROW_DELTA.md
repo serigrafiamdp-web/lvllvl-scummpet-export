@@ -1,3 +1,17 @@
+## RESULTADO REAL EN VICE — FAIL (22/10/2026)
+
+El usuario confirmó: **"aun sigue lento y a tirones"**. TEST243 NO supera la versión lenta anterior y no debe promoverse al MASTER. Solo lo simulamos funcionalmente; los tests de color no sustituyeron medición de ciclos reales.
+
+### Diagnóstico de presupuesto 6510 (estimación estática, NO profiler VICE)
+Para el mapa 45×32 en diagonal: 180 diferencias de color a nivel de mundo; entre **117 y 159 candidatas por ventana** (media 140,625). Para la rutina de TEST243, cada candidato visible requiere aproximadamente **132 ciclos** de cálculo, direccionamiento y armado de buffers; además se copian 1000 códigos de pantalla con un costo aproximado de **11.904 ciclos** solo para el bucle de desplazamiento `diag_shift221`. La fase multicolor puede superar con facilidad los **30.000 ciclos** sin incluir reconstrucción de bordes ni la escritura final de Color RAM.
+
+Un cuadro PAL completo permite **19.656 ciclos nominales** (312 líneas × 63 ciclos, con robos por VIC-II durante badlines). Por tanto no es viable garantizar un paso diagonal multicolor de 8 píxeles *cada cuadro* con el diseño actual.
+
+**Origen de los tirones:** En el IRQ, `main_busy` y `prep_ready` bloquean la confirmación/contador del movimiento mientras se preparan los buffers. El costo variable por posición del mapa altera cuántos cuadros se requieren entre avances. Las pequeñas diferencias entre filas/columnas cambian la fluidez.
+
+**No repetir:** nuevas tablas de color con un bucle que calcula los punteros de pantalla/Color RAM por cada celda, ni forzar escrituras completas en IRQ (TEST238). La siguiente propuesta general debe fusionar planificación de pantalla y color, o preindexar de forma mucho más agresiva los destinos para bajar el costo por celda; primero validar el presupuesto de ciclos, no solo exactitud de colores. Usar raster estable y mantener BANK1/2 y SID.
+
+---
 # TEST243 — General diagonal row-color deltas (no shapes, no phase limit)
 
 **Baseline:** `release/test239-diagonal-uniform-bank1-fix` (TEST236 compatible). **Experimental.** No edits to MASTER and no changes to the production root page. TEST242 stays FAIL.
