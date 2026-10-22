@@ -121,13 +121,13 @@ E.build=function(d){
  if(!d||!d.fastRows||d.uniformColor||d.group){
   info.reason='uniform / group / large source';window.RICO_TEST236_LAST_BUILD=info;return s;
  }
- var start='diag_rle_apply221'+NL,stop='diag_rle_phase221'+NL+'!byte $00',
+ var start=NL+'diag_rle_apply221'+NL,stop='diag_rle_phase221'+NL+'!byte $00',
      isRLE=s.includes(start);
  if(isRLE){
   var length=d.areaWidth/gcd(d.areaWidth,d.areaHeight)*d.areaHeight;
   var si=s.indexOf(start),ei=s.indexOf(stop,si);
   if(si<0||ei<0||length>255)throw Error('TEST236: RLE code layout changed');
-  s=s.slice(0,si)+executor(length)+s.slice(ei+stop.length);
+  s=s.slice(0,si)+NL+executor(length)+s.slice(ei+stop.length);
   info={selected:true,direction:d.direction,pixels:d.pixels,mode:'RLE-optimized-executor',
    changed:'single-cell and short vertical runs',irqCommit:'RLE',colorScan:false};
   window.RICO_TEST236_LAST_BUILD=info;
