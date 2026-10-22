@@ -437,3 +437,22 @@ H.build=function(d){
 };
 window.RICO_TEST219_HORIZONTAL_DIRECT_SHIFT={version:219,buildShift:shiftRoutine,legacy:previous};
 })();
+
+/* TEST220: export diagnostic; no timing/UI/feature restrictions. */
+(function(){
+'use strict';
+ var H=window.RICO_TEST186_HORIZONTAL;if(!H)return;
+ var old=H.build;
+ H.build=function(d){
+  var asm=old(d);
+  var incremental=asm.includes(' jsr shift_back219\n');
+  var rle=asm.includes('patch_read_run220\n');
+  window.RICO_TEST220_LAST_BUILD={
+   path:incremental?(rle?'incremental+RLE-color':'incremental+uniform-color'):'original-fallback',
+   mapDirection:d.type,pixelsPerStep:d.pixels,ticksPerStep:d.ticks,
+   multicolor:!!d.multicolor,multipleFrames:d.duration!==undefined,
+   reason:!incremental?(d.duration!==undefined?'multiframe':d.group?'group-or-dense-colors':'color-table-too-large'):''
+  };
+  return asm;
+ };
+})();
