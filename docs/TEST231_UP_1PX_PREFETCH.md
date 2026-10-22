@@ -1,6 +1,6 @@
 # TEST231 — Parpadeo/salto de una línea en UP a 1 Pixel/Step
 
-**Estado:** corrección experimental; falta prueba visual real en VICE.  
+**Estado:** **FAIL en VICE**, confirmado por el usuario el 22/10/2026. La línea/blink sigue y aparecen caracteres marrones en el render.  
 **Base:** TEST229 SID ampliado PASS; MASTER LVLLVL RICO 22 OCTUBRE sin modificar.  
 **Video de referencia:** `2026-10-22 09-34-08.mkv` (usuario; no se agrega al repositorio).
 
@@ -32,3 +32,9 @@ Se preserva `$D011` en **modo 25 filas original**, todos los caracteres visibles
 ## Prueba pendiente
 
 Abrir web TEST231; exportar el mismo mapa del video con **Up / 1 Pixel/Step / 1 Tick/Step / 25 filas** y mirar en VICE el tramo de movimiento interior donde antes se producía el blink. Si todavía ocurre, obtener PRG y capturas de fotogramas alrededor del salto y medir el IRQ y la fase de buffer. No promover al MASTER sin PASS del usuario.
+
+## Resultado real y decisión
+
+El usuario compartió captura de TEST231 y reportó que **la línea salta/parpadea igual y además aparecen caracteres marrones**. Adelantar `prep_request` a `fine_pos=3` **no es solución**, y puede añadir riesgo de desincronización de colores y caracteres si se mueve `camera_row` antes del swap. Por tanto, TEST231 es **FAIL** y **se retiró de `gh-pages`**; se restauró la versión TEST229 aprobada. La rama de TEST231 queda como evidencia histórica. No confundir los 96 casos de generación estática con validación visual.
+
+Siguiente investigación: inspeccionar el **PRG exacto** que produjo la captura y comparar el motor de color de 1 px (RLE `apply_vertical_color221`) con el de 8 px (direct `commit_direct_color226`), las instrucciones 6502 efectivamente ensambladas y los momentos de intercambio.
