@@ -20,27 +20,58 @@ function bytes(a,values){
 }
 // Addresses and data must respect SID/core and RLE reserve boundaries:
 // $A100-$AFFF + $B800-$CFFF; never touch $B000-$B7FF or IO.
+// TEST240: foreground colors do not matter while the newly displayed glyph
+// is visually invisible. This is **only** the export-time RLE planner fallback.
+// A later transition from invisible to visible MUST rewrite its Color RAM,
+// even if old and new logical foreground colors happen to match.
 function plan(d){
  if(!d||!d.fastRows||d.uniformColor||d.group)return null;
  var W=d.areaWidth,H=d.areaHeight,len=W/gcd(W,H)*H;
  if(len<1||len>255)return null;
- var sx=d.dir.x===-1?1:-1,sy=d.dir.y===-1?1:-1,phases=[],unique=[],known={};
+ var bank=d.bank===2?d.bank2:d.bank1;
+ if(!bank||bank.length<2048)return null;
+ var ink=new Uint8Array(256);
+ for(var ch=0;ch<256;ch++){
+  for(var bit=0;bit<8;bit++)if(bank[ch*8+bit]){ink[ch]=1;break;}
+ }
+ function requiredColor(ox,oy,nx,ny,x,r){
+  var prev=((oy+r)%H)*d.rowStride+((ox+x)%W),
+      next=((ny+r)%H)*d.rowStride+((nx+x)%W),
+      newColor=d.colors[next]&15,
+      oldColor=d.colors[prev]&15,
+      newCode=d.map[next]&255,
+      oldCode=d.map[prev]&255;
+  // In regular hires text, pixels 0 use $D021 background. Only actual
+  // opaque pixels with foreground != background can need Color RAM.
+  if(!ink[newCode]||newColor===(d.bg&15))return -1;
+  // If the previous screen cell was invisible, the actual Color RAM
+  // may be stale because earlier invisible transitions were skipped.
+  if(ink[oldCode]&&oldColor!==(d.bg&15)&&oldColor===newColor)return -1;
+  return newColor;
+ }
+ var sx=d.dir.x===-1?1:-1,sy=d.dir.y===-1?1:-1,phases=[],unique=[],known={},
+     emittedWrites=0,legacyDifferences=0,invisibleSaved=0;
  for(var t=0;t<len;t++){
   var ox=((d.cameraX+t*sx)%W+W)%W,oy=((d.cameraY+t*sy)%H+H)%H,
       nx=(ox+sx+W)%W,ny=(oy+sy+H)%H,run=[];
   for(var x=0;x<40;x++)for(var r=0;r<25;){
-   var old=d.colors[((oy+r)%H)*d.rowStride+((ox+x)%W)]&15,
-       v=d.colors[((ny+r)%H)*d.rowStride+((nx+x)%W)]&15;
-   if(old===v){r++;continue;}
+   var v=requiredColor(ox,oy,nx,ny,x,r);
+   var oldPos=((oy+r)%H)*d.rowStride+((ox+x)%W),
+       newPos=((ny+r)%H)*d.rowStride+((nx+x)%W);
+   if((d.colors[oldPos]&15)!==(d.colors[newPos]&15)){
+    legacyDifferences++;
+    if(v<0)invisibleSaved++;
+   }
+   if(v<0){r++;continue;}
    var first=r++,count=1;
    while(r<25){
-    var o=d.colors[((oy+r)%H)*d.rowStride+((ox+x)%W)]&15,
-        n=d.colors[((ny+r)%H)*d.rowStride+((nx+x)%W)]&15;
-    if(o===n||n!==v)break;
+    var next=requiredColor(ox,oy,nx,ny,x,r);
+    if(next!==v)break;
     r++;count++;
    }
    var dest=0xd800+first*40+x;
    run.push(count,dest&255,dest>>8,v);
+   emittedWrites+=count;
   }
   run.push(0);
   var key=run.join(',');
@@ -57,7 +88,9 @@ function plan(d){
  for(var k=0;k<len;k++)ptr[k]=addresses[phases[k]];
  return{len:len,phases:phases,ptr:ptr,unique:unique,addresses:addresses,
     compressedBytes:len*2+unique.reduce(function(n,s){return n+s.length;},0),
-    totalUnique:unique.length,originalPhases:len};
+    totalUnique:unique.length,originalPhases:len,
+    colorWrites:emittedWrites,legacyColorDifferences:legacyDifferences,
+    skippedInvisibleColorWrites:invisibleSaved,visibilityAware:true};
 }
 function tables(p){
  var a=['*=$a100','diag_rle_lo221'];bytes(a,p.ptr.map(function(v){return v&255;}));
@@ -146,6 +179,8 @@ E.build=function(d){
  s+=NL+tables(p);
  info={selected:true,direction:d.direction,pixels:d.pixels,mode:'deduplicated-RLE-fast',
   uniquePhases:p.totalUnique,phases:p.originalPhases,compressedBytes:p.compressedBytes,
+  colorWrites:p.colorWrites,legacyColorDifferences:p.legacyColorDifferences,
+  skippedInvisibleColorWrites:p.skippedInvisibleColorWrites,visibilityAware:true,
   changed:'one-pass diagonal + accelerated color runs',irqCommit:'RLE',colorScan:false};
  window.RICO_TEST236_LAST_BUILD=info;
  console.log('[TEST236 FAST DIAGONAL]',info);
