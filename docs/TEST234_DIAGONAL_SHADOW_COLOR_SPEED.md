@@ -1,6 +1,6 @@
 # TEST234 — Desplazamiento incremental de colores en diagonales densas
 
-**Estado:** experimental, pendiente de PASS en VICE. **Base:** TEST232 vertical PASS y TEST233 diagonal sin PASS de velocidad. No modificar el MASTER del 22 de octubre.
+**Estado: FAIL confirmado por el usuario en VICE** (22/10/2026): anomalías visuales en el ZIP y el bug persiste tras recuperar el sistema de lanzamiento. **No promover**. Base de trabajo restaurada a TEST232 PASS, master congelado.
 
 ## Comparación empírica (capturas del usuario, 22/10/2026)
 - Video diagonal: `2026-10-22 11-36-12.mkv`, 11,417 segundos, 60 fps.
@@ -35,3 +35,12 @@ El scroll vertical TEST227/232 ganó velocidad precisamente cuando evitó estos 
 5. Probar otras 3 diagonales, velocidades 1/2/4/8 y SID opcional tras PASS inicial.
 
 No consolidar como MASTER hasta PASS visual. Rollback: `CHECKPOINT_TEST232_FINE_COLOR_PASS_22_OCT_2026`.
+
+
+## Resultado FAIL y causa pendiente de verificar
+
+- Usuario confirma que TEST234 presenta un **bug visual** en la edición ZIP incluso tras volver al `START_LVLLVL_TEST01.bat` habitual. El cambio de perfil de Edge fue un problema independiente de workflow y ya se descartó.
+- `gh-pages` se restauró a `CHECKPOINT_TEST232_FINE_COLOR_PASS_22_OCT_2026` (`fa8b53feeeef8daba4713d3f6d38974ba613bb64`). La rama experimental y su release de reproducción se conservan sin sobreescribir.
+- **Sospecha de temporización**: TEST234 sustituye el commit color RLE por `commit_colors199`, que copia 4 bytes por iteración durante 256 iteraciones en IRQ. Solo ese bucle implica aproximadamente `256 × (4×(LDA abs,X 4 ciclos + STA abs,X 5 ciclos) + INX 2 + BNE 3) = 10.496` ciclos, sin contar IRQ ni otras rutinas. Se ejecuta desde raster `$FA` y puede alcanzar el siguiente período de pantalla visible, causando tearing/parpadeo. **Esta explicación aún no está validada con monitor VICE**.
+- Por lo tanto **NO reutilizar el commit de pantalla completa dentro del IRQ** para una nueva versión. Medir tiempos/cadencia de la rutina de Color RAM y explorar actualizaciones incrementales sincronizadas con raster o direct STA segura con límites de ciclos.
+- Mantener `TEST232 PASS` como referencia, no afirmar que TEST233 o TEST234 mejoraron el rendimiento.
