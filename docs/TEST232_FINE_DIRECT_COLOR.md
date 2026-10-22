@@ -1,6 +1,6 @@
 # TEST232 — Color RAM directa para Up/Down a 1–7 píxeles
 
-**Fecha:** 22/10/2026 · **Estado:** experimental, pendiente de PASS real en VICE.  
+**Fecha:** 22/10/2026 · **Estado: PASS confirmado por el usuario en VICE.**  
 **Base:** TEST229 SID ampliado PASS; MASTER del 22 de octubre preservado.  
 **Motivo:** el usuario sigue viendo un blink/salto interno de una línea y colores marrones inesperados con Up a 1 Pixel/Step. TEST230 (borde) y TEST231 (prefetch anticipado) fueron descartados; no repetir sus soluciones.
 
@@ -31,3 +31,7 @@ No se fuerza la optimización cuando el plan no cabe en RAM, hay Group Animate i
 5. Si funciona, ensayar Up 2/4/7 píxeles y Down 1 píxel, y un SID grande; declarar PASS solo con aprobación del usuario.
 
 **No promover a MASTER sin PASS en VICE.** Si se reproduce el error, analizar el PRG concreto y la fase real del IRQ; no cambiar otra vez el modo de 24/25 filas.
+
+## Resultado final
+
+El usuario confirmó **PASS** de TEST232 el 22/10/2026: la integración directa de Color RAM aplicada al scroll vertical fino quedó aprobada. Se creó `CHECKPOINT_TEST232_FINE_COLOR_PASS_22_OCT_2026` para conservar esta base antes de trabajar en diagonales. El PASS no implica que todos los mapas densos entren en la optimización; las rutas fallback permanecen.
