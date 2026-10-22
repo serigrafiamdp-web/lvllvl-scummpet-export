@@ -293,14 +293,18 @@ function plan(d){
   }
   words.push(255);lists.push(words);total+=words.length;
  }
- // $E000-$FEFF is reserved for optional fast tables in RAM below KERNAL.
- // Group Scroll data always stays below $D000, so no shared-space collision.
- var ptr=0xe000+2*width,addresses=[];
+ // Normal one-file PRGs must not write across VIC/SID/CIA I/O $D000.
+ // No group: use spare $A100-$AFFF, then $B800-$CFFF.
+ // With group: reserve its $A000+ engine and use only $B800-$CFFF.
+ // $B000-$B7FF stays free for the SID relocation ABI.
+ var origin=d.group?0xb800:0xa100,ptr=origin+2*width,extra=0xb800,addresses=[];
  for(var k=0;k<lists.length;k++){
-  if(ptr+lists[k].length>0xff00)return null;
-  addresses.push(ptr);ptr+=lists[k].length;
+  var size=lists[k].length,limit=d.group?0xd000:0xb000;
+  if(ptr+size<=limit){addresses.push(ptr);ptr+=size;}
+  else if(!d.group&&extra+size<=0xd000){addresses.push(extra);extra+=size;}
+  else return null;
  }
- return{base:0xe000,lists:lists,addresses:addresses,bytes:total};
+ return{base:origin,lists:lists,addresses:addresses,bytes:total};
 }
 function newScreen(d){
  var arr=['render_fast218',' lda #$00',' sta dst_lo',
