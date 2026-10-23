@@ -24,7 +24,7 @@ function groupFromStore(ts,store){
  var gs=store.ricoGroupAnimationsV1||{},all=[];
  for(var bank=1;bank<=2;bank++)(gs['bank'+bank]||[]).forEach(function(g){if(g&&g.type!=='switch-bank')all.push({bank:bank,g:g});});
  if(!all.length)return null;
- var sel=all.filter(function(x){return /^(left|right|up|down)$/.test(x.g.type);})[0];
+ var sel=all.filter(function(x){return /^(left|right|up|down|pingpong-left|pingpong-right|pingpong-up|pingpong-down)$/.test(x.g.type);})[0];
  if(!sel)return null; // Other animations remain an experimental follow-up, not a Map Scroll export veto.
  var g=sel.g,w=Number(g.widthTiles),hh=Number(g.heightTiles),ticks=Number(g.ticksPerFrame);
  if(!Number.isInteger(w)||!Number.isInteger(hh)||w<1||hh<1||hh>32||w*hh>256||!Number.isInteger(ticks)||ticks<1||ticks>255)return null;
@@ -46,7 +46,7 @@ function groupFromStore(ts,store){
   }columns.push(a.concat(a));
  }
  var pixels=Number(g.pixelsPerTick);
- if(!Number.isInteger(pixels)||pixels<1||pixels>8)pixels=/^(up|down)$/.test(g.type)?(w===2&&hh===8&&ticks===1?1:2):4;
+ if(!Number.isInteger(pixels)||pixels<1||pixels>8)pixels=/^(up|down|pingpong-up|pingpong-down)$/.test(g.type)?(w===2&&hh===8&&ticks===1?1:2):4;
  return {bank:sel.bank,w:w,h:hh,ticks:ticks,pixels:pixels,type:g.type,cells:cells,tiles:src,columns:columns,addresses:addresses,protection:protection,codes:found};
 }
 function collect(self){
