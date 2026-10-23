@@ -1,4 +1,18 @@
-# LVLLVL RICO — Editor C64, Map Scroll y exportación PRG
+# LVLLVL RICO — MASTER VIERNES 23 DE OCTUBRE DE 2026
+
+**Nuevo MASTER de referencia: TEST254 · ~47,2 avances/s en VICE, rendimiento validado.** Se eligió TEST254 en lugar de TEST255 para priorizar la calidad visual sobre acercarse a 50/s; queda una revisión fina de sincronización y costuras para continuar. **La web principal no cambia de motor en este checkpoint.**
+
+- **MASTER del 23/10/2026:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_23_OCTUBRE_2026
+- **Descargar ZIP completo:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/MASTER_LVLLVL_RICO_23_OCTUBRE_2026.zip
+- **Probar la versión guardada en web:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test254/
+- **Documentación de recuperación para el próximo día:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/MASTER_LVLLVL_RICO_23_OCTUBRE_2026/docs/MASTER_VIERNES_23_OCTUBRE_2026.md
+- **MASTER del 22/10/2026 preservado:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_22_OCTUBRE_2026
+
+**Regla de continuación:** retomar desde este branch congelado, creando un TEST nuevo para mejoras gráficas. TEST255 se conserva separado, sin promocionarlo. Evitar fusionar `main` y `gh-pages` porque divergen.
+
+---
+
+## Archivo histórico — estado previo documentado el 22 de octubre de 2026
 
 **MASTER LVLLVL RICO — 22 OCTUBRE 2026 · TEST228 PASS confirmado en VICE.**
 
