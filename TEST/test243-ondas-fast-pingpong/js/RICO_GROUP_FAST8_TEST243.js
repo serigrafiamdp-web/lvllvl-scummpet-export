@@ -74,7 +74,7 @@ function transform(source,g){
    if(source.split(phaseEnd).length!==2)throw new Error('TEST243: fase Ping Pong incompatible.');
    source=source.replace(phaseEnd,
      ' sta group183_byte_phase\n'+
-     ' tax\n'+
+     ' lda group183_bit_phase\n tax\n'+
      ' lda group243_phase_lo,x\n sta group243_offset_lo\n'+
      ' lda group243_phase_hi,x\n sta group243_offset_hi\n rts\n');
  }
