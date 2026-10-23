@@ -1,0 +1,53 @@
+# TEST248 — Unificar dos raster IRQ en uno
+
+**Estado: EXPERIMENTAL.** No es PASS de VICE. Conserva TEST244 como mejor referencia multicolor y TEST247 como optimización de caracteres sin mejora real de FPS.
+
+## Motivo
+La prueba TEST246 registró 158 interrupciones con pantalla lista y 159 con CPU ocupada, mientras TEST244/245/247 se mantuvieron alrededor de 25 avances/s. TEST247 ahorró ~4.400 ciclos de copia, pero no cambió la cadencia. Esta prueba modifica únicamente **cuándo** se ejecutan las dos fases Color RAM y el avance; **no** cambia ninguna rutina de copia de caracteres, Color RAM o mapa.
+
+## Experimento
+
+- Motor original TEST247: `diag_shift221` reemplazado por copiar 936 caracteres con código directo (una pantalla se genera en RAM $E000 al iniciar).
+- Color RAM original TEST244, mismas subrutinas `color_upper244`, `color_edges_upper244`, `color_lower244`, `color_edges_lower244`.
+- Interrupción raster única PAL en **$78 (línea 120)**:
+  1. Si la pantalla no está lista, posponer (sin modificar Color RAM).
+  2. Si está lista, ejecutar **ambas mitades** de Color RAM consecutivamente, detrás del haz VIC-II.
+  3. Intercambiar screen buffer $0400/$0800, actualizar cámara, limpiar flags.
+  4. Ejecutar `irq_tick` al final y solicitar el siguiente paso si corresponde.
+- Ya no se programa una segunda interrupción en $FA. Con esto eliminamos el intervalo muerto entre $A0 y $FA, a costa de una IRQ más larga. El objetivo es verificar si sincronización de dos IRQ nos impedía subir de 25 movimientos/s.
+- Borde del juego, 16 colores, ambas charsets, fuentes del mapa y opciones de scroll no modificadas.
+- El motor TEST248 solo se selecciona cuando TEST247 está activo: diagonales **Up Left / Up Right**, multicolor sin Group Animate y **sin SID nativo**. Otras rutas regresan íntegramente al código anterior.
+- Precaución: el enfoque 'behind the beam' es una hipótesis de raster timing PAL; si aparecen franjas o parpadeos, considerar TEST248 FAIL y volver a TEST244.
+
+## Monitoreo
+
+En VICE, después de ~3 segundos de correr el PRG, abrir monitor y leer:
+
+`m a020 a027`
+
+| Dirección | Significado |
+|---|---|
+| $A020 | Cantidad de IRQ de raster (mod 256) |
+| $A021 | Cantidad de intercambios de pantalla completados (mod 256) |
+| $A022 | IRQ cuando `main_busy` está activo |
+| $A023 | IRQ con solicitud pendiente, pero no lista |
+| $A024 | Línea raster baja al último intercambio |
+| $A025 | Bit alto ($00 o $80) de raster al último intercambio |
+| $A026 | Firma $48 ("H") |
+| $A027 | Versión de contador $01 |
+
+Los contadores de 8 bits pueden desbordar si la medición dura más tiempo. Una grabación MKV de VICE de 10 segundos permite comparar contra la medición de TEST247 (≈25,02 avances/s).
+
+## Verificaciones antes de VICE
+
+- 32 configuraciones sintéticas exportadas como código fuente ASM, 8 activas y 24 con fallback byte por byte idéntico al TEST247.
+- Revisión estática del flujo de código 6502: sin ramas condicionales fuera del límite (-128..127).
+- Regiones ensambladas estimadas (no ejecución real): PRG lineal llega hasta $CA91, sin cruzar la zona de I/O $D000-$DFFF; sin colisiones de segmentos. La construcción de código en $E000 permanece en el inicio y no modifica el PRG lineal.
+- No hay compilación final de PRG ni prueba VICE automatizada: **la velocidad y la seguridad gráfica aún necesitan confirmación del usuario**.
+
+## Enlaces
+
+- Web aislada: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test248/
+- ZIP rama: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test248-single-raster-diagonal-commit.zip
+
+MASTER y raíz gh-pages intactos. Si TEST248 es FAIL, regresar a TEST244.
