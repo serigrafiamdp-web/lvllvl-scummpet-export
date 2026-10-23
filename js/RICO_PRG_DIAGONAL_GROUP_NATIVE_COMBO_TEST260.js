@@ -178,6 +178,42 @@ if(H&&H.build){
   return s;
  };
 }
+
+/* TEST260 vertical fairness: existing TEST175 already exports native and
+ * Group Animate, but main182_background always picks the group first.
+ * The two systems must share CPU idle slots under heavy Map Scroll. */
+if(V&&V.buildSource){
+ var previousV=V.buildSource;
+ V.buildSource=function(d){
+  var s=previousV(d);
+  var both=!!(d&&d.anim175&&d.anim175.group&&d.anim175.records&&d.anim175.records.length);
+  if(both){
+   var oldMain=['main182_background',' lda group182_pending',
+     ' beq main182_try_individual',' jsr group182_step',
+     ' jmp main_loop','main182_try_individual'].join(N);
+   var newMain=['main182_background',
+     ' lda anim175_pending',' beq anim260_vgroup',
+     ' lda group182_pending',' beq main182_try_individual',
+     ' lda anim260_fair',' eor #$01',' sta anim260_fair',
+     ' bne main182_try_individual',
+     'anim260_vgroup',' lda group182_pending',
+     ' beq main182_try_individual',' jsr group182_step',
+     ' jmp main_loop','main182_try_individual'].join(N);
+   s=once(s,oldMain,newMain,'vertical Group vs native fairness');
+   s=once(s,'start'+N+' sei',
+     'anim260_fair=$39'+N+'start'+N+' sei','vertical spare ZP counter');
+   s=once(s,' sta main_busy'+N+' jsr render_front',
+     ' sta main_busy'+N+' sta anim260_fair'+N+' jsr render_front',
+     'vertical initialize fair scheduler');
+   window.RICO_TEST260_VERTICAL_LAST_BUILD={
+     version:260,selected:true,group:true,individuals:d.anim175.records.length,
+     scheduling:'alternating Group and individual native slots',
+     raster:'unchanged',status:'experimental'};
+  }else window.RICO_TEST260_VERTICAL_LAST_BUILD={
+   version:260,selected:false,reason:'not a Group+native combination'};
+  return s;
+ };
+}
 window.RICO_TEST260_CHAR_ANIM={version:260,attach:function(self,d){
  if(!d||!Array.isArray(d.map))throw Error('TEST260: missing map');
  d.native260=getRecords(self,d);
