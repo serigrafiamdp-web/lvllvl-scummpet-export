@@ -17,10 +17,10 @@ function makeGroup(ts,store){
   if(mods.length!==1)throw new Error('TEST186: selecciona exactamente UN Group Scroll vertical para esta prueba.');
   if(all.some(function(g){return g.raw.type==='switch-bank';}))throw new Error('TEST186: combinar Switch Bank con mapa horizontal queda pendiente; no se exportara un efecto distinto.');
   var selection=mods[0],cfg=selection.raw,bank=selection.bank;
-  if(!/^(up|down|left|right)$/.test(cfg.type))throw new Error('TEST192: direccion de Group Scroll no implementada en el runtime combinado: '+cfg.type);
+  if(!/^(up|down|left|right|pingpong-up|pingpong-down|pingpong-left|pingpong-right)$/.test(cfg.type))throw new Error('TEST192: direccion de Group Scroll no implementada en el runtime combinado: '+cfg.type);
   var w=Number(cfg.widthTiles),hh=Number(cfg.heightTiles),ticks=Number(cfg.ticksPerFrame);
   var hasPixels=cfg.pixelsPerTick!==undefined&&cfg.pixelsPerTick!==null;
-  var pixels=hasPixels?Number(cfg.pixelsPerTick):(cfg.type==='up'||cfg.type==='down'?((w===2&&hh===8&&ticks===1)?1:2):4);
+  var pixels=hasPixels?Number(cfg.pixelsPerTick):(/^(up|down|pingpong-up|pingpong-down)$/.test(cfg.type)?((w===2&&hh===8&&ticks===1)?1:2):4);
   if(!Number.isInteger(pixels)||pixels<1||pixels>8)
     throw new Error('TEST195: Group Animate Pixels/Tick debe estar entre 1 y 8.');
   if(!Number.isInteger(w)||!Number.isInteger(hh)||w<1||hh<1||hh>32||w*hh>256||!Number.isInteger(ticks)||ticks<1||ticks>255)throw new Error('TEST186: geometria o ticks de grupo invalidos.');
@@ -45,7 +45,7 @@ function groupASM(group,tileBank1,tileBank2){
  var blank=new Uint8Array(1280);var col=new Uint8Array(1280);col.fill(14);
  var d={width:40,height:32,type:'up',ticks:1,pixels:1,duration:128,bg:0,border:0,bank:1,window:{x:0,y:0,width:40,height:25},area:{x:0,y:0,width:40,height:32},initialRow:0,bank1:tileBank1,bank2:tileBank2,map:blank,colors:col,anim175:{records:[],switchTicks:0,group:Object.assign({},group,{type:group.type==='down'?'up':group.type})}};
  var asm=window.RICO_TEST168_PRG_LARGE_MAP.buildSource(d);
- var comment=/^(left|right)$/.test(group.type)?'; TEST183 independent horizontal group scroll '+group.type+' with pixel wrap':'; TEST182: standalone group scroll outside raster IRQ; map-first scheduling.';
+ var comment=/^(left|right|pingpong-left|pingpong-right)$/.test(group.type)?'; TEST183 independent horizontal group scroll '+group.type+' with pixel wrap':'; TEST182: standalone group scroll outside raster IRQ; map-first scheduling.';
  var at=asm.indexOf(comment);if(at<0)throw new Error('TEST186: modulo Group Scroll TEST182 no disponible.');
  var start=asm.lastIndexOf('*=$',at),tail=asm.slice(start);
  if(group.type==='down'){
