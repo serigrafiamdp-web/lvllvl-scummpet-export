@@ -1,3 +1,29 @@
+## Contadores VICE reales — 22/10/2026
+
+El usuario ejecutó el PRG TEST248 en VICE y entregó:
+
+```
+(C:$212f) m a020 a027
+>C:a020  d4 6a 69 00  34 80 48 01
+```
+
+| Byte | Hex | Decimal | Significado |
+|---|---|---:|---|
+| $A020 | D4 | 212 | IRQ totales |
+| $A021 | 6A | 106 | Intercambios realizados |
+| $A022 | 69 | 105 | IRQ con `main_busy != 0` |
+| $A023 | 00 | 0 | IRQ con petición pendiente pero no lista mientras CPU libre |
+| $A024 | 34 | 52 | Raster bajo del último intercambio |
+| $A025 | 80 | bit 8=1 | Último intercambio terminó en línea raster **308** (256+52) |
+| $A026 | 48 | 72 | Firma "H" correcta |
+| $A027 | 01 | 1 | Versión correcta |
+
+**Interpretación:** hay un intercambio completo por cada dos IRQ, correlacionado con ~una IRQ ocupada por cada intercambio; `212 ≈ 106×2`. No hay una fase de espera libre sin `prep_ready` (`A023=0`). Los contadores son de 8 bits y admiten desbordamiento. La captura independiente de TEST248 confirma ~25,04 desplazamientos/s. Esto localiza la causa observada en **uso de CPU entre preparación de caracteres y commit de colores**, no en la separación entre dos IRQ. No se ha demostrado aún un mínimo físico universal de 25 fps.
+
+**Siguiente estrategia aconsejada:** no seguir moviendo el raster o ahorrando decenas de ciclos en Color RAM; medir y optimizar el costo total de las celdas entrantes, los accesos al mapa y las transferencias de 936+960 posiciones. Para conseguir 50 desplazamientos/s a 8px/step habría que caber integralmente en el presupuesto CPU disponible de un cuadro PAL. Conservar TEST244 como referencia segura.
+
+---
+
 ## Resultado de VICE: TEST248 NO MEJORA VELOCIDAD — 22/10/2026
 
 El usuario observó "no veo mucho cambio" y adjuntó `2026-10-22 22-22-49.mkv`. Análisis directo del video fuente 1920×1080, 60 fps, 556 cuadros (9,267 s), con diferencias consecutivas de imagen y umbral estable en el área central de juego:
