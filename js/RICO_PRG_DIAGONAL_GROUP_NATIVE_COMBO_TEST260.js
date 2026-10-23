@@ -63,13 +63,13 @@ function sourceForNative(d){
   throw Error('TEST260: helper animador TEST175 no identificable, no exportar silenciosamente');
  return vertical.slice(start,stop);
 }
-function placeSafe(s,body){
+function placeSafe(s,body,kind){
  // TEST254/257 upper/lower color tables end near $C340, below $C400.
  // A standalone TEST182/183 Group block occupies A000..<=B800 with
  // max 256 animated characters and its source at A800..<=B800.
  // RLE streams can extend beyond C400: refuse that combination.
  var rle=window.RICO_TEST236_LAST_BUILD||{};
- if(rle.selected&&rle.mode!=='original fallback')
+ if(kind==='diagonal'&&rle.selected&&rle.mode!=='original fallback')
   throw Error('TEST260: plan de colores RLE no reserva espacio suficiente para animador independiente; no descartamos animaciones');
  return s+N+'*=$c400'+N+
   'anim175_ptr_lo=$30'+N+'anim175_ptr_hi=$31'+N+
@@ -124,7 +124,7 @@ D.build=function(d){
   group:!!(d&&d.group),individuals:records.length,reason:'no individual chars'};
  if(records.length){
   s=patchScheduler(s,!!d.group);
-  s=placeSafe(s,sourceForNative(d));
+  s=placeSafe(s,sourceForNative(d),'diagonal');
   stat={version:260,selected:true,individuals:records.length,group:!!d.group,
    destination:'C400..CFFF',banks:[...new Set(records.map(r=>r.bank))],
    scheduler:'one native tick per PAL frame, group/native fair spare-time dispatch',
@@ -136,6 +136,48 @@ D.build=function(d){
  console.log('[TEST260 MAP/GROUP/NATIVE CHAR INTEGRATION]',stat);
  return s;
 };
+
+var H=window.RICO_TEST186_HORIZONTAL;
+if(H&&H.build){
+ var previousH=H.build;
+ H.build=function(d){
+  var rec=d&&d.native260||[],hasNative=rec.length>0;
+  if(hasNative&&d.multicolor&&!d.group)
+   d.disableFast218=true; // prevents unsafe Color RLE workspace at C400
+  var s=previousH(d);
+  var status={version:260,selected:false,kind:'horizontal',individuals:rec.length,group:!!(d&&d.group)};
+  if(hasNative){
+   if(!d||!['left','right'].includes(d.type))
+    throw Error('TEST260: horizontal native animations without a supported map direction');
+   // TEST186's one-IRQ scheduler and main-loop group service are
+   // kept. Fair scheduler alternates native glyphs/group tiles.
+   var oldMain=['main_try_group',' lda group182_pending',
+       ' beq main_loop',' jsr group182_step',' jmp main_loop'].join(N);
+   var newMain=['main_try_group',
+      ' lda anim175_pending',' beq anim260_hgroup',
+      ' lda group182_pending',' beq anim260_hnative',
+      ' lda anim260_fair',' eor #$01',' sta anim260_fair',
+      ' bne anim260_hnative',
+      'anim260_hgroup',' lda group182_pending',
+      ' beq main_loop',' jsr group182_step',' jmp main_loop',
+      'anim260_hnative',' jsr anim175_tick',' jmp main_loop'].join(N);
+   s=once(s,oldMain,newMain,'horizontal map/group main scheduler');
+   s=once(s,'irq_only_group'+N+' jsr group182_irq_tick',
+       'irq_only_group'+N+' jsr anim260_irq_tick'+N+' jsr group182_irq_tick',
+       'horizontal one PAL irq animation tick');
+   if(s.includes('*=$b800'+N)&&!d.group)
+    throw Error('TEST260: horizontal RLE Color RAM uses potential native charset workspace; no silent export');
+   s=placeSafe(s,sourceForNative(d),'horizontal');
+   status={version:260,selected:true,kind:'horizontal',
+      individuals:rec.length,group:!!d.group,
+      scheduler:'fair map/group/individual cooperative',
+      memory:'C400..CFFF',map:'unchanged',
+      status:'experimental until VICE'};
+  }
+  window.RICO_TEST260_HORIZONTAL_LAST_BUILD=status;
+  return s;
+ };
+}
 window.RICO_TEST260_CHAR_ANIM={version:260,attach:function(self,d){
  if(!d||!Array.isArray(d.map))throw Error('TEST260: missing map');
  d.native260=getRecords(self,d);
