@@ -32,7 +32,7 @@ E.build=function(d){
  if(phase.indexOf(' jsr char_color_bottom250')<0||
     phase.indexOf(' jsr apply_edges_bottom250')<0)
    throw Error('TEST257 last-phase rendering not intact');
- phase=phase.replace(target,' sta fine_y'+NL+'; VIC fine registers stable: initialized once at START; 8px step never changes them'+NL+' lda #$00');
+ phase=phase.replace(target,' sta fine_y'+NL+' lda #$00');
  asm=asm.slice(0,i)+phase+asm.slice(e);
  // Confirm the one-time initialization and fine routine remain present.
  if(asm.indexOf(' jsr update_d018'+NL+' jsr apply_fine')<0||
