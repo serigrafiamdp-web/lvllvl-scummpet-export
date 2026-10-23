@@ -89,7 +89,7 @@ function collectAnimations175(ts,data){
     var groupPixels=hasPixels?Number(g.pixelsPerTick):(/^(up|down|pingpong-up|pingpong-down)$/.test(g.type)?((w===2&&h===8&&ticks===1)?1:2):4);
     if(!Number.isInteger(groupPixels)||groupPixels<1||groupPixels>8)
       throw new Error('TEST195: Group Animate Pixels/Tick debe estar entre 1 y 8.');
-    if(!/^(up|left|right|pingpong-up|pingpong-down|pingpong-left|pingpong-right)$/.test(g.type))throw new Error('TEST183: este motor combina Map Scroll con Group Scroll Up, Left o Right. No se alterara la direccion seleccionada.');
+    if(!/^(up|down|left|right|pingpong-up|pingpong-down|pingpong-left|pingpong-right)$/.test(g.type))throw new Error('TEST183: este motor combina Map Scroll con Group Scroll Up, Left o Right. No se alterara la direccion seleccionada.');
     if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>256||h>32||!Array.isArray(g.cells)||g.cells.length!==w*h)
       throw new Error('TEST182: Group Scroll debe ser un rectangulo completo de caracteres distintos, maximo 256 tiles.');
     if(!Number.isInteger(ticks)||ticks<1||ticks>255)throw new Error('TEST182: ticks del Group Scroll deben estar entre 1 y 255.');
@@ -786,7 +786,7 @@ function buildSource(d){
   }
   // TEST182: group's immutable double-length source is placed after color
   // tables, NEVER over the map, charsets, or dynamic raster screen buffers.
-  if(d.anim175&&d.anim175.group&&/^(up|pingpong-up|pingpong-down)$/.test(d.anim175.group.type)){
+  if(d.anim175&&d.anim175.group&&/^(up|down|pingpong-up|pingpong-down)$/.test(d.anim175.group.type)){
     var gg=d.anim175.group, rows=gg.h*8, sourceSize=gg.w*rows*2;
     var upper=colorMode==='sparse'?sparseBase+d.area.height*3+sparseStoredBytes:COLOR_DATA_BASE+d.colors.length;
     var groupBase=Math.max(0xa000,(upper+255)&0xff00),groupApprox=sourceSize+gg.w*gg.h*3+700;
@@ -823,6 +823,9 @@ function buildSource(d){
     // TEST239: ping-pong uses a reflected phase, not circular wrap.
     if(/^pingpong-/.test(gg.type)){
       out.push(' jsr group239_phase_tick');
+    }else if(gg.type==='down'){
+      out.push(' lda group182_phase',' sec',' sbc #$'+hex2(gg.pixels),' sta group182_phase');
+      if(rows!==256)out.push(' bcs group182_down_wrapped',' clc',' adc #$'+hex2(rows),' sta group182_phase','group182_down_wrapped');
     }else{
       out.push(' lda group182_phase',' clc',' adc #$'+hex2(gg.pixels||((gg.w===2&&gg.h===8&&gg.ticks===1)?1:2)),' sta group182_phase');
       if(rows!==256)out.push(' lda group182_phase',' cmp #$'+hex2(rows),' bcc group182_phase_done',' sec',' sbc #$'+hex2(rows),' sta group182_phase','group182_phase_done');
