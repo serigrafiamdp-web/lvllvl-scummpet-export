@@ -1,3 +1,28 @@
+## Análisis de movimiento subpixel de nueva captura PAL 50 FPS
+
+**Nueva captura:** `2026-10-23 11-10-04.mkv`; ffprobe width1920/height1080, H.264, frame rate exacto **50/1**, 808 fotogramas nominales (16.16 s). VICE x64sc configurado PAL 50fps y Speed 100% según usuario. El usuario detecta 'saltos bastante regulares' al avanzar frame por frame.
+
+Se han decodificado y medido **los primeros 520 fotogramas** (~10,4 s). Para evitar atribuciones arbitrarias por sola diferencia de color, se midió la traslación espacial de cada par de fotogramas sobre el área interior del juego (crop original x400:1510,y245:889 y escala 555×322). Mínimo de diferencias absolutas con posiciones candidatas (0,0), (-16,-17), (-31,-33), (-47,-50) en imagen reducida. Comprobación con correlación de fase en primeros 24 cuadros corroboró desplazamientos de -15.6/-16.8 para un paso y -31.1/-33.1 para dos.
+
+**Resultados en 519 transiciones:**
+
+- **407 pasos simples** (un incremento por cuadro grabado).
+- **61 imágenes repetidas** (desplazamiento 0).
+- **51 saltos dobles** (dos pasos en un único intervalo entre cuadros grabados).
+- **0 saltos triples**. El clasificador de desplazamiento no tuvo empates/ambigüedad: diferencia del mejor y segundo score siempre >=3 unidades.
+- Total ~509 pasos en 519 transiciones de 50fps, equivalente a **49.04 pasos/segundo** con ese criterio; el número no implica la tasa de commits exacta del C64 porque estamos midiendo el video.
+- Saltos dobles al inicio de la captura en frames **6,15,22,30,38,46,54,62**; separación **de 8 fotogramas en 26 ocasiones** entre los dobles registrados en los primeros 520 cuadros. Este ritmo repetitivo es compatible con desfase/replicación/omisión de cuadros en el renderizado/captura.
+- Repetidos al principio: frames **1,4,8,16,25,36,39,45,53**, etc. La secuencia de imágenes no representa un paso por cada intervalo aunque PAL y OBS estén ambos a 50fps nominales.
+
+**Hallazgo de ASM:** En el generador `TEST196`, `plan_step` con `pixels=8` y dirección Up Left decrementa `fine_x/fine_y` y **incrementa `pending_x/pending_y` exactamente una celda** (con wrap); la fase final TEST250/251 copia `pending_x/y` a `camera_x/y` solo una vez por tercer IRQ y programa el siguiente paso. No existe instrucción que sume dos celdas por un solo commit. Por eso un salto de dos posiciones en un cuadro **no equivale necesariamente a doble paso del motor**; es más probable que OBS esté mostrando el siguiente frame disponible tras omitir uno intermedio, aunque sería necesario una captura interna del emulador para probarlo definitivamente.
+
+**Limitación importante:** solo los primeros ~10.4 segundos procesados, no afirmar que las últimas 5.8 s carezcan de anomalías. Los contadores TEST256 agregan código en interrupciones y habían reportado final superior raster133 para segunda programada132 y final media225 para tercera programada218; una costura subtile sigue siendo un problema **distinto** a las duplicaciones/saltos de fotograma.
+
+**Próxima prueba de aislamiento sin tocar MASTER:** usar la grabación interna de VICE, si la versión/configuración la ofrece (`Snapshot` → `Record Media` / `Record Video`), mientras se desactiva OBS para comparar la salida por PAL frame. El manual de VICE incluye las acciones media-record-video y media-stop. Alternativamente activar sincronización de presentación y comprobar si el monitor de Windows corre a 50Hz. No asumir que seleccionar 50fps nominal en OBS sincroniza sus dos relojes.
+
+**MASTER del 23/10 permanece sin cambios.**
+
+---
 ## Archivo de vídeo recibido tras prueba TEST256 — procedencia por confirmar
 
 El usuario adjuntó un MKV llamado **2026-10-22 20-29-03.mkv** después de informar VICE al 100% y 50fps, pero el nombre/timestamp corresponde a **22 OCT 20:29**, anterior a TEST254 y TEST256. No hay indicación comprobable dentro del video de que el PRG sea TEST256.
