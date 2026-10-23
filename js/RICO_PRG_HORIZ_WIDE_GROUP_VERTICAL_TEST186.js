@@ -83,7 +83,7 @@ function collect(self){
    var prop=bankTiles[bi][ci]&&bankTiles[bi][ci].props||{};
    if(prop.animated!==undefined&&prop.animated!==null&&prop.animated!==false&&prop.animated!=='')animated.push('BANK'+(bi+1)+':'+ci);
  }
- if(animated.length)throw new Error('TEST186: animaciones individuales detectadas ('+animated.slice(0,4).join(', ')+'). Esta primera prueba horizontal solo integra Group Scroll vertical, no las omitira silenciosamente.');
+ if(animated.length&&!window.RICO_TEST260_CHAR_ANIM)throw new Error('TEST186: animaciones individuales detectadas ('+animated.slice(0,4).join(', ')+'). Esta primera prueba horizontal solo integra Group Scroll vertical, no las omitira silenciosamente.');
 
  var colors={},map=[],rawCols=[];
  for(var row=0;row<25;row++){
@@ -96,7 +96,10 @@ function collect(self){
  }
  // TEST200: multi-color horizontal map is staged offscreen and committed on swap.
  var fc=Number(Object.keys(colors)[0]),bcolor=Number(layer.getBorderColor(0))&15,bg=Number(layer.getBackgroundColor(0))&15,bank=f.charsetBank===2?2:1;
- return{map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,pixels:cfg.pixelsPerStep,ticks:cfg.ticksPerStep,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,multicolor:Object.keys(colors).length>1,border:bcolor,bg:bg,bank:bank};
+ var data={map:map,colors:rawCols,group:group,bank1:bank1,bank2:bank2,type:type,pixels:cfg.pixelsPerStep,ticks:cfg.ticksPerStep,initialX:w.x-area.x,areaWidth:area.width,srcStride:area.width*2,fg:fc,multicolor:Object.keys(colors).length>1,border:bcolor,bg:bg,bank:bank};
+ if(window.RICO_TEST260_CHAR_ANIM&&typeof window.RICO_TEST260_CHAR_ANIM.attach==='function')
+   data=window.RICO_TEST260_CHAR_ANIM.attach(this,data);
+ return data;
 }
 
 function colorSparse203(add){
