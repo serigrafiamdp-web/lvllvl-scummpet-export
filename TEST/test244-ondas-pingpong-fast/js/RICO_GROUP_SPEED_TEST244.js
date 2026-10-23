@@ -54,9 +54,9 @@ function transform(source,group){
     replacement.push('group244_shift_'+shift,a,b);
   replacement.push('group244_shift_0');
   source=one(source,original,replacement.join('\n'),'unrolled-shift-loop');
-  var oldPhase=' sta group183_byte_phase\n rts\ngroup183_source_los';
+  var oldPhase=' sta group183_byte_phase\n rts\ngroup243_fast_tile';
   source=one(source,oldPhase,' sta group183_byte_phase\n jsr group244_choose_shift\n rts\n'+
-    chooseASM()+'\ngroup183_source_los','phase-clock');
+    chooseASM()+'\ngroup243_fast_tile','phase-clock');
   return {source:source,mode:'unrolled-subpixel-shifts',
           maxOldShiftIterations:7,maxNewShiftIterations:0};
 }
