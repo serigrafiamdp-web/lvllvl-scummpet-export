@@ -54,7 +54,8 @@ function prefetch(c){
  ' ldy #$00','t252_column_loop',
  ' lda (src_lo),y',' sta buf_colchar249,y',
  ' lda (color_src_lo),y',' sta buf_colcolor249,y',
- ' iny',' cpy #$19',' bne t252_column_loop'];
+ ' iny',' cpy #$19',' bne t252_column_loop',
+ ' jmp t252_last_row'];
  var tables=[
   ['t252_col_char_lo',cl],['t252_col_char_hi',ch],
   ['t252_col_color_lo',kl],['t252_col_color_hi',kh]
@@ -62,6 +63,7 @@ function prefetch(c){
  for(var k=0;k<tables.length;k++){
   a.push(tables[k][0]);byteData(a,tables[k][1]);
  }
+ a.push('t252_last_row');
  return a.join(N)+N;
 }
 E.build=function(d){
