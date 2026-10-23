@@ -86,7 +86,7 @@ function collectAnimations175(ts,data){
   if(motion){
     var g=motion.g,w=Number(g.widthTiles),h=Number(g.heightTiles),ticks=Number(g.ticksPerFrame);
     var hasPixels=g.pixelsPerTick!==undefined && g.pixelsPerTick!==null;
-    var groupPixels=hasPixels?Number(g.pixelsPerTick):(g.type==='up'||g.type==='down'?((w===2&&h===8&&ticks===1)?1:2):4);
+    var groupPixels=hasPixels?Number(g.pixelsPerTick):(/^(up|down|pingpong-up|pingpong-down)$/.test(g.type)?((w===2&&h===8&&ticks===1)?1:2):4);
     if(!Number.isInteger(groupPixels)||groupPixels<1||groupPixels>8)
       throw new Error('TEST195: Group Animate Pixels/Tick debe estar entre 1 y 8.');
     if(!/^(up|left|right|pingpong-up|pingpong-down|pingpong-left|pingpong-right)$/.test(g.type))throw new Error('TEST183: este motor combina Map Scroll con Group Scroll Up, Left o Right. No se alterara la direccion seleccionada.');
@@ -973,8 +973,8 @@ function buildSource(d){
     out.push(' ldy #$00');out.push(hgrp.type==='pingpong-right'?' lda group183_low':' lda group183_high');out.push(' sta (group182_dest_lo),y');
     // Next raster row begins 2*width source bytes later (each row repeated
     // horizontally for wraparound). Destination charset advances one byte.
-    out.push(' clc');out.push(' lda group182_src_lo');out.push(' adc #$'+hex2((2*gw)&255));out.push(' sta group182_src_lo');
-    out.push(' lda group182_src_hi');out.push(' adc #$'+hex2((2*gw)>>8));out.push(' sta group182_src_hi');
+    out.push(' clc');out.push(' lda group182_src_lo');out.push(' adc #$'+hex2(((hgrp.type==='pingpong-right'?3:2)*gw)&255));out.push(' sta group182_src_lo');
+    out.push(' lda group182_src_hi');out.push(' adc #$'+hex2(((hgrp.type==='pingpong-right'?3:2)*gw)>>8));out.push(' sta group182_src_hi');
     out.push(' inc group182_dest_lo');out.push(' bne group183_dest_advanced');out.push(' inc group182_dest_hi');out.push('group183_dest_advanced');
     out.push(' dec group183_raster_left');out.push(' bne group183_raster_loop');
     out.push('group183_next_tile');
