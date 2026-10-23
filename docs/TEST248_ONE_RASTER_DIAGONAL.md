@@ -1,3 +1,18 @@
+## Resultado de VICE: TEST248 NO MEJORA VELOCIDAD — 22/10/2026
+
+El usuario observó "no veo mucho cambio" y adjuntó `2026-10-22 22-22-49.mkv`. Análisis directo del video fuente 1920×1080, 60 fps, 556 cuadros (9,267 s), con diferencias consecutivas de imagen y umbral estable en el área central de juego:
+- **232 cambios visuales**, equivalentes a **25,04 avances/segundo**.
+- 8 intervalos de 1 cuadro de grabación, 124 de 2 cuadros, 99 de 3 cuadros; **ninguna pausa mayor de 3 cuadros de captura**.
+- En los 8 segundos completos centrales se cuentan aproximadamente 25 cambios/s.
+- Comparación con los mismos criterios: TEST244 `19:47:14` **25,13/s**, TEST245 `19:56:52` **25,07/s**, TEST247 `21:10:41` **25,02/s**.
+- **Conclusión: NO PASS de aceleración.** Conserva la fluidez, pero el cambio a una IRQ raster única no altera la cadencia efectiva de ~25 pasos/s.
+
+Hipótesis técnica no confirmada por contadores: las transferencias de caracteres (936 copias de 8 ciclos + bordes) y Color RAM (960 copias de 8 ciclos + bordes) sumadas superan el presupuesto disponible de un cuadro PAL, sobre todo con badlines y tiempo de IRQ. No atribuir una causa única sin leer `m a020 a027` de VICE.
+
+**Estado de rama: experimento conservado y registrado, no promover a MASTER. Mejor referencia conservada: TEST244.**
+
+---
+
 # TEST248 — Unificar dos raster IRQ en uno
 
 **Estado: EXPERIMENTAL.** No es PASS de VICE. Conserva TEST244 como mejor referencia multicolor y TEST247 como optimización de caracteres sin mejora real de FPS.
