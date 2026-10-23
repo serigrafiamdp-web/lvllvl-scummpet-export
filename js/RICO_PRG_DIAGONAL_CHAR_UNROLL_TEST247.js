@@ -109,7 +109,14 @@ E.build=function(d){
  src=src.slice(0,i)+NL+stage()+src.slice(j+1);
  src=src.replace(bootStart,bootStart+NL+' jsr build_char_0408_247');
  src=src.replace(marker,bootGenerator(d)+marker);
- src+=NL+otherScreen(d);
+ // Output segments in strictly ascending PRG address order.
+ // This avoids dependence on an assembler accepting backward '*=' moves.
+ var pieces=otherScreen(d).split('*=$c341'+NL+'char_copy_0804_tail247');
+ var baseCore='*=$2000'+NL;
+ if(pieces.length!==2||src.split(baseCore).length!==2)
+  throw Error('TEST247: unable to insert ordered code segments');
+ src=src.replace(baseCore,pieces[0]+baseCore);
+ src+=NL+'*=$c341'+NL+'char_copy_0804_tail247'+pieces[1];
  info={version:247,selected:true,mode:'safe-loader-unrolled-double-screen',
   copiesPerScreen:936,estimatedCopyCycles:936*8+6+12,
   savedVsTest244CyclesApprox:4400,
