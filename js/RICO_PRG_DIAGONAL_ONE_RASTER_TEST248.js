@@ -3,7 +3,7 @@
 /* TEST248 — One raster IRQ per PAL frame, one atomic Color RAM commit.
  * TEST247 fast chars + TEST244 existing color routines UNMODIFIED.
  * Test whether waiting between raster $A0/$FA costs a full visual step.
- * Single IRQ at $68: top colors are safely shifted AFTER beam,
+ * Single IRQ at $78: top colors are safely shifted AFTER beam,
  * lower colors are shifted after the top phase, also behind beam.
  * Save color copy + swap; request next char preparation in same IRQ.
  * Counts / raster end stamp at $A020–$A027 (VICE m a020 a027).
@@ -76,11 +76,11 @@ E.build=function(d){
  s=s.slice(0,i)+NL+irqs()+s.slice(j);
  var originalRaster=' lda #$01'+NL+' sta $d01a'+NL+' lda #$fa'+NL+' sta $d012';
  s=one(s,originalRaster,
-   ' lda #$01'+NL+' sta $d01a'+NL+' lda #$68'+NL+' sta $d012');
+   ' lda #$01'+NL+' sta $d01a'+NL+' lda #$78'+NL+' sta $d012');
  var mem='*=$a100'+NL+'color_upper244';
  s=one(s,mem,metrics()+mem);
  stats={version:248,selected:true,mode:'one-irq-raster-chained-color',
-  raster:0x68,irqPerPALFrame:1,
+  raster:0x78,irqPerPALFrame:1,
   color:'unaltered TEST244 upper/lower absolute copy + incoming edges',
   characters:'unaltered TEST247 high-RAM generated fast double-screen copy',
   hardwareSafety:'increasing color address order, copying behind PAL raster',
