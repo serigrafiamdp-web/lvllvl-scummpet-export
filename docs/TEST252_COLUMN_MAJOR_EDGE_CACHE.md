@@ -1,3 +1,26 @@
+## Validación VICE reportada — 23/10/2026
+
+El usuario confirmó: «funciona, no lo veo más rápido pero va fluido» y pasó los contadores de VICE:
+
+```
+(C:$e874) m a020 a028
+>C:a020  02 60 d7 d7  00 31 00 50  01
+```
+
+- $A020 = $02: motor en fase raster tercera (lectura durante código generado en $E874).
+- $A021 = $60: contador IRQ = 96 módulo 256, no total fiable por desbordamiento.
+- $A022 = $D7: 215 commits módulo 256.
+- $A023 = $D7: 215 IRQ con CPU ocupada módulo 256.
+- $A024 = $00: 0 esperas con `prep_ready=0` y CPU libre, módulo 256.
+- $A025/$A026 = $31/$00: último commit terminó al raster **49**, el mismo registrado para TEST251.
+- $A027 = $50 firma de TEST250; $A028 = $01 versión.
+- **Resultado:** fluidez/arte correcto según usuario; **sin aceleración perceptible**. No se dispone de nuevo MKV ni medición FPS independiente para TEST252. No declarar PASS de velocidad ni promover a MASTER.
+- Atención: el final en raster 49 está gobernado principalmente por las tres franjas en IRQ; la nueva optimización solo acelera la preparación en el main loop y NO necesariamente cambia ese raster. Hay que medir `main_busy` y prep start/end para determinar si el cuello persiste; no interpretar igualdad de commits/busy como razón exacta cuando los contadores de 8 bits desbordan.
+
+**Siguiente diagnóstico recomendado:** instrumentar la CPU entre el final de fase 3, la entrada de `prep_edges249`, su salida y el primer IRQ raster a línea 86, usando marcas del VIC raster low/high en RAM y contadores de IRQ missed. Esto permitirá saber si realmente estamos cerca de entrar en 1 paso por cuadro PAL o si hacen falta cambios en la última franja y no en la preparación.
+
+---
+
 # TEST252 — Caché transpuesto de columnas (6502, CHAR + Color RAM)
 
 **Estado: experimental, sin VICE real.** Base exacta: TEST251 / TEST250 / TEST249. Referencia estable TEST244. No modificar MASTER ni raíz gh-pages.
