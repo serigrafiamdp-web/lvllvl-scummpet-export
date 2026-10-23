@@ -1,3 +1,30 @@
+## VICE real: primeras lecturas TEST256 — 23 octubre 2026
+
+Usuario confirmó VICE x64sc **Speed 100 % / 50 FPS** y prepara grabación. Lecturas de TEST256:
+
+```
+(C:$ea09) m a050 a061
+>C:a050  56 01 56 85  88 e1 e3 32  64 61 61 85  e1 32 61 61
+>C:a060  00 01
+(C:$a062) m a020 a028
+>C:a020  02 26 60 02  00 34 00 50  01
+```
+
+**Interpretación exacta (raster decimal):**
+
+- Firma A050/51 = 56 01, instrumentación TEST256 activa.
+- Fase superior: inicio A052=0x56=86; final A053=0x85=133 (vs siguiente raster programado 132).
+- Fase media: inicio A054=0x88=136; final A055=0xE1=225 (vs próximo raster programado 218).
+- Fase inferior: inicio A056=0xE3=227; final A057=0x32=50 del cuadro PAL siguiente, antes de la próxima primera IRQ a línea 86.
+- Primeras fases A058=0x64=100, fases medias A059=0x61=97, terceras A05A=0x61=97. Primera IRQ sin solicitud registrada A061=0x01=1 y busy A023=0x02=2; diferencia de 3 primeras fases coincide con esos casos iniciales. Consistencia: 100+97+97 = 294, módulo 256 = 38 = A021 0x26.
+- Retrasos A05E=0x61=97 superior y A05F=0x61=97 medio, **todos los 97 movimientos completos terminan la primera fase después de 132 y la segunda después de 218**. A060=0, fase final no alcanza raster 86 siguiente.
+- A022=0x60=96 commits módulo 256, una fase de actualización en curso (A020=0x02), lo que explica los 97 ingresos de fase inferior y 96 commits.
+
+**Conclusión:** las IRQ de las fases 2 y 3 llegan cuando todavía está ocupada la CPU con la fase previa; por eso se despachan efectivamente en raster 136 y 227, respectivamente, en vez de 132 y 218. Esto no prueba tearing, pues las escrituras están ordenadas para seguir al haz. La fase final aún deja 36 líneas PAL nominales hasta la siguiente IRQ. **No alterar todavía franjas ni la rutina gráfica sin revisar captura 100 % / 50 FPS**. El cronómetro TEST256 agrega overhead a los IRQ, de modo que el artefacto observado podría ser específico de la versión instrumentada; para calibrar, contrastar TEST254 de referencia sin instrumentar.
+
+**Siguiente prueba fundamentada** si el video de 50 FPS muestra realmente una costura: adelantar selectivamente la entrada de la fase media y/o repartir el trabajo respetando el haz, o usar una pequeña marca VIC/contadores que no añadan muchos ciclos; evaluar minuciosamente en VICE. Si video queda limpio, priorizar TEST254 intacto y atribuir el judder observado previamente a frame pacing/captura.
+
+---
 # TEST256 — Diagnóstico de sincronización raster y cadencia de captura
 
 **Estado: EXPERIMENTAL.** Parte del MASTER VIERNES 23 OCTUBRE 2026 (TEST254), sin cambiar el motor gráfico. TEST255 no se incorpora. El objetivo es calidad visual, no forzar 50 FPS.
