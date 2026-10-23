@@ -66,6 +66,7 @@ Para un mapa con grupo e individuos visibles, $CFE2, $CFE3 y $CFE4 deberían aum
 - **24 combinaciones verticales**: Up/Down × 1/4/8 px × Grupo sí/no × nativo sí/no; se aplica reparto de turnos **solo** en los seis casos que tienen ambas animaciones; cero errores de generación.
 - `attach` con tres caracteres animados usados de Bank1/Bank2 detecta correctamente tipo, dirección, ticks y dirección física de charset. Conflicto con carácter de grupo y Group no reconocido: se comprobaron errores explícitos.
 - Las 36 variantes Diagonal/Horizontal con nativas de TEST260 contienen **CFE0=60, CFE1=01 y los tres contadores**. Las nuevas instrucciones de contador agregan unos pocos ciclos de CPU y por eso no se deben comparar directamente sus FPS con un TEST sin instrumentar.
+- **24 comprobaciones de regresión sin animaciones nuevas**, comparando fuente ASM antes y después de TEST260 en cuatro diagonales, horizontales Left/Right y verticales Up/Down (1/4/8 px). **Las 24 son byte a byte idénticas** al motor TEST259/258 cuando no hay registros de animación individual ni concurrencia nueva.
 - **No hay todavía PRG probado en VICE**. Validación ASM estática no equivale a PASS de ejecución ni prueba definitiva de que el fenómeno original está resuelto.
 
 ## Prueba ordenada en VICE
