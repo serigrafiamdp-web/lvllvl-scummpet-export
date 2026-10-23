@@ -1,13 +1,26 @@
-# LVLLVL RICO — Editor C64, Map Scroll y exportación PRG
+# LVLLVL RICO — MASTER VIERNES 23 DE OCTUBRE DE 2026
 
-**MASTER LVLLVL RICO — 22 OCTUBRE 2026 · TEST228 PASS confirmado en VICE.**
+**MASTER congelado del editor y motor C64 · TEST254 — PASS de rendimiento en VICE (~47,2 avances/s).** La revisión detallada de fidelidad visual queda pendiente; la prioridad es que se vea correcto antes que perseguir los 50 Hz teóricos.
 
-- **Web actual:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/
-- **Rama activa de la web:** [gh-pages](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/gh-pages)
-- **MASTER congelado:** [MASTER_LVLLVL_RICO_22_OCTUBRE_2026](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_22_OCTUBRE_2026)
-- **ZIP del MASTER:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/MASTER_LVLLVL_RICO_22_OCTUBRE_2026.zip
+- **MASTER 23 OCT — rama fuente:** [MASTER_LVLLVL_RICO_23_OCTUBRE_2026](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_23_OCTUBRE_2026)
+- **Descargar MASTER 23 OCT — ZIP completo:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/MASTER_LVLLVL_RICO_23_OCTUBRE_2026.zip
+- **WEB aislada de la base TEST254:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test254/
+- **Guía para retomar mañana:** [MASTER_VIERNES_23_OCTUBRE_2026.md](docs/MASTER_VIERNES_23_OCTUBRE_2026.md)
+- **Detalles técnicos y medición:** [TEST254_UNROLLED_EDGES_6502.md](docs/TEST254_UNROLLED_EDGES_6502.md)
+- **Test posterior que NO integra este MASTER:** TEST255 (~47,1/s, desincronización visual percibida). Se conserva aislado en `TEST/test255/` de `gh-pages`.
+- **MASTER anterior del 22 OCT (rollback):** [MASTER_LVLLVL_RICO_22_OCTUBRE_2026](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_22_OCTUBRE_2026)
 
-> **ATENCIÓN:** `main` y `gh-pages` tienen historias divergentes. El código aprobado que ejecuta GitHub Pages es **gh-pages**. No trabajar desde `main` por accidente ni fusionarla a ciegas.
+**ATENCIÓN:** `main` y `gh-pages` divergen: `main` no es la base correcta para modificar este motor. Este branch congela el código completo derivado de TEST254; **no se han cambiado las rutinas de pantalla ni Color RAM durante la congelación**. La web de la raíz de GitHub Pages se mantiene sin reemplazar para evitar regresiones.
+
+## Evolución y estados de referencia
+
+- **22 OCT:** MASTER previo de TEST228 PASS, ampliación TEST232 PASS; optimización diagonal aún abierta.
+- **23 OCT:** TEST244–253 exploraron un scroll multicolor diagonal de 25 avances/s y localizaron el cuello de CPU.
+- **TEST254:** copias ASM de bordes desenrolladas y preparación optimizada, subida verificada por video desde ~25 a **~47,2 avances/s**.
+- **TEST255:** quitar profiler CIA y máscaras de color no aumentó FPS; se reportó una posible desincronización visual y se excluyó.
+- **Próximo objetivo:** revisar costuras raster, colores y estabilidad de pantalla sobre TEST254. No promocionar un cambio nuevo sin PASS visual.
+
+---
 
 ## Nuevas funciones incorporadas al LVLLVL original
 
@@ -95,7 +108,7 @@ Este inventario reúne las **extensiones RICO** agregadas al editor original: he
 
 **Alcance:** los modos, tamaños y optimizaciones dependen del tipo de proyecto, memoria y exportador. Las diagonales y combinaciones multiframe tienen limitaciones verificadas; TEST233 y TEST234 no se consideran mejoras consolidadas.
 
-## Estado aprobado (22/10/2026)
+## Estado del MASTER anterior (22/10/2026)
 
 | Área | Resultado |
 | --- | --- |
