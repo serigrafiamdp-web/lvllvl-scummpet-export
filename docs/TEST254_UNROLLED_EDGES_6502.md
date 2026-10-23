@@ -1,3 +1,28 @@
+## Lectura VICE TEST254 — diagnóstico de ciclo recuperado
+
+Lecturas facilitadas tras video TEST254 47,22 avances/s:
+
+```
+(C:$2758) m a030 a049
+>C:a030  53 01 d3 d4  de 44 97 8a  7a 77 37 00  53 00 35 00
+>C:a040  4c 45 d4 01  00 01 57 00  66 89
+(C:$a04a) m a020 a028
+>C:a020  00 7a d3 00  00 32 00 50  01
+```
+
+Significado:
+- $A043=$01 había solicitud; **$A044=$00 CPU libre** y **$A045=$01 preparación lista** al llegar a la **primera IRQ** de raster $57 (87). En TEST253 esa IRQ veía busy=1, ready=0. Confirma el avance decisivo en el umbral de sincronización.
+- $A023=$00 IRQ busy y $A024=$00 IRQ no-lista (ambos contador módulo 256; no afirmar cero absoluto si desbordamiento).
+- $A022=$D3 = 211 movimientos completados módulo 256; $A032=$D3 = 211 preparaciones terminadas módulo 256, $A033=$D4 = 212 solicitudes módulo 256; esto indica una solicitud adicional en curso.
+- **La medición CIA de una única preparación NO es válida en esta parada:** PC=$2758 se encuentra dentro de `prep_edges249`; la última marca de comienzo y la última marca de fin pertenecen a movimientos diferentes. A038=$7A mientras A039=$77, desiguales e incluso invertidos respecto a la secuencia temporal. A034..35=44DE y A036..37=8A97 producirían 47.687 ciclos mod 65536, un valor espurio por mezclar muestras; **no usar para deducir duración ni ahorro exacto**.
+- A03A=$37=55 raster comienzo de la preparación actualmente en marcha; A03C=$53=83 raster final de la preparación anterior, no forman par sincronizado. El último commit $A025=$32=50 raster corresponde al patrón habitual de tres franjas, intacto.
+
+**Conclusión sustentada:** El cambio de TEST254 consigue que la primera IRQ reciba la preparación lista, eliminando la espera crítica observada en TEST253. Video ya medido 584 cambios/12,383 s = **47,22 desplazamientos/s**, ~1,89× TEST244. El ritmo no demuestra 50/50 cada segundo. Mantener MASTER intacto hasta verificación visual y compatibilidad.
+
+Para medir ciclos exclusivos de la rutina, obtener un snapshot en un punto de control tras `t253_end` y antes de que comience la siguiente preparación, con A038=A039 y A032=A033, o agregar una captura atómica guardada en ISR. Recomendable también registrar máximo de ciclos y conteos sin wrap para caracterizar las 2,8 pérdidas/s restantes.
+
+---
+
 ## Validación de video real — 23/10/2026
 
 El usuario declaró «ÉXITO ROTUNDO; velocidad aproximada de la preview LVLLVL» y envió la captura real de VICE `2026-10-23 01-25-00.mkv` (duración FFprobe 12,384 s; 743 fotogramas a 60 fps, 1920×1080, H.264).
