@@ -380,7 +380,10 @@ ToPRGAdv.prototype.createPRG=function(args){
  var t=fr&&fr.ricoMapScrollV1&&fr.ricoMapScrollV1.type;
  if(!DIRECTIONS[t])return previous.apply(this,arguments);
  try{
-  var data=collect(this),source=window.RICO_TEST196_DIAGONAL.build(data),prg=assemble(this,source);
+  var data=collect(this);
+  if(window.RICO_TEST260_CHAR_ANIM&&typeof window.RICO_TEST260_CHAR_ANIM.attach==='function')
+    data=window.RICO_TEST260_CHAR_ANIM.attach(this,data);
+  var source=window.RICO_TEST196_DIAGONAL.build(data),prg=assemble(this,source);
   this.prg=prg;args=args||{};
   if(args.download===false)return prg;
   var name=args.filename||'rico-diagonal-test203.prg';
