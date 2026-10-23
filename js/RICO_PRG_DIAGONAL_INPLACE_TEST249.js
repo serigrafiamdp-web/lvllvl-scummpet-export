@@ -186,7 +186,7 @@ E.build=function(d){
  stat={version:249,selected:true,mode:'single-screen-in-place-char-color',
   rasterStart:96,source:'Oscar64 cgrid8way.c + colorram.c (adaptation)',
   copies:936,colorCopies:936,precomputedEdgeBytes:130,
-  screen:'$0400',colorRAM:'$d800',shadow:$02,
+  screen:'$0400',colorRAM:'$d800',shadow:'not used',
   buffers:'$1f00-$1f81',staticCode:'$1000-$1ea2',
   generatedCode:'$e000-$fd40 runtime only',
   colorScroller:'NO double buffer or screen swap',
