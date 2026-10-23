@@ -89,6 +89,11 @@ function stage(){
 E.build=function(d){
  var src=previous(d),b=window.RICO_TEST244_LAST_BUILD||{};
  var info={version:247,selected:false,reason:'no eligible TEST244 upward raster path'};
+ // Native PSID wrappers may reserve $1000 or $E000. Never use these
+ // extra code banks while a SID is selected; preserve TEST244 verbatim.
+ var sid=window.RICO_TEST207_ORIGINAL_SID&&window.RICO_TEST207_ORIGINAL_SID.getState&&window.RICO_TEST207_ORIGINAL_SID.getState();
+ if(sid&&sid.enabled){info.reason='SID selected: preserve TEST244 engine';
+   window.RICO_TEST247_LAST_BUILD=info;return src;}
  if(!d||!b.selected||b.mode!=='two-stage-raster-direct-color'||
      d.uniformColor||d.group||!d.fastRows||!d.dir||d.dir.y!==-1){
   window.RICO_TEST247_LAST_BUILD=info;return src;
@@ -109,9 +114,9 @@ E.build=function(d){
   copiesPerScreen:936,estimatedCopyCycles:936*8+6+12,
   savedVsTest244CyclesApprox:4400,
   highCode:'generated ONCE at start in RAM $E000-$F5F0, not PRG file',
-  embeddedCode:'$1000-$1EA2 and $C341-$CAA1, below IO',
+  embeddedCode:'$1000-$1EA2 and $C341-$CA91, below IO',
   colorIRQ:'unchanged TEST244 two-stage $A0/$FA',
-  unchanged:'BANK1, BANK2, SID-reserved B000-B7FF, nonupward directions, Group Animate',
+  unchanged:'BANK1, BANK2, nonupward directions, Group Animate; SID requests return TEST244',
   needsRealVICE:true};
  window.RICO_TEST247_LAST_BUILD=info;
  console.log('[TEST247 SAFE CHAR UNROLL]',info);
