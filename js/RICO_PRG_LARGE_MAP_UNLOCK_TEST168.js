@@ -89,7 +89,7 @@ function collectAnimations175(ts,data){
     var groupPixels=hasPixels?Number(g.pixelsPerTick):(g.type==='up'||g.type==='down'?((w===2&&h===8&&ticks===1)?1:2):4);
     if(!Number.isInteger(groupPixels)||groupPixels<1||groupPixels>8)
       throw new Error('TEST195: Group Animate Pixels/Tick debe estar entre 1 y 8.');
-    if(g.type!=='up'&&g.type!=='left'&&g.type!=='right')throw new Error('TEST183: este motor combina Map Scroll con Group Scroll Up, Left o Right. No se alterara la direccion seleccionada.');
+    if(!/^(up|left|right|pingpong-up|pingpong-down|pingpong-left|pingpong-right)$/.test(g.type))throw new Error('TEST183: este motor combina Map Scroll con Group Scroll Up, Left o Right. No se alterara la direccion seleccionada.');
     if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>256||h>32||!Array.isArray(g.cells)||g.cells.length!==w*h)
       throw new Error('TEST182: Group Scroll debe ser un rectangulo completo de caracteres distintos, maximo 256 tiles.');
     if(!Number.isInteger(ticks)||ticks<1||ticks>255)throw new Error('TEST182: ticks del Group Scroll deben estar entre 1 y 255.');
@@ -786,7 +786,7 @@ function buildSource(d){
   }
   // TEST182: group's immutable double-length source is placed after color
   // tables, NEVER over the map, charsets, or dynamic raster screen buffers.
-  if(d.anim175&&d.anim175.group&&d.anim175.group.type==='up'){
+  if(d.anim175&&d.anim175.group&&/^(up|pingpong-up|pingpong-down)$/.test(d.anim175.group.type)){
     var gg=d.anim175.group, rows=gg.h*8, sourceSize=gg.w*rows*2;
     var upper=colorMode==='sparse'?sparseBase+d.area.height*3+sparseStoredBytes:COLOR_DATA_BASE+d.colors.length;
     var groupBase=Math.max(0xa000,(upper+255)&0xff00),groupApprox=sourceSize+gg.w*gg.h*3+700;
@@ -808,6 +808,7 @@ function buildSource(d){
     out.push('group182_pending');out.push('!byte $00');
     out.push('group182_active');out.push('!byte $00');
     out.push('group182_phase');out.push('!byte $00');
+    if(/^pingpong-/.test(gg.type)){out.push('group239_phase_hi');out.push('!byte $00');out.push('group239_direction');out.push('!byte $00');}
     out.push('group182_column');out.push('!byte $00');
     out.push('group182_tile_index');out.push('!byte $00');
     out.push('group182_col_src_lo');out.push('!byte $00');
@@ -819,23 +820,22 @@ function buildSource(d){
     out.push('group182_dest_hi=$38');
     out.push('group182_step');
     out.push(' lda group182_active');out.push(' bne group182_continue');
-    // TEST195: 1..8 pixels per group tick, preserving legacy default speed.
-    out.push(' lda group182_phase');
-    out.push(' clc');
-    out.push(' adc #$'+hex2(gg.pixels||((gg.w===2&&gg.h===8&&gg.ticks===1)?1:2)));
-    out.push(' sta group182_phase');
-    if(rows!==256){
-      out.push(' lda group182_phase');out.push(' cmp #$'+hex2(rows));
-      out.push(' bcc group182_phase_done');out.push(' sec');
-      out.push(' sbc #$'+hex2(rows));out.push(' sta group182_phase');
-      out.push('group182_phase_done');
+    // TEST239: ping-pong uses a reflected phase, not circular wrap.
+    if(/^pingpong-/.test(gg.type)){
+      out.push(' jsr group239_phase_tick');
+    }else{
+      out.push(' lda group182_phase',' clc',' adc #$'+hex2(gg.pixels||((gg.w===2&&gg.h===8&&gg.ticks===1)?1:2)),' sta group182_phase');
+      if(rows!==256)out.push(' lda group182_phase',' cmp #$'+hex2(rows),' bcc group182_phase_done',' sec',' sbc #$'+hex2(rows),' sta group182_phase','group182_phase_done');
     }
     out.push(' lda #$01');out.push(' sta group182_active');
     out.push(' lda #$00');out.push(' sta group182_column');
     out.push('group182_continue');
     out.push(' ldx group182_column');
-    out.push(' lda group182_sources_lo,x');out.push(' clc');out.push(' adc group182_phase');out.push(' sta group182_src_lo');
-    out.push(' lda group182_sources_hi,x');out.push(' adc #$00');out.push(' sta group182_src_hi');
+    if(gg.type==='pingpong-down'){
+      out.push(' lda group182_sources_lo,x',' sec',' sbc group182_phase',' sta group182_src_lo',' lda group182_sources_hi,x',' sbc #$00',' sta group182_src_hi');
+    }else{
+      out.push(' lda group182_sources_lo,x',' clc',' adc group182_phase',' sta group182_src_lo',' lda group182_sources_hi,x',' adc #$00',' sta group182_src_hi');
+    }
     // multiply column index by group height (const), at most 256 total tiles
     out.push(' lda #$00');out.push(' sta group182_tile_index');
     out.push(' txa');out.push(' tax');
@@ -866,6 +866,7 @@ function buildSource(d){
     out.push(' lda #$00');out.push(' sta group182_active');
     out.push(' dec group182_pending');
     out.push('group182_step_done');out.push(' rts');
+    if(/^pingpong-/.test(gg.type))group239PhaseASM(out,rows-1,gg.pixels,false);
     out.push('group182_sources_lo');
     // Symbolic low/high tables are NOT supported in LVLLVL !byte; calculate exact
     // sources from the concrete code-size address later? Instead use absolute
@@ -875,7 +876,7 @@ function buildSource(d){
     // of varying assembler instruction lengths via a second * directive.
     var sourceBase=(groupBase+0x0800+255)&0xff00;
     var pos=sourceBase,los=[],his=[];
-    for(var col=0;col<gg.w;col++){los.push(pos&255);his.push((pos>>8)&255);pos+=rows*2;}
+    for(var col=0;col<gg.w;col++){var ptr=pos+(gg.type==='pingpong-down'?rows:0);los.push(ptr&255);his.push((ptr>>8)&255);pos+=rows*2;}
     emitBytes(out,los);
     out.push('group182_sources_hi');emitBytes(out,his);
     out.push('group182_dest_los');emitBytes(out,gg.addresses.map(function(addr){return addr&255}));
@@ -883,18 +884,18 @@ function buildSource(d){
     out.push('group182_protected');emitBytes(out,gg.protection);
     out.push('*=$'+('0000'+sourceBase.toString(16)).slice(-4));
     out.push('group182_original_sources');
-    gg.columns.forEach(function(col){emitBytes(out,col)});
+    gg.columns.forEach(function(col){var original=col.slice(0,rows),empty=Array(rows).fill(0);emitBytes(out,gg.type==='pingpong-up'?original.concat(empty):gg.type==='pingpong-down'?empty.concat(original):col)});
     if(pos>0xd000)throw new Error('TEST182: datos del Group Scroll invaden memoria de I/O; reducir el grupo o area de mapa.');
   }
   // TEST183 horizontal group compositor: pixels wrap across glyph boundaries.
   // Unlike Map Scroll, the pointers target only charset RAM (BANK1 or BANK2).
   // Work is one 8x8 tile per main-loop iteration, allowing the map to prepare
   // its next screen before any further animation work is scheduled.
-  if(d.anim175&&d.anim175.group&&/^(left|right)$/.test(d.anim175.group.type)){
+  if(d.anim175&&d.anim175.group&&/^(left|right|pingpong-left|pingpong-right)$/.test(d.anim175.group.type)){
     var hgrp=d.anim175.group, gw=hgrp.w, gh=hgrp.h, total=gw*gh;
     var sbaseRaw=(colorMode==='sparse'?sparseBase+d.area.height*3+sparseStoredBytes:COLOR_DATA_BASE+d.colors.length);
     var hcodeBase=Math.max(0xa000,(sbaseRaw+255)&0xff00),hdataBase=(hcodeBase+0x0800+255)&0xff00;
-    var dataLength=gw*gh*16; // each horizontal scanline is two copies of w chars
+    var dataLength=gw*gh*(hgrp.type==='pingpong-right'?24:16); // clipped right requires leading zero padding
     if(hdataBase+dataLength>0xd000)throw new Error('TEST183: Group Scroll horizontal excede RAM segura; no se exportara parcialmente.');
     out.push('*=$'+('0000'+hcodeBase.toString(16)).slice(-4));
     out.push('; TEST183 independent horizontal group scroll '+hgrp.type+' with pixel wrap');
@@ -908,6 +909,7 @@ function buildSource(d){
     out.push('group182_pending');out.push('!byte $00');
     out.push('group182_active');out.push('!byte $00');
     out.push('group182_tile_index');out.push('!byte $00');
+    if(/^pingpong-/.test(hgrp.type)){out.push('group182_phase');out.push('!byte $00');out.push('group239_phase_hi');out.push('!byte $00');out.push('group239_direction');out.push('!byte $00');}
     out.push('group183_byte_phase');out.push('!byte $00');
     out.push('group183_bit_phase');out.push('!byte $00');
     out.push('group183_shift_count');out.push('!byte $00');
@@ -924,8 +926,11 @@ function buildSource(d){
     // against TEST184 2px and document the emergent Waves effect.
     // Only the immediate step differs in the generated PRG; one tile per
     // main-loop iteration still limits how fast a complete phase appears.
+    if(/^pingpong-/.test(hgrp.type)){
+      out.push(' jsr group239_phase_tick');
+    }else{
     var step=hgrp.pixels||4;
-    if(hgrp.type==='left'){
+    if(hgrp.type==='left'||hgrp.type==='pingpong-left'){
       out.push(' lda group183_bit_phase');out.push(' clc');out.push(' adc #$'+hex2(step));
       out.push(' cmp #$08');out.push(' bcc group183_left_no_carry');
       out.push(' sbc #$08');out.push(' pha');
@@ -942,6 +947,7 @@ function buildSource(d){
       out.push('group183_right_byte_done');out.push(' pla');
       out.push('group183_right_no_borrow');out.push(' sta group183_bit_phase');
     }
+    }
     out.push(' lda #$01');out.push(' sta group182_active');
     out.push(' lda #$00');out.push(' sta group182_tile_index');
     out.push('group183_copy_next');
@@ -949,8 +955,11 @@ function buildSource(d){
     out.push(' lda group182_protected,x');out.push(' bne group183_next_tile');
     out.push(' lda group182_dest_los,x');out.push(' sta group182_dest_lo');
     out.push(' lda group182_dest_his,x');out.push(' sta group182_dest_hi');
-    out.push(' lda group183_source_los,x');out.push(' clc');out.push(' adc group183_byte_phase');out.push(' sta group182_src_lo');
-    out.push(' lda group183_source_his,x');out.push(' adc #$00');out.push(' sta group182_src_hi');
+    if(hgrp.type==='pingpong-right'){
+      out.push(' lda group183_source_los,x',' sec',' sbc group183_byte_phase',' sta group182_src_lo',' lda group183_source_his,x',' sbc #$00',' sta group182_src_hi');
+    }else{
+      out.push(' lda group183_source_los,x',' clc',' adc group183_byte_phase',' sta group182_src_lo',' lda group183_source_his,x',' adc #$00',' sta group182_src_hi');
+    }
     out.push(' lda #$08');out.push(' sta group183_raster_left');
     out.push('group183_raster_loop');
     out.push(' ldy #$00');out.push(' lda (group182_src_lo),y');out.push(' sta group183_high');
@@ -958,10 +967,10 @@ function buildSource(d){
     out.push(' lda group183_bit_phase');out.push(' sta group183_shift_count');
     out.push(' beq group183_no_shift');
     out.push('group183_bit_loop');
-    out.push(' asl group183_low');out.push(' rol group183_high');
+    if(hgrp.type==='pingpong-right')out.push(' lsr group183_high',' ror group183_low');else out.push(' asl group183_low',' rol group183_high');
     out.push(' dec group183_shift_count');out.push(' bne group183_bit_loop');
     out.push('group183_no_shift');
-    out.push(' ldy #$00');out.push(' lda group183_high');out.push(' sta (group182_dest_lo),y');
+    out.push(' ldy #$00');out.push(hgrp.type==='pingpong-right'?' lda group183_low':' lda group183_high');out.push(' sta (group182_dest_lo),y');
     // Next raster row begins 2*width source bytes later (each row repeated
     // horizontally for wraparound). Destination charset advances one byte.
     out.push(' clc');out.push(' lda group182_src_lo');out.push(' adc #$'+hex2((2*gw)&255));out.push(' sta group182_src_lo');
@@ -975,10 +984,11 @@ function buildSource(d){
     out.push(' lda #$00');out.push(' sta group182_active');
     out.push(' dec group182_pending');
     out.push('group183_step_done');out.push(' rts');
+    if(/^pingpong-/.test(hgrp.type))group239PhaseASM(out,gw*8-1,hgrp.pixels,true);
     // Source pointers point into the immutable doubled raster data.
     var sourceLos=[],sourceHis=[];
     for(var cx2=0;cx2<gw;cx2++)for(var cy2=0;cy2<gh;cy2++){
-      var address183=hdataBase+cy2*8*(gw*2)+cx2;
+      var address183=hdataBase+cy2*8*(gw*(hgrp.type==='pingpong-right'?3:2))+cx2+(hgrp.type==='pingpong-right'?gw-1:0);
       sourceLos.push(address183&255);sourceHis.push((address183>>8)&255);
     }
     out.push('group183_source_los');emitBytes(out,sourceLos);
@@ -996,10 +1006,34 @@ function buildSource(d){
         for(var bit=0;bit<8;bit++)if(px[(ry%8)*8+bit])mask|=1<<(7-bit);
         rowBytes.push(mask);
       }
-      emitBytes(out,rowBytes.concat(rowBytes));
+      emitBytes(out,hgrp.type==='pingpong-left'?rowBytes.concat(Array(gw).fill(0)):hgrp.type==='pingpong-right'?Array(gw).fill(0).concat(rowBytes,Array(gw).fill(0)):rowBytes.concat(rowBytes));
     }
   }
   return out.join('\n');
+}
+
+// TEST239: 16-bit reflected pixel phase with independent speed and direction.
+function group239PhaseASM(out,limit,speed,horizontal){
+  out.push('group239_phase_tick',' ldx #$'+hex2(speed),'group239_phase_next',
+   ' lda group239_direction',' bne group239_reverse',
+   ' lda group239_phase_hi',' cmp #$'+hex2(limit>>8),' bne group239_forward',
+   ' lda group182_phase',' cmp #$'+hex2(limit&255),' bne group239_forward',
+   ' lda #$01',' sta group239_direction',' jmp group239_reverse',
+   'group239_forward',' inc group182_phase',' bne group239_cycle_done',
+   ' inc group239_phase_hi',' jmp group239_cycle_done',
+   'group239_reverse',' lda group239_phase_hi',' bne group239_decrement',
+   ' lda group182_phase',' bne group239_decrement',
+   ' lda #$00',' sta group239_direction',' jmp group239_forward',
+   'group239_decrement',' lda group182_phase',' bne group239_dec_low',
+   ' dec group239_phase_hi','group239_dec_low',' dec group182_phase',
+   'group239_cycle_done',' dex',' bne group239_phase_next');
+  if(horizontal){
+    out.push(' lda group182_phase',' and #$07',' sta group183_bit_phase',
+      ' lda group182_phase',' lsr',' lsr',' lsr',' sta group183_byte_phase',
+      ' lda group239_phase_hi',' asl',' asl',' asl',' asl',' asl',
+      ' ora group183_byte_phase',' sta group183_byte_phase');
+  }
+  out.push(' rts');
 }
 
 function assemblePRG(self,source){
