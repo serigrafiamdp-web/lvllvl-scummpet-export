@@ -1,3 +1,19 @@
+## Resultado de la prueba VICE — 22 de octubre de 2026
+
+El usuario confirmó: **funciona fluido, pero cree que mantiene la velocidad anterior**. Se analizó la captura real `2026-10-22 21-10-41.mkv` (12,55 segundos, fuente 60 fps, 1920×1080). Comparación de cambio de imagen, umbral estable de diferencias:
+
+| Captura | Avances detectados/s |
+| --- | ---: |
+| TEST244 (19:47) | 25,13 |
+| TEST245 (19:56:52) | 25,07 |
+| TEST246 (20:29) | 25,02 |
+| **TEST247 (21:10:41)** | **25,02** |
+
+TEST247: 314 cambios visuales detectados en 12,55 segundos, intervalos principalmente 2–3 cuadros capturados, sin pausas prolongadas. **PASS provisional de fluidez visual; NO PASS de mejora de velocidad.** La optimización por código desenrollado reduce las operaciones de copia pero **no supera el ritmo observado de ~25 pasos/s**. Esto indica que el cuello podría estar en el protocolo de programación del movimiento y sus dos interrupciones raster, no solamente en la copia de caracteres. No declarar límite físico definitivo de C64 sin otra prueba.
+
+No promocionar a MASTER. Mantener TEST244 como referencia y TEST247 como prueba de fluidez y arquitectura.
+
+---
 # TEST247 — Diagonal direct-color + código desenrollado de caracteres
 
 **Base:** TEST244 `release/test244-direct-color-raster`, nuestro mejor candidato multicolor (TEST245 sin mejora medible, TEST242/243 FAIL). **Experimental; pendiente de VICE.** MASTER y root de gh-pages intactos.
