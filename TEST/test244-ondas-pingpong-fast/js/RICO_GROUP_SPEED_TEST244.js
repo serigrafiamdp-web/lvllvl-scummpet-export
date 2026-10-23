@@ -33,6 +33,18 @@ function transform(source,group){
   }
   if(source.indexOf('group243_fast_tile')<0)
     return {source:source,mode:'TEST242-fallback'};
+  // Also accelerate the aligned-byte copy when a full LUT does not fit.
+  var oldCopy=[' ldy #$00','group243_copy8',
+    ' lda (group182_src_lo),y',' sta (group182_dest_lo),y',
+    ' iny',' cpy #$08',' bne group243_copy8',
+    ' jmp group183_next_tile'].join('\n');
+  var copy=[' ldy #$00'];
+  for(var ci=0;ci<8;ci++){
+    copy.push(' lda (group182_src_lo),y',' sta (group182_dest_lo),y');
+    if(ci!==7)copy.push(' iny');
+  }
+  copy.push(' jmp group183_next_tile');
+  source=one(source,oldCopy,copy.join('\n'),'aligned copy8');
   // Every 8-pixel step initially lands on a byte boundary. Reversing at
   // width*8-1 yields phase=7 modulo 8. The old path shifts every row 7 times!
   // Instead choose the exact number of unrolled shifts just once per phase.
