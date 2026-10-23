@@ -1,3 +1,16 @@
+## Archivo de vídeo recibido tras prueba TEST256 — procedencia por confirmar
+
+El usuario adjuntó un MKV llamado **2026-10-22 20-29-03.mkv** después de informar VICE al 100% y 50fps, pero el nombre/timestamp corresponde a **22 OCT 20:29**, anterior a TEST254 y TEST256. No hay indicación comprobable dentro del video de que el PRG sea TEST256.
+
+Datos verificados con ffprobe/OpenCV: **1920×1080, H.264, 60 fotogramas/s de grabación, duración 11,35 segundos, 681 fotogramas decodificados.** El juego muestra aproximadamente **293 cambios visuales** con umbrales de diferencia media 4..12 (≈25,8 cambios/s), lejos de TEST254 (~47,16/s) y TEST255 (~47,13/s) medidos en capturas anteriores.
+
+**IMPORTANTE:** No deducir que TEST256 perdió rendimiento ni que sus fases raster estén incorrectas basándose solo en este archivo: probablemente es una captura anterior adjuntada por error, o un fragmento de una prueba distinta. Los registros VICE auténticos de TEST256 ($A050=56, etc.) sí confirman que el módulo diagnóstico arrancó y que sus franjas superior/media acababan un poco tarde; la captura aportada no ha sido asociada a ese PRG.
+
+Acción siguiente: verificar que se ejecuta en VICE el PRG exportado desde TEST256 y adjuntar una nueva captura con fecha posterior a su generación (preferiblemente incluir brevemente indicador Speed 100%, PAL). Si VICE dice 50 FPS, eso no significa que el MKV tenga 50 FPS: este MKV registra a 60 FPS. Distinguir ambas tasas.
+
+**MASTER 23 OCT conservado**, no modificar a partir de una medición de procedencia no confirmada.
+
+---
 ## VICE real: primeras lecturas TEST256 — 23 octubre 2026
 
 Usuario confirmó VICE x64sc **Speed 100 % / 50 FPS** y prepara grabación. Lecturas de TEST256:
