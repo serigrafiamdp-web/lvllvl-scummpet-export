@@ -1,3 +1,24 @@
+## Validación de video real — 23/10/2026
+
+El usuario declaró «ÉXITO ROTUNDO; velocidad aproximada de la preview LVLLVL» y envió la captura real de VICE `2026-10-23 01-25-00.mkv` (duración FFprobe 12,384 s; 743 fotogramas a 60 fps, 1920×1080, H.264).
+
+Se analizó **cada fotograma** con OpenCV: diferencia media absoluta de imagen en región de juego 350:1670 × 250:1000, gris reducido a 240×124, umbral >5. Se contrastó con otros tres ROI; todos dieron exactamente **584 cambios visuales**, sin falso cambio por parpadeo:
+
+| Captura | Duración | Cambios | Desplazamientos/s |
+|---|---:|---:|---:|
+| TEST244 2026-10-22 19-47-14.mkv | 9,067 s | 227 | 25,04 |
+| TEST248 2026-10-22 22-22-49.mkv | 9,267 s | 232 | 25,04 |
+| TEST249 2026-10-22 23-05-40.mkv | 10,55 s | 264 | 25,02 |
+| **TEST254 2026-10-23 01-25-00.mkv** | **12,383 s** | **584** | **47,22** |
+
+**Mejora: 1,886× (+88,6 %) frente a ~25,04/s**, alcanzando 94,4 % del objetivo de 50 movimientos/s PAL. El resultado es medido en una captura de VICE; no equivale a demostrar una frecuencia de IRQ constante de 50 Hz ni descarta artefactos que el vídeo no permita detectar.
+
+Estabilidad temporal: por segundos enteros del clip (0–11 s): **46, 46, 47, 44, 47, 50, 48, 47, 48, 48, 48, 46 cambios/s**. Intervalos entre cambios en captura: 427 de 1 cuadro, 155 de 2 cuadros y **1 de 3 cuadros** (7,82 s aproximadamente). Un par de cuadros de idéntica apariencia es esperable por muestreo 60 Hz sobre movimiento <60 Hz; el único intervalo de 3 cuadros sugiere un retraso aislado, todavía sin atribución precisa a CPU/VICE/captura. No se detectaron largas pausas. Imágenes representativas parecen gráficamente consistentes; falta revisión exhaustiva de costuras si se busca pixel-perfect.
+
+**Estado: PASS DE ACELERACIÓN y funcionamiento visual reportado.** No promover todavía a MASTER: el usuario señaló que el movimiento es muy rápido y visualmente «bastante correcto», sin certificar aún ausencia de glitches. Para el siguiente control, solicitar VICE `m a030 a049` y `m a020 a028` del TEST254, comparar ciclos CIA de preparación contra TEST253, y medir en hardware/emulador PAL estable si se pretende fijar un techo real de ~50/s.
+
+---
+
 # TEST254 — Copias de bordes 6502 totalmente desenrolladas (con CIA1 de TEST253)
 
 **Estado: experimental pendiente de VICE.** Conserva todo lo funcional de TEST252, las tres franjas raster de TEST251 (86/132/218) y el cronómetro de TEST253. Solo optimiza la preparación de los 25 caracteres+colores de columna y 40 caracteres+colores de última fila. **MASTER no modificado.**
