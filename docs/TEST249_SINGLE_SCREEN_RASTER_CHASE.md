@@ -1,3 +1,21 @@
+## Resultado VICE: TEST249 — 22/10/2026
+
+El usuario probó el PRG TEST249 en VICE y confirmó: **«aún lo veo igual; aún no hay errores; lo veo bien»**, adjuntando `2026-10-22 23-05-40.mkv`.
+
+Análisis de imagen a 60 fps, ROI de mapa y umbral de diferencias >4 unidades medias:
+- Archivo de **10,55 s** (~634 cuadros capturados).
+- **264 avances visuales detectados** = **24,98 avances/s** según duración del flujo de video decodificado (≈25 fps).
+- Referencias medidas con el mismo método: TEST244 ≈24,95/s, TEST247 ≈24,95/s, TEST248 ≈24,99/s.
+- Sin pausas prolongadas: intervalos de movimiento capturado fundamentalmente de 2 o 3 cuadros (con artefactos de captura aislados).
+- Visualmente el arte y los colores aparecen estables en cuadros inspeccionados; el análisis de movimiento no constituye verificación exhaustiva de ausencia de tearing.
+- **PASS provisional de estabilidad visual; FAIL para objetivo de aceleración.** No promover a MASTER.
+
+**Nota de implementación importante:** Aunque el enfoque utiliza una única pantalla in-place, TEST249 aún ejecuta las 8 filas superiores y las 16 inferiores **en una sola interrupción**, encadenadas. Por lo tanto, no ensaya todavía las **tres franjas temporizadas detrás del raster** descritas por Oscar64. Para la próxima arquitectura hay que medir y separar realmente tres fases, preservando bordes y arte, no repetir la copia monolítica de 936 caracteres y 936 colores.
+
+**Referencia conservada:** TEST244.
+
+---
+
 # TEST249 — Single-screen diagonal, Color RAM + caracteres en el mismo recorrido
 
 **Estado: EXPERIMENTAL, pendiente de PRG real en VICE.** No declarar PASS ni acelerar el MASTER sin validación del usuario.
