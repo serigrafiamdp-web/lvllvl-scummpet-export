@@ -1,3 +1,36 @@
+## Video y monitor reales de TEST255 — 23/10/2026
+
+**Estado:** TEST255 ejecuta y exporta; firma y monitor correctos. Usuario comenta «va muy rápido, pareciera haber una pequeña desincronización o algo raro en un momento». No promover a MASTER por esta observación sin certificar integridad visual.
+
+Grabación proporcionada: `2026-10-23 01-44-08.mkv`, duración FFprobe 22,650 s, video H264 1920×1080 a 60 FPS, 1360 fotogramas decodificados (22,667s de 60fps nominal).
+
+**Medición idéntica al experimento TEST254:** diferencia absoluta media de fotogramas consecutivos en ROI del juego `crop=1320:750:350:250;scale=240:124`, umbral >5. Se repitió el conteo con umbrales 3/4/5/6/8/10/12, todos detectan exactamente 1.066 cambios de pantalla => **47,064 avances/segundo** en el tiempo real de la grabación. TEST254: 584 cambios en 744 fotogramas (12,40 s) => 47,16/s (valor previo registrado ≈47,22/s por usar FFprobe duration 12,383s). **La diferencia TEST254→255 está dentro de ruido de medición; no hay ganancia demostrada de FPS.**
+
+Ritmo en segundos sucesivos del TEST255:
+`45,47,48,48,48,48,44,49,48,47,45,47,49,48,42,49,48,49,47,48,47,47`, último segundo parcial 28 movimientos. La menor cadencia (~42) ocurre alrededor del segundo 14. No hay congelamiento apreciable de varios fotogramas dentro del video: 775 intervalos de 1 cuadro, 289 intervalos de 2 cuadros y un intervalo de 4 cuadros al FINAL del archivo (t=22,65). Durante la animación ningún intervalo supera 2 fotogramas de 60Hz. Esto permite percibir irregularidad leve aunque no evidencia un fallo interno específico.
+
+**Revisión por franjas (40×25 mapa) en video:** análisis diferenciado de primeros 4 renglones / siguientes 8 / últimos 12-13 del área visible. A umbrales 5/8/12 de cambio medio, los 1.066 avances de TEST255 registraron cambios simultáneos en las tres franjas, sin ningún avance que actualice una franja completa sola. Comparación TEST254: todos los 584 cambios también sincronizados en franjas. Un artefacto sub-raster, glitch de píxeles o evento no resuelto a 60fps siguen siendo posibles; hay que mirar el frame donde el usuario percibe el problema.
+
+Monitor TEST255 recibido:
+
+```
+(C:$14d7) m a020 a028
+>C:a020  00 b6 3c 00  00 31 00 50  01
+(C:$a029) m a030 a032
+>C:a030  55 01 03
+```
+
+- $A030..$A032 = `55 01 03`: modo rápido TEST255 confirmado.
+- $A020=$00 fase inicial; $A021=$B6=182 IRQ mod256; $A022=$3C=60 commits mod256.
+- **3×commits =180; IRQs=182 = 3×60+2 (mod256)**. Prueba de coherencia con las 3 interrupciones raster por movimiento y sólo dos interrupciones extra en el residuo; apoya **casi una actualización por frame PAL emulado**, sin esperas detectadas.
+- $A023=$00 (main_busy) y $A024=$00 (espera no lista), contadores mod256; no afirmar que el total jamás superó 255.
+- $A025=$31=49 último commit raster; igual que TEST251/252.
+- Considerando el ritmo visual de ~47/s real y el resultado de contadores, **es plausible** que VICE/recorder estuvieran funcionando a ~94% del ritmo PAL real de 50Hz, pero esto **no está medido directamente**. Para confirmarlo revisar en VICE indicador Speed %, activar PAL, Warp OFF, y grabar sin pérdida de rendimiento. Las discrepancias de conteo/tasa también pueden provenir del muestreo o alteraciones externas de emulación/captura.
+
+**Decisión:** NO promover TEST255 a MASTER. TEST254 permanece como referencia con vídeo exitoso. Si se ve una costura o salto específico, investigar su fotograma/cadena de raster y potencialmente aplicar una limitación de una actualización por frame con sincronización explícita, no suponer que otro micro-optimizador mejore FPS.
+
+---
+
 # TEST255 — Candidato a 50 avances/s PAL: 6502 fast path sin profiler CIA
 
 **Estado: EXPERIMENTAL, pendiente de prueba real en VICE.** Deriva de TEST254, validado por vídeo a **47,22 avances/s**. No tocar MASTER ni las versiones TEST244, TEST251, TEST254.
