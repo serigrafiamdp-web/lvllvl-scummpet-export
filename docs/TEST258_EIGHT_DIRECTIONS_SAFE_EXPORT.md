@@ -37,9 +37,9 @@ Se elimina la dependencia artificial de la ruta veloz en la elección del movimi
 
 ## Validaciones
 
-- **160 combinaciones diagonales**: 4 direcciones × 5 velocidades (1,2,4,7,8) × 2 bancos × colores mono/multi × anchuras 45/55. **8 casos** conservan TEST257 optimizado bit a bit; **24 casos 8px** reciben exactamente una eliminación de `JSR` del commit; **128 configuraciones** de 1..7px quedan byte a byte iguales a TEST257. 0 discrepancias.
+- **256 combinaciones diagonales**: 4 direcciones × 8 velocidades (1,2,3,4,5,6,7,8) × 2 bancos × colores mono/multi × anchuras 45/55. **8 casos** conservan TEST257 optimizado bit a bit; **24 casos 8px** reciben exactamente una eliminación de `JSR` del commit; **224 configuraciones** de 1..7px quedan byte a byte iguales a TEST257. 0 discrepancias.
 - **32 configuraciones cardinales**: Up,Down,Left,Right × 8 velocidades (1..8). Los cuatro casos 8px generan un ASM con exactamente una llamada redundante menos, 28 casos parciales generan ASM idéntico. 0 discrepancias.
-- **Total 192 casos de generación ASM**, verificando que cada modificación sea una sola eliminación del `JSR` correcto, y manteniendo las instrucciones de inicialización VIC.
+- **Total 288 casos de generación ASM**, verificando que cada modificación sea una sola eliminación del `JSR` correcto, y manteniendo las instrucciones de inicialización VIC.
 - No se cambian moldería/glyph, charsets, índices reales de tiles, colores del mapa ni máscaras, colores C64 0..15, 936 pares en fast diagonal ni posiciones raster 86/132/218.
 - Los nuevos cambios no incluyen la instrumentación adicional de TEST256. En diagonal TEST254+257 se conserva el profiler CIA TEST253 para diagnosticar cuando corresponda.
 - El programa aún necesita **validación real en VICE** para cada familia de motor. Que genere ASM no equivale a que haya pasado ejecución en C64.
