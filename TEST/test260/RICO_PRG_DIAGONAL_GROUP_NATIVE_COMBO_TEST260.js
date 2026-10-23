@@ -77,11 +77,13 @@ function placeSafe(s,body,kind){
   'anim175_temp=$34'+N+
   body+
   'anim260_fair'+N+'!byte $00'+N+
-  'anim260_irq_tick'+N+
+  'anim260_irq_tick'+N+' inc anim260_irq_count'+N+
   ' lda anim175_pending'+N+' cmp #$ff'+N+
   ' beq anim260_irq_done'+N+
   ' inc anim175_pending'+N+
-  'anim260_irq_done'+N+' rts'+N;
+  'anim260_irq_done'+N+' rts'+N+
+  '*=$cfe0'+N+'anim260_magic'+N+'!byte $60'+N+'anim260_version'+N+'!byte $01'+N+
+  'anim260_irq_count'+N+'!byte $00'+N+'anim260_native_count'+N+'!byte $00'+N+'anim260_group_count'+N+'!byte $00'+N;
 }
 function patchScheduler(s,hasGroup){
  var first=s.indexOf(N+'main_group'+N),last=first<0?-1:s.indexOf(N+'irq'+N,first);
@@ -96,9 +98,9 @@ function patchScheduler(s,hasGroup){
   ' bne anim260_native',
   'anim260_try_group',
   ' lda group182_pending',' beq main_loop',
-  ' jsr group182_step',' jmp main_loop',
+  ' inc anim260_group_count',' jsr group182_step',' jmp main_loop',
   'anim260_native',
-  ' jsr anim175_tick',' jmp main_loop'
+  ' inc anim260_native_count',' jsr anim175_tick',' jmp main_loop'
  ].join(N)+N;
  s=s.slice(0,first)+N+repl+s.slice(last);
  // Three IRQs per screen move: tick once at phase0, independently of
@@ -126,7 +128,7 @@ D.build=function(d){
   s=patchScheduler(s,!!d.group);
   s=placeSafe(s,sourceForNative(d),'diagonal');
   stat={version:260,selected:true,individuals:records.length,group:!!d.group,
-   destination:'C400..CFFF',banks:[...new Set(records.map(r=>r.bank))],
+   destination:'C400..CFFF; fixed diagnostics CFE0..CFE4',banks:[...new Set(records.map(r=>r.bank))],
    scheduler:'one native tick per PAL frame, group/native fair spare-time dispatch',
    charset:'both original banks, no glyphs skipped',
    map:'unchanged',raster:'unchanged',
@@ -159,8 +161,8 @@ if(H&&H.build){
       ' lda anim260_fair',' eor #$01',' sta anim260_fair',
       ' bne anim260_hnative',
       'anim260_hgroup',' lda group182_pending',
-      ' beq main_loop',' jsr group182_step',' jmp main_loop',
-      'anim260_hnative',' jsr anim175_tick',' jmp main_loop'].join(N);
+      ' beq main_loop',' inc anim260_group_count',' jsr group182_step',' jmp main_loop',
+      'anim260_hnative',' inc anim260_native_count',' jsr anim175_tick',' jmp main_loop'].join(N);
    s=once(s,oldMain,newMain,'horizontal map/group main scheduler');
    s=once(s,'irq_only_group'+N+' jsr group182_irq_tick',
        'irq_only_group'+N+' jsr anim260_irq_tick'+N+' jsr group182_irq_tick',
@@ -171,7 +173,7 @@ if(H&&H.build){
    status={version:260,selected:true,kind:'horizontal',
       individuals:rec.length,group:!!d.group,
       scheduler:'fair map/group/individual cooperative',
-      memory:'C400..CFFF',map:'unchanged',
+      memory:'C400..CFFF; fixed diagnostics CFE0..CFE4',map:'unchanged',
       status:'experimental until VICE'};
   }
   window.RICO_TEST260_HORIZONTAL_LAST_BUILD=status;
