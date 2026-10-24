@@ -150,7 +150,11 @@ function snapshot(){
   if(!g.widthTiles||!g.heightTiles||!g.cells||g.cells.length<2)
    throw new Error('Group Animate '+k+' sin geometría completa.');
   var count=groupCount(g,entries),speed=ticks(g.ticksPerFrame);
-  var ppt=/^(?:pingpong-)?(?:left|right|up|down)$/.test(g.type)?Number(g.pixelsPerTick)||1:1;
+  var explicit=Number(g.pixelsPerTick);
+  var ppt=/^(?:pingpong-)?(?:left|right|up|down)$/.test(g.type)
+   ?(Number.isInteger(explicit)&&explicit>=1&&explicit<=8?explicit:
+       /^(left|right)$/.test(g.type)?4:
+       /^(up|down)$/.test(g.type)?((g.widthTiles===2&&g.heightTiles===8&&speed===1)?1:2):1):1;
   if(!Number.isInteger(ppt)||ppt<1||ppt>8)throw new Error('Pixels/Tick inválido en group '+k);
   var steps=count/gcd(count,ppt),cycle=steps*speed;
   period=lcm(period,cycle);
@@ -174,7 +178,7 @@ function snapshot(){
   animationCount++;
  }
  var stage=window.RICO_TEST283_BITMAP;
- if(!animationCount)throw new Error('No hay animaciones individuales ni Group Animate en los tiles visibles. TEST282 exporta imagen fija.');
+ if(!animationCount)return null; // Normal Export PRG falls back to static bitmap.
  var boundaries=[0],lastSig=null;
  function signature(t){
   var bits=[];
@@ -256,14 +260,24 @@ function exportNormal(options){
  metrics.attempts++;
  try{
   if(!isBitmap(edNow()))return false;
-  var model=snapshot(),bytes=window.RICO_TEST283_BITMAP.build(model);
+  var model=snapshot();
+  if(!model){
+    var still=window.RICO_TEST282_BITMAP.encode(edNow()),
+        staticPRG=window.RICO_TEST282_BITMAP.buildPRG(still);
+    var report={status:'STATIC GENERATED — VERIFY IN VICE',bytes:staticPRG.length,mode:'bitmap',animations:0};
+    metrics.last=report;metrics.error=null;window.RICO_TEST284_LAST_EXPORT=report;
+    if(options&&options.download===false)return {bytes:staticPRG,model:null,info:report};
+    deliver(staticPRG,'RICO_BITMAP_MC_STATIC.prg');
+    return staticPRG;
+  }
+  var bytes=window.RICO_TEST283_BITMAP.build(model);
   var info={status:'GENERATED — VERIFY IN VICE',bytes:bytes.length,bank:model.bank,
    tiles:model.tileCount,individual:model.animatedTiles,groups:model.animatedGroups,
    steps:model.stepCount,ticks:model.totalTicks,maxDirty:model.maxDirty,
    totalDirty:model.totalDirty,variants:model.variantCount};
   metrics.last=info;metrics.error=null;window.RICO_TEST284_LAST_EXPORT=info;
   if(options&&options.download===false)return {bytes:bytes,model:model,info:info};
-  deliver(bytes,'RICO_TEST284_BITMAP_MC_INDIVIDUAL_GROUP.prg');
+  deliver(bytes,'RICO_BITMAP_MC_ANIM.prg');
   console.log(TAG,info);
   return bytes;
  }catch(e){
