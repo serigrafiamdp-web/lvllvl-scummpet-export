@@ -49,6 +49,15 @@ El orden de scripts es funcional, no cosmético. No limpiar archivos históricos
 | Media | Estado proyecto / PRG | Variaciones por frame y guardado/restauración de campos de grupos y bancos pueden divergir del exportador. | Round-trip JSON, importación/exportación y comparación SHA de datos de dibujo antes/después. |
 | Baja | UI / mantenimiento | Muchos wrappers sobre `createPRG` en orden específico crean regresiones cuando se reordenan o se pierden scripts cacheados. | Documentar catálogo único de rutas, separar módulo experimental del index activo, tests de carga de scripts. |
 
+### Hallazgos confirmados leyendo el código
+
+1. `TEST/test247-group-scroll-fast/js/RICO_GROUP_STANDALONE_TEST247.js`: la ruta standalone requiere **exactamente un grupo** y **un solo frame**, y delega a otro exportador cuando encuentra Map Scroll; por diseño TEST247 no es el planificador universal.
+2. `TEST/test242-ondas-pingpong/js/RICO_PRG_LARGE_MAP_UNLOCK_TEST168.js`: el combinador vertical rechaza **más de un grupo de movimiento** con Map Scroll. Esto protege los datos, pero limita proyectos complejos.
+3. `TEST/test242-ondas-pingpong/js/RICO_PRG_HORIZ_WIDE_GROUP_VERTICAL_TEST186.js`: la ruta horizontal Map Scroll + Group detecta animación individual y **rechaza explícitamente la exportación**; no está resuelta la combinación triple.
+4. `TEST/test242-ondas-pingpong/js/RICO_PRG_DIAGONAL_TEST196.js`: `groupFromStore` elige el **primer** grupo compatible mediante `filter(...)[0]`. Si hubiera varios, existe riesgo de que alguno no se exporte sin aviso: prioridad alta para un veto explícito o planificador.
+5. `js/RICO_PRG_EIGHT_FRAMES_ORIGINAL_SID_TEST207.js`: la ruta SID usa un **planificador dinámico de memoria**. No debe darse por hecho que convive con los buffers de fuentes de dos bancos VIC que utiliza TEST247.
+6. Root `index.html`: la aplicación utiliza múltiples wrappers del método `ToPRGAdv.prototype.createPRG` y el orden de carga determina qué ruta llega al ensamblador; comparar este orden antes de cualquier refactor.
+
 **Advertencia:** la tabla enumera límites verificables, riesgos y pruebas propuestas; no significa que cada caso sea un bug reproducido en VICE.
 
 ## Regla de continuación
