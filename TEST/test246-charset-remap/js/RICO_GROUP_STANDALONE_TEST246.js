@@ -249,12 +249,28 @@ function assemble(self,source){
   for(var addr=result.start;addr<result.end;addr++)prg[addr-result.start+2]=mem[addr]&255;
   return prg;
 }
+function announce246(plan){
+  if(typeof document==='undefined'||!plan)return;
+  var node=document.getElementById('rico246ExportEngineStatus');
+  if(!node){
+    node=document.createElement('div');
+    node.id='rico246ExportEngineStatus';
+    node.style.cssText='position:fixed;right:12px;bottom:12px;z-index:99999;max-width:410px;padding:8px 12px;background:#171b23;color:white;border:1px solid #65758e;border-radius:6px;font:12px Arial,sans-serif;box-shadow:0 2px 12px #0007;';
+    document.body.appendChild(node);
+  }
+  if(plan.mode==='screen-remap-4-fonts'){
+    node.textContent='TEST246 REMAP ACTIVO — '+plan.positions+' celdas; '+plan.phases+' fases; ~'+plan.cycles+' ciclos estimados/fase.';
+  }else{
+    node.textContent='TEST246 FALLBACK (sin remapeo) — '+(plan.reason||'No se seleccionó Speedcode.');
+  }
+}
 ToPRGAdv.prototype.createPRG=function(args){
   if(!isStandalone(this))return old.apply(this,arguments);
   try{
     args=args||{};
     window.RICO_TEST246_LAST_PLAN=null;
     var src=build(this),prg=assemble(this,src);this.prg=prg;
+    announce246(window.RICO_TEST246_LAST_PLAN);
     if(args.download===false)return prg;
     var plan=window.RICO_TEST246_LAST_PLAN;
     var defaultName=plan&&plan.mode==='screen-remap-4-fonts'?'RICO_TEST246_REMAP_8PX.prg':'RICO_TEST246_FALLBACK.prg';
