@@ -315,9 +315,16 @@ if(typeof nativeShowDialog==='function') {
     return result;
   };
 }
-if(typeof UI!=='undefined'&&typeof UI.on==='function')UI.on('ready',mount);
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);
-else mount();
+// The Tiles sidebar is built by the editor during UI-ready. The first
+// callback can run before its DOM exists. Retry briefly until it is mounted.
+var mountTries=0;
+function ensureMounted(){
+  if(mount())return;
+  if(mountTries++<35)setTimeout(ensureMounted,100);
+}
+if(typeof UI!=='undefined'&&typeof UI.on==='function')UI.on('ready',ensureMounted);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureMounted);
+else ensureMounted();
 if(typeof ImportC64Formats!=='undefined'&&ImportC64Formats.prototype){
   var originalImport=ImportC64Formats.prototype.importPrg;
   ImportC64Formats.prototype.importPrg=function(){
