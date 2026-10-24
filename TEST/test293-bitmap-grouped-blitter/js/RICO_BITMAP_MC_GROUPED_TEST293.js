@@ -233,6 +233,18 @@ function assemble(m,hd){
  return {code:new Uint8Array(op),labels};
 }
 function build(m){
+ // The grouped path is faster only when MANY bitmap cells reuse the same
+ // character ID. For near-unique tiles the 292 path has fewer bookkeeping
+ // instructions. Auto-select per project, preserving the flicker-free banks.
+ var active=new Set(),g=m.animations[0];
+ for(var c of g.members)active.add(c.tile);
+ var unique=active.size;
+ if(m.refreshCount < unique*3){
+  var fast=window.RICO_TEST292_BITMAP.build(m);
+  fast.renderStrategy='TEST292 direct (fewer repeated cells)';
+  fast.meta.tiles=unique;
+  return fast;
+ }
  var hd=highData(m),a=assemble(m,hd),out=new Uint8Array(2+hd.end-ORIGIN);
  function at(adr){return 2+adr-ORIGIN;}
  out[0]=1;out[1]=8;
@@ -245,7 +257,8 @@ function build(m){
  // The original TEST290 metadata is not copied: phase lookup replaces
  // its per-tile group matrices and per-occurrence WORK refresh list.
  out.set(hd.data,at(DATA));
- return {bytes:out,model:m,meta:hd,labels:a.labels,asmBytes:a.code.length};
+ return {bytes:out,model:m,meta:hd,labels:a.labels,asmBytes:a.code.length,
+  renderStrategy:'TEST293 grouped-by-ID (repeated bitmap cells)'};
 }
 function download(prg){
  if(typeof window.download==='function')return window.download(prg,'RICO_TEST293_MC_GROUPED_256TILES.prg','application/prg');
@@ -265,7 +278,7 @@ function exportPRG(opts){
   var built=build(m),out=built.bytes;
   stats.error=null;stats.exports++;
   stats.last={status:'PENDING VICE',selectedTileLimit:256,videoMode:'BANK1/BANK3 double buffer',
-   fasterRenderer:'grouped by tile ID + 8 row loop unrolled',
+   fasterRenderer:built.renderStrategy,
    distinctTileIDs:built.meta.tiles,
    visibleBitmap1:'$6000',visibleBitmap2:'$E000',screen1:'$5C00',screen2:'$C400',
    rasterSwap:250,port01:'$35',
