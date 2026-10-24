@@ -181,7 +181,7 @@ function onInkChange(ed,event){
  schedule(ed);
 }
 function observeBrush(ed){
- if(!ed||ed.__rico289Observed)return;
+ if(!ed||!active(ed)||ed.__rico289Observed)return;
  var current=ed.__ricoBitmapBrush||{c1:1,c2:2,c3:3};
  var proxied=null;
  function proxify(obj){
@@ -230,9 +230,13 @@ CurrentTile.prototype.setColor=function(value){
   observeBrush(ed);
   var chosen=window.RICO_TEST281_BITMAP&&window.RICO_TEST281_BITMAP.selected&&
      window.RICO_TEST281_BITMAP.selected();
-  var key=(chosen==='c1'||chosen==='c2'||chosen==='c3')?chosen:'c3';
   var num=Number(value)&15;
-  if(ed.__ricoBitmapBrush[key]!==num)ed.__ricoBitmapBrush[key]=num;
+  if(chosen==='bg'){
+   if(typeof ed.setBackgroundColor==='function')ed.setBackgroundColor(num);
+  } else {
+   var key=(chosen==='c1'||chosen==='c2'||chosen==='c3')?chosen:'c3';
+   if(ed.__ricoBitmapBrush[key]!==num)ed.__ricoBitmapBrush[key]=num;
+  }
  }
  return result;
 };
@@ -275,10 +279,23 @@ if(typeof Editor!=='undefined'&&Editor.prototype){
   return r;
  };
 }
+// Observe when entering Bitmap mode, not before: TEST279 initializes the
+// 3 inks from the selected layer on activation.
+if(typeof TextModeEditor!=='undefined'&&TextModeEditor.prototype){
+ var previousScreen=TextModeEditor.prototype.setScreenMode;
+ TextModeEditor.prototype.setScreenMode=function(){
+  var r=previousScreen.apply(this,arguments);
+  if(active(this)){observeBrush(this);schedule(this);}
+  return r;
+ };
+}
 function ready(){
  var ed=edNow();if(!ed)return false;
- observeBrush(ed);
- if(active(ed)){latestSelection=grid(ed);metrics.selectedTiles=Object.keys(selectedSet(ed)).length;schedule(ed);}
+ if(active(ed)){
+  observeBrush(ed);
+  latestSelection=grid(ed);
+  metrics.selectedTiles=Object.keys(selectedSet(ed)).length;schedule(ed);
+ }
  return true;
 }
 var attempts=0;
