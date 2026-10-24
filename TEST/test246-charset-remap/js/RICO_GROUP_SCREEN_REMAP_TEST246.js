@@ -1,9 +1,8 @@
 /* TEST246 - DemoScene style four pre-shifted fonts plus screen-code remapping.
  * For standalone Group Ping Pong 8px/tick, update screen characters rather
  * than recomposing the entire 2KB font each tick. Two screen buffers:
- * VIC bank0 $0400 and bank1 $4400. Four pixel remainders 0,2,4,6:
- * bank0 charset $1000/$1800/$3000/$3800
- * bank1 charset $4800/$5000/$5800/$6000
+ * VIC bank1 screen buffers $4400/$4800 and 4 fonts $5000/$5800/$6000/$6800.
+ * ROM-safe bank1 avoids character ROM mirroring in VIC banks 0 and 2.
  * Code at $2000 + generated screen renderer at >=$9000.
  * No changes to ONDAS, Map Scroll or the original editor document.
  */
@@ -85,7 +84,7 @@ function compile(opt){
    phasesQ.push(Math.floor(disp/8));
    phasesRem.push((disp&7)/2); // 0,1,2,3 -> remainders 0,2,4,6
  }
- var tableStart=0x7000,tableEnd=tableStart+tiles*codes.length+steps*2+8;
+ var tableStart=0x7800,tableEnd=tableStart+tiles*codes.length+steps*2+8;
  var speedStart=Math.max(0x9000,(tableEnd+255)&0xff00);
  var speedEnd=speedStart+positions.length*12+64;
  if(tableEnd>0x9000||speedEnd>=0xd000)
@@ -96,20 +95,20 @@ function compile(opt){
    'start',' sei',' lda #$35',' sta $01',
    ' lda #$7f',' sta $dc0d',' sta $dd0d',' lda $dc0d',' lda $dd0d',
    ' lda #$00',' sta $d015',
-   ' lda $dd00',' and #$fc',' ora #$03',' sta $dd00',
+   ' lda $dd00',' and #$fc',' ora #$02',' sta $dd00',
    ' lda #$14',' sta $d018',
    ' lda #$1b',' sta $d011',' lda #$08',' sta $d016',
    ' lda #'+hex8(opt.bg),' sta $d021',
    ' lda #'+hex8(opt.border),' sta $d020',
    ' ldx #$00','init246',
-   ' lda $6800,x',' sta $0400,x',' sta $4400,x',
-   ' lda $6900,x',' sta $0500,x',' sta $4500,x',
-   ' lda $6a00,x',' sta $0600,x',' sta $4600,x',
-   ' lda $6b00,x',' sta $0700,x',' sta $4700,x',
-   ' lda $6c00,x',' sta $d800,x',
-   ' lda $6d00,x',' sta $d900,x',
-   ' lda $6e00,x',' sta $da00,x',
-   ' lda $6f00,x',' sta $db00,x',
+   ' lda $7000,x',' sta $4400,x',' sta $4800,x',
+   ' lda $7100,x',' sta $4500,x',' sta $4900,x',
+   ' lda $7200,x',' sta $4600,x',' sta $4a00,x',
+   ' lda $7300,x',' sta $4700,x',' sta $4b00,x',
+   ' lda $7400,x',' sta $d800,x',
+   ' lda $7500,x',' sta $d900,x',
+   ' lda $7600,x',' sta $da00,x',
+   ' lda $7700,x',' sta $db00,x',
    ' inx',' bne init246',
    ' lda #$01',' sta $d01a',' lda #$fa',' sta $d012',
    ' lda #<irq246',' sta $fffe',' lda #>irq246',' sta $ffff',' cli',
@@ -133,10 +132,8 @@ function compile(opt){
    ' lda ready246',' beq clock246',
    ' lda current246',' eor #$01',' sta current246',
    ' beq show_a246',
-   ' lda $dd00',' and #$fc',' ora #$02',' sta $dd00',
    ' lda next_d018246',' sta $d018',' jmp flipped246',
    'show_a246',
-   ' lda $dd00',' and #$fc',' ora #$03',' sta $dd00',
    ' lda next_d018246',' sta $d018',
    'flipped246',' lda #$00',' sta ready246',
    'clock246',' dec timer246',' bne end_irq246',
@@ -147,21 +144,21 @@ function compile(opt){
    'phase246','!byte $00','pending246','!byte $00','ready246','!byte $00',
    'current246','!byte $00','next_d018246','!byte $14',
    'coarse246','!byte $00','timer246','!byte '+hex8(g.ticks),
-   'font_a246','!byte $14,$16,$1c,$1e',
-   'font_b246','!byte $12,$14,$16,$18'];
+   'font_a246','!byte $14,$16,$18,$1a',
+   'font_b246','!byte $24,$26,$28,$2a'];
  // Fonts generated entirely offline.
- var locations=[0x1000,0x1800,0x3000,0x3800,0x4800,0x5000,0x5800,0x6000];
- for(var i=0;i<8;i++){a.push('*='+hex16(locations[i]),'font246_'+i);writeBytes(a,variants[i%4]);}
- a.push('*=$6800','source_screen246');writeBytes(a,original);
- a.push('*=$6c00','source_colors246');writeBytes(a,color);
+ var locations=[0x5000,0x5800,0x6000,0x6800];
+ for(var i=0;i<4;i++){a.push('*='+hex16(locations[i]),'font246_'+i);writeBytes(a,variants[i]);}
+ a.push('*=$7000','source_screen246');writeBytes(a,original);
+ a.push('*=$7400','source_colors246');writeBytes(a,color);
  a.push('*='+hex16(tableStart),'mapping_start246');
  for(var code of codes){a.push('map_code246_'+code);writeBytes(a,tables[code]);}
  a.push('qtable246');writeBytes(a,phasesQ);
  a.push('rtable246');writeBytes(a,phasesRem);
  a.push('*='+hex16(speedStart),'update_a246',' ldx coarse246');
- for(var p of positions)a.push(' lda map_code246_'+p.code+',x',' sta '+hex16(0x0400+p.off));
- a.push(' rts','update_b246',' ldx coarse246');
  for(var p of positions)a.push(' lda map_code246_'+p.code+',x',' sta '+hex16(0x4400+p.off));
+ a.push(' rts','update_b246',' ldx coarse246');
+ for(var p of positions)a.push(' lda map_code246_'+p.code+',x',' sta '+hex16(0x4800+p.off));
  a.push(' rts');
  return {source:a.join('\n')+'\n',reason:'screen-remap-4-fonts',
    positions:positions.length,tableBytes:tableEnd-tableStart,speedcodeBytes:12*positions.length,
