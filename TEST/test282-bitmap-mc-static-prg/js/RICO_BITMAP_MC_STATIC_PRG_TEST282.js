@@ -221,14 +221,9 @@ function mount(){
     }
     document.getElementById('rico282Holder').style.display=visible?'block':'none';
   }
-  var side=document.getElementById('rico279Panel');
-  if(side){
-    if(!document.getElementById('rico282ExportSide')){
-      var b=button('rico282ExportSide');side.appendChild(b);
-    }
-    document.getElementById('rico282ExportSide').style.display=visible?'inline-block':'none';
-  }
-  return !!(target||side);
+  // Keep the tiles sidebar dimensions unchanged: TEST279's compact
+  // panel is positioned above a fixed-offset index and must not grow.
+  return !!target;
 }
 var oldMenuClick=typeof Editor!=='undefined'&&Editor.prototype&&Editor.prototype.menuClick;
 if(typeof oldMenuClick==='function'&&!Editor.prototype.__rico282BitmapMenu){
