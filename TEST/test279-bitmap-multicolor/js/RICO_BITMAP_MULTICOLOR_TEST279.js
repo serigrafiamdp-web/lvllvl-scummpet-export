@@ -16,6 +16,50 @@ var originalInterface=TextModeEditor.prototype.setInterfaceScreenMode;
 var originalDraw=LayerGrid.prototype.draw;
 var originalCell=LayerGrid.prototype.setCell;
 var htmlKey='html/textMode/screenModeDialog.html';
+/* Install a native item in the actual SCREEN menu, not just in its dialog.
+ * Editor.buildInterface creates the menu after the UI-ready event. Wrap
+ * creation of that one MenuBar and its Screen menu, preserving all existing
+ * menu IDs and handlers.
+ */
+if(typeof UI==='function' && typeof UI.create==='function' && !UI.__rico279ScreenItem) {
+  var oldCreate=UI.create;
+  UI.create=function(kind,args){
+    var result=oldCreate.apply(this,arguments);
+    if(kind==='UI.MenuBar'&&result&&typeof result.addMenu==='function'){
+      var oldAddMenu=result.addMenu;
+      result.addMenu=function(cfg){
+        var menu=oldAddMenu.apply(this,arguments);
+        if(cfg&&cfg.label==='Screen'&&menu&&typeof menu.addItem==='function'){
+          var oldAddItem=menu.addItem;
+          menu.addItem=function(item){
+            var orig=oldAddItem.apply(this,arguments);
+            if(item&&item.id==='mode-c64multicolor'){
+              oldAddItem.call(this,{label:'Multicolor Bitmap (Experimental)',
+                id:'mode-ricobitmapmulticolor'});
+            }
+            return orig;
+          };
+        }
+        return menu;
+      };
+    }
+    return result;
+  };
+  UI.__rico279ScreenItem=true;
+}
+if(typeof Editor!=='undefined'&&Editor.prototype&&
+   typeof Editor.prototype.menuClick==='function'&&!Editor.prototype.__rico279Menu){
+  var oldMenuClick=Editor.prototype.menuClick;
+  Editor.prototype.menuClick=function(id){
+    if(id==='mode-ricobitmapmulticolor'){
+      var ed=this.textModeEditor;
+      return ed&&ed.setScreenMode&&ed.setScreenMode(MODE);
+    }
+    return oldMenuClick.apply(this,arguments);
+  };
+  Editor.prototype.__rico279Menu=true;
+}
+
 var cache=window.g_htmlCache;
 if(cache&&typeof cache[htmlKey]==='string'&&cache[htmlKey].indexOf('value="'+MODE+'"')<0){
   cache[htmlKey]=cache[htmlKey].replace('<option value="c64multicolor">C64 Multicolour</option>',
@@ -98,6 +142,18 @@ TextModeEditor.prototype.setInterfaceScreenMode=function(mode){
   if(layer&&layer.doc&&layer.doc.ricoBitmapV1Enabled&&mode!=='c64multicolor'){
     layer.doc.ricoBitmapV1Enabled=false;
   }
+  // Native interface checks C64MULTICOLOR because the bitmap preview
+  // intentionally shares editing tools. Show the actual experimental mode
+  // selected in the SCREEN menu instead.
+  try{
+    if(typeof UI==='function'&&typeof UI.exists==='function'&&
+       UI.exists('mode-ricobitmapmulticolor')){
+      var custom=enabled(layerOf(this));
+      UI('mode-ricobitmapmulticolor').setChecked(custom);
+      if(custom&&UI.exists('mode-c64multicolor'))
+        UI('mode-c64multicolor').setChecked(false);
+    }
+  }catch(e){console.warn(TAG,'menu checkmark:',e);}
   syncControls(this);
   return result;
 };
