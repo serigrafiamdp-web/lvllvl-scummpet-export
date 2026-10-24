@@ -87,4 +87,4 @@ Probar primero 20 variantes de Map Scroll con el patrón MC. Solo después pasar
 
 Si se detecta un bug, abrir un test de código independiente **TEST266A / TEST266B / etc.** sobre una rama derivada del MASTER 24/10. Cuando se repare un motor, revalidar Hi-Res y MC para no perder los PASS previos; nunca tocar `MASTER_LVLVL_RICO_24_OCTUBRE_2026` durante las pruebas.
 
-**Lecturas previas:** [MASTER 24/10](MASTER_LVLVL_RICO_24_OCTUBRE_2026.md) · [Auditoría TEST265](TEST265_AUDITORIA_EXPORT_MULTICOLOR.md)
+**Lecturas previas:** [MASTER 24/10](MASTER_LVLLVL_RICO_24_OCTUBRE_2026.md) · [Auditoría TEST265](TEST265_AUDITORIA_EXPORT_MULTICOLOR.md)
