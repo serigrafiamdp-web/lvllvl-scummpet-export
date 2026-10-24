@@ -51,6 +51,11 @@ if(typeof Editor!=='undefined'&&Editor.prototype&&
    typeof Editor.prototype.menuClick==='function'&&!Editor.prototype.__rico279Menu){
   var oldMenuClick=Editor.prototype.menuClick;
   Editor.prototype.menuClick=function(id){
+    if((id==='export-prg'||id==='export-c64assembly')&&
+       this.textModeEditor&&enabled(layerOf(this.textModeEditor))){
+      window.alert('TEST279: exportación Bitmap Multicolor a PRG/ASM todavía no implementada. El editor conserva los colores por celda, pero el exportador actual usa Character Mode.');
+      return;
+    }
     if(id==='mode-ricobitmapmulticolor'){
       var ed=this.textModeEditor;
       return ed&&ed.setScreenMode&&ed.setScreenMode(MODE);
