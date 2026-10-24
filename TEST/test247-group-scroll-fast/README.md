@@ -36,3 +36,7 @@ Al exportar:
 TEST247 optimiza **Group Animate sin Map Scroll**. Cuando Map Scroll está activo, el proyecto sigue pasando por el motor anterior de combinación. Se requiere otro test para compartir los VIC buffers con Map Scroll; jamás sustituir silenciosamente una animación combinada por un PRG de pantalla quieta.
 
 URL: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test247-group-scroll-fast/
+
+## Checkpoint de validación — 23/10/2026
+
+**TEST247: PASS confirmado por el usuario en VICE.** Se conserva la versión del directorio `TEST/test247-group-scroll-fast/` como punto de recuperación del motor grupal optimizado. Este PASS se refiere a la prueba que el usuario acaba de validar, sin afirmar que todas las combinaciones posibles hayan sido probadas individualmente. **No modificar TEST246, ONDAS ni MASTER al continuar.**
