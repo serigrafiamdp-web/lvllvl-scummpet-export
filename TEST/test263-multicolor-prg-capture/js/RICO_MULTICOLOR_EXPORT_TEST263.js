@@ -102,7 +102,7 @@ ToPRGAdv.prototype.createPRG=function(args){
       for(var ci=captures.length-1;ci>=0;ci--){
         var cap=captures[ci];
         if(cap&&cap.data&&cap.data.length>3&&
-            ((cap.mime==='application/prg')||/\\.prg$/i.test(cap.filename||''))){
+            ((cap.mime==='application/prg')||/\.prg$/i.test(cap.filename||''))){
           prgCapture=cap;break;
         }
       }
