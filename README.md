@@ -1,3 +1,17 @@
+# LVLLVL RICO — MASTER GRUPALES · 23 OCTUBRE 2026
+
+**Checkpoint aprobado en VICE:** TEST247 Group Scroll FAST ASM (1–8 píxeles), Ping Pong con TEST246 PASS y ONDAS conservado. Rama congelada separada del MASTER diagonal TEST254.
+
+- **Branch MASTER GRUPALES:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_23_OCTUBRE_2026_GRUPALES_TEST247_PASS
+- **ZIP completo:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/MASTER_LVLLVL_RICO_23_OCTUBRE_2026_GRUPALES_TEST247_PASS.zip
+- **Web PASS correspondiente:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test247-group-scroll-fast/
+- **Recuperación y auditoría de bugs:** [docs/MASTER_GRUPALES_23_OCTUBRE_2026.md](docs/MASTER_GRUPALES_23_OCTUBRE_2026.md)
+- **MASTER DIAGONAL TEST254 (no fusionado):** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_23_OCTUBRE_2026
+
+**Conservación:** la rama `gh-pages` y el MASTER diagonal permanecen intactos. Los archivos bajo `TEST/` son dependencias del snapshot. Las pruebas futuras deben hacerse en carpetas nuevas, sin cambiar este MASTER.
+
+---
+
 # LVLLVL RICO — MASTER VIERNES 23 DE OCTUBRE DE 2026
 
 **Nuevo MASTER de referencia: TEST254 · ~47,2 avances/s en VICE, rendimiento validado.** Se eligió TEST254 en lugar de TEST255 para priorizar la calidad visual sobre acercarse a 50/s; queda una revisión fina de sincronización y costuras para continuar. **La web principal no cambia de motor en este checkpoint.**
