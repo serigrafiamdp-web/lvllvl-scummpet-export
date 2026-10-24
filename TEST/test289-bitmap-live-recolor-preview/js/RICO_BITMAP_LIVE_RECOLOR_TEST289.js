@@ -105,9 +105,16 @@ if(typeof LayerGrid!=='undefined'){
  var originalCell=LayerGrid.prototype.setCell;
  LayerGrid.prototype.setCell=function(args){
   var ed=this.editor||edNow(),tools=ed&&ed.tools&&ed.tools.drawTools;
-  var desired=active(ed)&&!decolorActive()&&tools&&tools.tool==='pen'&&
-    tools.drawCharacter!==false&&args&&Number.isInteger(args.t)&&
-    Object.prototype.hasOwnProperty.call(persisted,args.t)?persisted[args.t]:null;
+  var desired=null;
+  if(active(ed)&&!decolorActive()&&tools&&tools.tool==='pen'&&
+     tools.drawCharacter!==false&&args&&Number.isInteger(args.t)){
+    var ts=this.getTileSet&&this.getTileSet();
+    var props=ts&&ts.tileData&&ts.tileData[args.t]&&ts.tileData[args.t].props;
+    if(Object.prototype.hasOwnProperty.call(persisted,args.t))
+      desired=persisted[args.t];
+    else if(props&&Number.isInteger(props.ricoBmpColors))
+      desired=props.ricoBmpColors&4095;
+  }
   var result=originalCell.apply(this,arguments);
   if(desired!==null&&Number.isInteger(args.x)&&Number.isInteger(args.y)&&
     args.x>=0&&args.y>=0&&args.x<this.getGridWidth()&&args.y<this.getGridHeight()){
