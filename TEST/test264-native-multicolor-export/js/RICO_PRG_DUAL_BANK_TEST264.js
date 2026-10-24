@@ -278,7 +278,7 @@
     // when args.mode === 'multicolor'. TEST23 forced 'standard' even when
     // SCREEN was Multicolor, silently flattening every frame to Hi-Res.
     var selectedLayer=null;
-    try{selectedLayer=self.editor&&self.editor.layers&&self.editor.layers.getSelectedLayerObject();}catch(e){}
+    try{selectedLayer=this.editor&&this.editor.layers&&this.editor.layers.getSelectedLayerObject();}catch(e){}
     var realMC=!!(selectedLayer&&typeof selectedLayer.getScreenMode==='function'
       &&selectedLayer.getScreenMode()==='c64multicolor');
     safeArgs.mode = realMC ? 'multicolor' : 'standard';
