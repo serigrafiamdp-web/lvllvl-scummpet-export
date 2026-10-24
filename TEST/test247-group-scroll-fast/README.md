@@ -16,7 +16,7 @@ El movimiento circular usa tablas de remapeo de índices de caracteres. El Ping 
 
 **Velocidades pares (2,4,6,8):** fuentes precalculadas con residuos pares 0,2,4,6; dos buffers de pantalla $4400/$4800; cuatro fuentes en $5000/$5800/$6000/$6800, VIC bank1.
 
-**Velocidades impares (1,3,5,7):** necesitan también 1,3,5,7. Se usan cuatro fuentes de residuos pares en VIC bank1 y cuatro impares en VIC bank3, con dos buffers de pantalla independientes: $4400 (bank1) y $C400 (bank3). Las fuentes del segundo banco están en $C800/$D000/$D800/$E000. CPU $01=$35 permite escribir RAM bajo I/O. En cada IRQ el controlador conmuta $DD00 y $D018 para presentar una fase completa. **Esta topología de dos VIC banks necesita validación física en VICE.**
+**Velocidades impares (1,3,5,7):** requieren cuatro fuentes adicionales de residuos 1,3,5,7. Se mantienen dos bancos VIC: bank1 con las fuentes pares y pantalla $4400; bank3 con fuentes impares en $C800/$E000/$E800/$F000 y pantalla $C400. Para evitar cargar bytes de un PRG a través de I/O, las fuentes impares viajan en RAM baja ($1000/$1800/$2800/$3000) y se copian al banco3 en la inicialización, con $01=$35. El IRQ conmuta $DD00 y $D018 al presentar cada fase. **La ruta de dos bancos VIC necesita validación real en VICE.**
 
 RAM sin modificar: editor y proyecto; ninguna fuente se guarda de vuelta. Si no entra una tabla, falta un código vacío (solo Ping Pong) o el grupo no coincide con el banco visible, se vuelve al motor anterior con diagnóstico. No forzar valores ni recortar arte.
 
