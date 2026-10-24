@@ -160,7 +160,9 @@ function restore(){
   if(!ed||!layer||!state){setStatus('No hay conversión activa para restaurar.',true);return false;}
   try{
     layer.setTileSet(state.sourceId);
-    ed.setScreenMode(state.sourceMode==='c64multicolor'?'c64multicolor':state.sourceMode);
+    // Restore MC intentionally even if the user invoked Fill after manually
+    // switching the same original tileset to Standard/HiRes first.
+    ed.setScreenMode('c64multicolor');
     layerState.delete(layer);
     afterSwitch(ed);
     setStatus('Restaurado el charset Multicolor original.',false);
