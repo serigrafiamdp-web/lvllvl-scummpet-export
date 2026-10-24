@@ -167,7 +167,7 @@ function build(opt){
    'fonts_a247','!byte $14,$16,$18,$1a',
    'fonts_b247','!byte '+(odd?'$12,$14,$16,$18':'$24,$26,$28,$2a'));
  var fontAddresses=odd?[0x5000,0x5800,0x6000,0x6800,0xc800,0xd000,0xd800,0xe000]:[0x5000,0x5800,0x6000,0x6800];
- for(var i=0;i<fontAddresses.length;i++){
+ for(var i=0;i<4;i++){
    a.push('*='+w16(fontAddresses[i]),'font247_'+i);emit(a,variants[i]);
  }
  a.push('*=$7000','source_screen247');emit(a,m);
@@ -181,6 +181,10 @@ function build(opt){
  a.push(' rts','update_b247',' ldx coarse_now247');
  for(var loc of visible)a.push(' lda map_code247_'+loc.code+',x',' sta '+w16((odd?0xc400:0x4800)+loc.cell));
  a.push(' rts');
+ // High VIC bank sources come last: no backwards origin changes in assembler.
+ if(odd)for(var i=4;i<8;i++){
+   a.push('*='+w16(fontAddresses[i]),'font247_'+i);emit(a,variants[i]);
+ }
  return {source:a.join('\n')+'\n',reason:'TEST247-FAST-SCROLL',
    speed:g.pixels,direction:typ,positions:visible.length,phaseCount:steps,
    variantCount:fontAddresses.length,vicBanks:odd?2:1,estimatedCyclesPerPhase:visible.length*8+170,
