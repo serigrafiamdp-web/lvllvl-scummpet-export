@@ -152,8 +152,8 @@ function assemble(m,hd){
  label('doneFrame');ref(0x4C,'tick');
  // Word-address patch for the absolute "STA operandHigh" instructions.
  // The assembler fixup below writes the target low/high once labels resolve.
- patches.push({p:staLoHigh,n:'srcLoOperand',rel:false,oneByteHigh:true});
- patches.push({p:staHiHigh,n:'srcHiOperand',rel:false,oneByteHigh:true});
+ patches.push({p:staLoHigh,n:'srcLoOperand',rel:false});
+ patches.push({p:staHiHigh,n:'srcHiOperand',rel:false});
  label('copyPages');
  imm(0xA0,0);label('pageLoop');
  imm(0xB1,0xFB);imm(0x91,0xFD);
