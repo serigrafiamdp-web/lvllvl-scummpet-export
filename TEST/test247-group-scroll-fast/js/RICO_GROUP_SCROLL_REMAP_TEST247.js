@@ -3,7 +3,7 @@
    ONDAS is never accepted. Offline pre-shifted fonts, direct screen speedcode.
    Even pixel steps: two screens + 4 fonts in VIC bank1.
    Odd pixel steps: even fonts in VIC bank1, odd fonts in VIC bank3.
-   6502 RAM mapped under I/O ($01=$35) for bank3's $d000 font.
+   Physical bank3 fonts deliberately avoid $D000-$DFFF: $01=$35 keeps I/O visible.
 */
 (function(){
 'use strict';
@@ -167,7 +167,7 @@ function build(opt){
    'fonts_a247','!byte $14,$16,$18,$1a',
    'fonts_b247','!byte '+(odd?'$12,$18,$1a,$1c':'$24,$26,$28,$2a'));
  // Pack odd charset data below I/O in the PRG. The 6510 moves it to VIC
- // bank3 after $01=$35. Loading a linear PRG over $D000 would hit I/O.
+ // bank3 with $01=$35 (I/O stays visible). Never load data across $D000.
  if(odd){
    var head=a.indexOf('*=$2000'),early=['*=$1000','odd_font_source247_0'];
    emit(early,variants[4]);
