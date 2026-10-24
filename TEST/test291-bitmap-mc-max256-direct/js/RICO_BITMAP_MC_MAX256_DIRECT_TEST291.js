@@ -35,40 +35,46 @@ function highData(model){
  }
  var occurrences=[],at=model.refreshPtr-DATA;
  if(at<0||at+4*model.refreshCount>model.data.length)
-  throw Error('Tabla de celdas Bitmap inválida.');
+  throw Error('Tabla original de celdas Bitmap inválida.');
  for(var j=0;j<model.refreshCount;j++){
-  var off=at+j*4,src=model.data[off]|model.data[off+1]<<8,
+  var off=at+j*4,workPtr=model.data[off]|model.data[off+1]<<8,
       dest=model.data[off+2]|model.data[off+3]<<8;
-  var tile=(src-0x8800)/8;
+  var tile=(workPtr-0x8800)/8;
   if(!Number.isInteger(tile)||!positions[tile])
    throw Error('Tile de grupo sin posición: '+tile);
-  occurrences.push({tile:tile,dest:dest,x:positions[tile].x,y:positions[tile].y});
+  occurrences.push({tile,dest});
  }
- // Every 8-MC-pixel shift is an integer 2×tile-column relocation.
- // Store 4-byte source,dest pairs per visible occurrence per phase.
- // This is pointers only, NOT the atlas of bitmaps used by TEST284/285.
- var streamStart=(model.end+255)&~255,
-     streamLength=period*occurrences.length*4,
-     end=streamStart+streamLength;
- if(end>END)throw Error('TEST291: '+occurrences.length+' celdas × '+period+
-    ' fases exceden RAM para punteros; hay que crear un stream incremental.');
- var bytes=new Uint8Array(streamLength),phaseAddresses=[];
+ // Critical for MAX stress: the same tile ID can occur 1,000 times, yet
+ // we store its phase/source address only ONCE per phase. Per occurrence
+ // we need 3 bytes: tileID + destination address. No bitmap variants.
+ var recordAddress=DATA+8,recordLength=occurrences.length*3,
+     loTables=(recordAddress+recordLength+255)&~255,
+     hiTables=loTables+period*256,end=hiTables+period*256;
+ if(end>END)
+  throw Error('TEST291: punteros de '+occurrences.length+' celdas necesitan '+
+    (end-DATA)+' bytes; límite '+(END-DATA)+'.');
+ var data=new Uint8Array(end-DATA);
+ for(var i=0;i<occurrences.length;i++){
+  var o=occurrences[i],p=recordAddress-DATA+i*3;
+  data[p]=o.tile;data[p+1]=o.dest&255;data[p+2]=o.dest>>8;
+ }
  for(var phase=0;phase<period;phase++){
-  phaseAddresses.push(streamStart+phase*occurrences.length*4);
   var displacement=(phase*shiftTiles)%width;
-  for(var ix=0;ix<occurrences.length;ix++){
-   var o=occurrences[ix],sourceX=
-    g.type==='left'?(o.x+displacement)%width:
-      ((o.x-displacement)%width+width)%width;
-   var sourceTile=g.matrix[o.y*width+sourceX],srcAddr=sourceTile<0?blank:BASE+sourceTile*8;
-   var ix4=(phase*occurrences.length+ix)*4;
-   bytes[ix4]=srcAddr&255;bytes[ix4+1]=srcAddr>>8;
-   bytes[ix4+2]=o.dest&255;bytes[ix4+3]=o.dest>>8;
+  for(var id in positions){
+   var tile=Number(id),o=positions[tile],
+       sourceX=g.type==='left'?(o.x+displacement)%width:
+         ((o.x-displacement)%width+width)%width,
+       sourceTile=g.matrix[o.y*width+sourceX],
+       src=sourceTile<0?DATA:BASE+sourceTile*8;
+   data[loTables-DATA+phase*256+tile]=src&255;
+   data[hiTables-DATA+phase*256+tile]=src>>8;
   }
  }
- return {streamStart,streamLength,bytes,phaseAddresses,period,end,
-   visible:occurrences.length,groupWidth:width,direction:g.type,
-   pixelsPerTick:8,sourceColumnsPerTick:2,atlasBytes:2048};
+ return {data,recordAddress,recordLength,loTables,hiTables,
+   pointerBytes:period*256*2,period,end,visible:occurrences.length,
+   groupWidth:width,direction:g.type,pixelsPerTick:8,
+   sourceColumnsPerTick:2,atlasBytes:2048};
+
 }
 function assemble(m,hd){
  var op=[],labels={},patches=[];
@@ -117,45 +123,52 @@ function assemble(m,hd){
  imm(0xE6,0xB1);imm(0xA5,0xB1);imm(0xC9,hd.period);
  branch(0xD0,'phaseValid');imm(0xA9,0);imm(0x85,0xB1);
  label('phaseValid');
- imm(0xA6,0xB1);
- ref(0xBD,'phaseLo');imm(0x85,0xE0);
- ref(0xBD,'phaseHi');imm(0x85,0xE1);
+ imm(0xA6,0xB1); // phase index
+ ref(0xBD,'loTablePages');abs(0x8D,0x0000); // patched below
+ // Replace the temporary STA $0000 with a self-modifying STA address.
+ var staLoHigh=pc()-2;
+ ref(0xBD,'hiTablePages');abs(0x8D,0x0000);
+ var staHiHigh=pc()-2;
+ imm(0xA9,hd.recordAddress);imm(0x85,0xE0);
+ imm(0xA9,hd.recordAddress>>8);imm(0x85,0xE1);
  imm(0xA9,hd.visible);imm(0x85,0xE6);
  imm(0xA9,hd.visible>>8);imm(0x85,0xE7);
  label('nextCell');
- imm(0xA5,0xE6);imm(0x05,0xE7);
- branch(0xF0,'doneFrame');
+ imm(0xA5,0xE6);imm(0x05,0xE7);branch(0xF0,'doneFrame');
  imm(0xA0,0);
- imm(0xB1,0xE0);imm(0x85,0xE2); // source LO
- b(0xC8);imm(0xB1,0xE0);imm(0x85,0xE3); // source HI
- b(0xC8);imm(0xB1,0xE0);imm(0x85,0xE4); // dst LO
- b(0xC8);imm(0xB1,0xE0);imm(0x85,0xE5); // dst HI
- // Copy 8 rows, 8 bytes per destination cell, no WORK intermediate.
+ imm(0xB1,0xE0);b(0xAA); // tile ID -> X, 0..255
+ b(0xBD);b(0);label('srcLoOperand');b(hd.loTables>>8);imm(0x85,0xE2);
+ b(0xBD);b(0);label('srcHiOperand');b(hd.hiTables>>8);imm(0x85,0xE3);
+ b(0xC8);imm(0xB1,0xE0);imm(0x85,0xE4);
+ b(0xC8);imm(0xB1,0xE0);imm(0x85,0xE5);
  imm(0xA0,7);label('copyCell');
  imm(0xB1,0xE2);imm(0x91,0xE4);
  b(0x88);branch(0x10,'copyCell');
- // record += 4
- b(0x18);imm(0xA5,0xE0);imm(0x69,4);imm(0x85,0xE0);
+ b(0x18);imm(0xA5,0xE0);imm(0x69,3);imm(0x85,0xE0);
  branch(0x90,'noCarry');imm(0xE6,0xE1);label('noCarry');
- // 16-bit count--
  imm(0xA5,0xE6);branch(0xD0,'countLow');
  imm(0xC6,0xE7);label('countLow');imm(0xC6,0xE6);
  ref(0x4C,'nextCell');
  label('doneFrame');ref(0x4C,'tick');
+ // Word-address patch for the absolute "STA operandHigh" instructions.
+ // The assembler fixup below writes the target low/high once labels resolve.
+ patches.push({p:staLoHigh,n:'srcLoOperand',rel:false,oneByteHigh:true});
+ patches.push({p:staHiHigh,n:'srcHiOperand',rel:false,oneByteHigh:true});
  label('copyPages');
  imm(0xA0,0);label('pageLoop');
  imm(0xB1,0xFB);imm(0x91,0xFD);
  b(0xC8);branch(0xD0,'pageLoop');
  imm(0xE6,0xFC);imm(0xE6,0xFE);
  b(0xCA);branch(0xD0,'pageLoop');b(0x60);
- label('phaseLo');for(var i=0;i<hd.phaseAddresses.length;i++)b(hd.phaseAddresses[i]&255);
- label('phaseHi');for(var i=0;i<hd.phaseAddresses.length;i++)b(hd.phaseAddresses[i]>>8);
+ label('loTablePages');for(var i=0;i<hd.period;i++)b((hd.loTables>>8)+i);
+ label('hiTablePages');for(var i=0;i<hd.period;i++)b((hd.hiTables>>8)+i);
  for(var f of patches){
   var addr=labels[f.n];if(addr===undefined)throw Error('Etiqueta inexistente '+f.n);
   if(f.rel){var offset=addr-(START+f.p+1);
    if(offset< -128||offset>127)throw Error('Branch fuera de rango '+f.n+' '+offset);
    op[f.p]=offset&255;
-  }else{op[f.p]=addr&255;op[f.p+1]=addr>>8;}
+  }else if(f.oneByteHigh)op[f.p]=addr&255;
+  else{op[f.p]=addr&255;op[f.p+1]=addr>>8;}
  }
  if(START+op.length>=BMPSRC)throw Error('ASM invade Bitmap inicial.');
  return {code:new Uint8Array(op),labels};
@@ -170,8 +183,9 @@ function build(m){
  out.set(m.screen,at(SCRSRC));
  out.set(m.color,at(COLSRC));
  out.set(m.atlas,at(BASE));
- out.set(m.data,at(DATA)); // includes 8-byte zero tile at $9000
- out.set(hd.bytes,at(hd.streamStart));
+ // The original TEST290 metadata is not copied: phase lookup replaces
+ // its per-tile group matrices and per-occurrence WORK refresh list.
+ out.set(hd.data,at(DATA));
  return {bytes:out,model:m,meta:hd,labels:a.labels,asmBytes:a.code.length};
 }
 function download(prg){
@@ -195,7 +209,7 @@ function exportPRG(opts){
    bytes:out.length,visibleCells:built.meta.visible,groupWidth:built.meta.groupWidth,
    groupMembers:m.animations[0].memberCount,phaseCount:built.meta.period,
    pixelsPerTick:8,sourceColumnsPerStep:2,bitmapBytesPerUpdate:built.meta.visible*8,
-   totalPointerBytes:built.meta.streamLength,atlasBytes:2048,
+   totalPointerBytes:built.meta.pointerBytes,positionListBytes:built.meta.recordLength,atlasBytes:2048,
    asmBytes:built.asmBytes};
   window.RICO_TEST291_LAST_EXPORT=stats.last;
   if(opts&&opts.download===false)return built;
