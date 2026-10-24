@@ -197,7 +197,7 @@ function snapshot(){
   var bytes=bytes8(pix),key=Array.prototype.join.call(bytes,',');
   if(hash[key]!==undefined)return hash[key];
   var address=ATLAS+atlas.length;
-  if(address+8>LIMIT)throw new Error('No cabe el atlas en memoria Bitmap.');
+  if(address+8>LIMIT)throw new Error('Atlas agotado: '+(atlas.length+8)+' bytes necesarios solo para patrones; '+(LIMIT-ATLAS)+' disponibles en RAM alta.');
   for(var k=0;k<8;k++)atlas.push(bytes[k]);
   hash[key]=address;return address;
  }
@@ -241,7 +241,7 @@ function snapshot(){
   addresses.push(end);end+=record.length;streams.push(record);
   dirtyTotal+=dirty;maxDirty=Math.max(maxDirty,dirty);
  }
- if(end>LIMIT)throw new Error('Animación requiere '+(end-ATLAS)+' bytes. RAM disponible para atlas y cambios '+(LIMIT-ATLAS)+' bytes.');
+ if(end>LIMIT)throw new Error('Atlas + cambios necesitan '+(end-ATLAS)+' bytes; memoria máxima en RAM alta '+(LIMIT-ATLAS)+' bytes.');
  return {bitmap:bitmap,screen:screen,colors:colors,atlas:new Uint8Array(atlas),
   streams:streams,pointers:addresses,states:states,stepCount:states.length,frameCount:1,
   tileCount:Object.keys(used).length,variantCount:atlas.length/8,
