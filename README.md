@@ -1,3 +1,22 @@
+# LVLVL RICO — MASTER SÁBADO 24 DE OCTUBRE DE 2026
+
+**MASTER ACTUAL DE TRABAJO: TEST264 C64 Multicolor — PASS básico en VICE confirmado por usuario.** Este snapshot conserva el editor y los módulos RICO hasta TEST264, incluyendo UI compacta, índice y pincel multicolor, Replace Color, BANK1/BANK2 y rutas históricas de Map/Group Scroll. **Ninguna combinación adicional Scroll + MC ha sido marcada PASS sin pruebas en VICE.**
+
+- **MASTER 24/10:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_24_OCTUBRE_2026
+- **Descargar MASTER ZIP completo:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/MASTER_LVLLVL_RICO_24_OCTUBRE_2026.zip
+- **Web TEST264 con exportación MC simple PASS:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test264-native-multicolor-export/
+- **Documentación consolidada:** [docs/MASTER_LVLVL_RICO_24_OCTUBRE_2026.md](docs/MASTER_LVLVL_RICO_24_OCTUBRE_2026.md)
+- **Auditoría de compatibilidad Multicolor TEST265:** [docs/TEST265_AUDITORIA_EXPORT_MULTICOLOR.md](docs/TEST265_AUDITORIA_EXPORT_MULTICOLOR.md)
+- **Matriz preparada para mañana, 25/10 — TEST266:** [docs/PLAN_TEST266_MATRIZ_MULTICOLOR_25_OCTUBRE_2026.md](docs/PLAN_TEST266_MATRIZ_MULTICOLOR_25_OCTUBRE_2026.md)
+- **MASTER 23/10 diagonal TEST254, preservado:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_23_OCTUBRE_2026
+- **MASTER 23/10 Group TEST247, preservado:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_23_OCTUBRE_2026_GRUPALES_TEST247_PASS
+
+**Preservación:** este MASTER es un checkpoint recuperable creado desde `release/test264-native-multicolor-export`; los tests nuevos deben derivar del MASTER en ramas separadas. El editor de la raíz pública `gh-pages` no ha sido reemplazado. El MASTER diagonal TEST254 sigue en otra rama, no se promete convivencia validada con el editor TEST264.
+
+---
+
+## Archivo histórico: documentación previa del MASTER del 23/10
+
 # LVLLVL RICO — MASTER VIERNES 23 DE OCTUBRE DE 2026
 
 **Nuevo MASTER de referencia: TEST254 · ~47,2 avances/s en VICE, rendimiento validado.** Se eligió TEST254 en lugar de TEST255 para priorizar la calidad visual sobre acercarse a 50/s; queda una revisión fina de sincronización y costuras para continuar. **La web principal no cambia de motor en este checkpoint.**
