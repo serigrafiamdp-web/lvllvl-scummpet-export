@@ -7,7 +7,7 @@ Exporta la **frame actual** del mapa experimental Bitmap MC como un PRG C64 aut�
 
 Se usa un generador propio de bytes 6502. **No reutiliza el player de modo carácter**: este primer paso necesita comprobar una imagen bitmap real, sin animaciones ni scroll.
 
-El botón `Exportar Bitmap MC .PRG` aparece en el panel Tile Editor y en la barra superior de Tiles mientras el modo esté activo. El menú normal de exportación PRG también se redirige a este exportador solo en Bitmap MC.
+El botón `Exportar Bitmap MC .PRG` aparece en el panel Tile Editor mientras el modo esté activo. El menú normal de exportación PRG también se redirige a este exportador solo en Bitmap MC.
 
 ## Mapa de memoria de hardware
 
@@ -46,7 +46,7 @@ Cada celda aporta 8 bytes en el orden VIC, indexadas por `(y*40+x)*8 + row`.
 1. Abrí [TEST282 WEB](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test282-bitmap-mc-static-prg/).
 2. Cargá un proyecto y activá `SCREEN → Multicolor Bitmap (Experimental)`.
 3. Confirmá que la frame actual pinta correctamente con BG/C1/C2/C3.
-4. Pulsá `Exportar Bitmap MC .PRG` (Tile Editor o barra Tiles).
+4. Pulsá `Exportar Bitmap MC .PRG` desde Tile Editor o desde el menú habitual Export PRG.
 5. Cargá el PRG resultante en VICE. Compará imagen y colores con el editor.
 
 ## Limitaciones esperadas y deliberadas
