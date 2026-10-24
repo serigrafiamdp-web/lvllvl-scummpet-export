@@ -1,3 +1,17 @@
+## MASTER LVLLVL RICO — 24 OCTUBRE 2026
+
+**Checkpoint actual: TEST264 — exportación C64 Multicolor básica con PASS en VICE (1 frame sin scroll).**
+- [MASTER 24/10 — repositorio completo](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_24_OCTUBRE_2026)
+- [ZIP completo del MASTER 24/10](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/MASTER_LVLLVL_RICO_24_OCTUBRE_2026.zip)
+- [Documentación de consolidación](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/MASTER_LVLLVL_RICO_24_OCTUBRE_2026/docs/MASTER_LVLLVL_RICO_24_OCTUBRE_2026.md)
+- [Auditoría Multicolor TEST265](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/MASTER_LVLLVL_RICO_24_OCTUBRE_2026/docs/TEST265_AUDITORIA_EXPORT_MULTICOLOR.md)
+- [Matriz de pruebas para el 25/10 — TEST266](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/MASTER_LVLLVL_RICO_24_OCTUBRE_2026/docs/PLAN_TEST266_MATRIZ_MULTICOLOR_25_OCTUBRE_2026.md)
+- [Versión web TEST264](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test264-native-multicolor-export/)
+
+**Estado:** lo único marcado PASS de exportación Multicolor es el caso básico confirmado; Scroll, Ping Pong, Move In/Out, diagonales, Group, ONDAS, Animated Chars y SID requieren pruebas en VICE. Se conserva la raíz web y los MASTER anteriores sin cambiar motores.
+
+---
+
 # LVLLVL RICO — MASTER VIERNES 23 DE OCTUBRE DE 2026
 
 **Nuevo MASTER de referencia: TEST254 · ~47,2 avances/s en VICE, rendimiento validado.** Se eligió TEST254 en lugar de TEST255 para priorizar la calidad visual sobre acercarse a 50/s; queda una revisión fina de sincronización y costuras para continuar. **La web principal no cambia de motor en este checkpoint.**
