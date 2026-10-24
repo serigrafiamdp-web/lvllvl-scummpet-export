@@ -16,7 +16,7 @@
 if(!window.RICO_TEST282_BITMAP||!window.RICO_TEST279_BITMAP||typeof Editor==='undefined')return;
 var LOAD=0x0801,ENTRY=0x0810,BMP=0x1000,SCR=0x2F40,COL=0x3328,
     BASE=0x8000,WORK=0x8800,DATA=0x9000,LIMIT=0xD000,
-    LUT=0xB000,LUT_R=0xB700,LUT_END=0xBE00;
+    LUT_SIZE=14*256;
 function shiftTables(){
  // Seven 256-byte pages for bit shifts 1..7, left and right halves.
  // Shift 0 bypasses tables (direct copy). 2-bit/MC alignment is preserved
@@ -152,6 +152,8 @@ function analyze(){
   groupCount:animations.length,bank:bank,bg:l.getBackgroundColor(f)&15,end:DATA+cursor};
 }
 function assemble(m){
+ if(!m.lutAddress)m.lutAddress=(m.end+255)&~255;
+ if(m.lutAddress+LUT_SIZE>LIMIT)throw Error('TEST290: LUT no cabe en RAM alta.');
  var bytes=[],labels={},fix=[];
  function here(){return ENTRY+bytes.length;}function b(v){bytes.push(v&255);}
  function wd(v){b(v);b(v>>8);}function L(n){if(labels[n]!==undefined)throw Error('Etiqueta repetida '+n);labels[n]=here();}
@@ -224,10 +226,10 @@ function assemble(m){
  I(0xA0,7);L('eachRow');
  I(0xA5,Z.shiftB);R(0xF0,'copyRow');
  I(0xB1,Z.al);b(0xAA);  // LDA (sourceA),Y / TAX
- b(0xBD);b(0);L('leftOperandHigh');b(0xB0); // LDA LUT_LEFT(page),X
+ b(0xBD);b(0);L('leftOperandHigh');b(m.lutAddress>>8); // LDA LUT_LEFT(page),X
  I(0x85,Z.hi);
  I(0xB1,Z.bl);b(0xAA);
- b(0xBD);b(0);L('rightOperandHigh');b(0xB7); // LDA LUT_RIGHT(page),X
+ b(0xBD);b(0);L('rightOperandHigh');b((m.lutAddress+7*256)>>8); // LDA LUT_RIGHT(page),X
  I(0x05,Z.hi);J(0x4C,'storeRow');
  L('copyRow');I(0xB1,Z.al);
  L('storeRow');I(0x91,Z.wl);b(0x88);R(0x10,'eachRow');
@@ -257,9 +259,9 @@ function assemble(m){
  I(0xE6,0xFC);I(0xE6,0xFE);b(0xCA);R(0xD0,'copyPage');b(0x60);
  // 8 high-address entries (slot zero is harmless; zero uses copyRow).
  L('leftHighPages');
- for(var k=0;k<8;k++)b((LUT+Math.max(0,k-1)*256)>>8);
+ for(var k=0;k<8;k++)b((m.lutAddress+Math.max(0,k-1)*256)>>8);
  L('rightHighPages');
- for(var k=0;k<8;k++)b((LUT_R+Math.max(0,k-1)*256)>>8);
+ for(var k=0;k<8;k++)b((m.lutAddress+7*256+Math.max(0,k-1)*256)>>8);
  for(var f of fix){
   var target=labels[f.n];if(target===undefined)throw Error('ASM etiqueta indefinida '+f.n);
   if(!f.rel){bytes[f.i]=target&255;bytes[f.i+1]=(target>>8)&255;}
@@ -272,15 +274,20 @@ function assemble(m){
 }
 function build(m){
  if(!m.animations.length)throw Error('Usá TEST282 para Bitmap estático.');
- if(m.end>LUT)throw Error('TEST290: los metadatos de grupos ocupan la zona reservada a LUT ($B000).');
- var a=assemble(m),prg=new Uint8Array(2+Math.max(m.end,LUT_END)-LOAD);
+ // Place the 14 LUT pages immediately AFTER variable group metadata.
+ // A page-aligned absolute,X lookup avoids both page crossing and any
+ // fixed $9000→$B000 hole. Up to 256 tiles still need only 2048 B.
+ m.lutAddress=(m.end+255)&~255;
+ if(m.lutAddress+LUT_SIZE>LIMIT)
+  throw Error('TEST290: metadatos y tablas LUT superan $CFFF. '+(m.lutAddress+LUT_SIZE-DATA)+' bytes requeridos.');
+ var a=assemble(m),prg=new Uint8Array(2+(m.lutAddress+LUT_SIZE)-LOAD);
  prg[0]=1;prg[1]=8;
  function at(p){return 2+p-LOAD;}
  prg.set([0x0B,0x08,10,0,0x9E,50,48,54,52,0,0,0],at(LOAD));
  prg.set(a.bytes,at(ENTRY));prg.set(m.bitmap,at(BMP));
  prg.set(m.screen,at(SCR));prg.set(m.color,at(COL));
  prg.set(m.atlas,at(BASE));prg.set(m.data,at(DATA));
- prg.set(shiftTables(),at(LUT));
+ prg.set(shiftTables(),at(m.lutAddress));
  return prg;
 }
 function download(bytes,name){
@@ -299,7 +306,8 @@ function exportPRG(opts){
   }else bytes=build(m);
   debug.error=null;debug.last={status:'GENERATED - VICE PENDING',
    bytes:bytes.length,tilesAtlas:256,atlasBytes:2048,workingBytes:2048,
-   lookupBytes:m.animations.length?3584:0,shiftMode:'LUT bytes 1..7, identical to TEST286',
+   lookupBytes:m.animations.length?3584:0,lutAddress:m.lutAddress,
+   shiftMode:'LUT bytes 1..7, identical to TEST286',
    metadataBytes:m.metadataBytes,animatedGroups:m.animations.length,
    visibleAnimatedCells:m.refreshCount,bitmapMode:'multicolor procedural horizontal'};
   window.RICO_TEST290_LAST_EXPORT=debug.last;
