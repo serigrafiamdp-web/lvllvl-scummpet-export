@@ -95,6 +95,10 @@ ToPRGAdv.prototype.createPRG=function(args){
     // the wrapped original above stays reachable underneath it.
     output=oldExport.call(self,silent);
     if(!count)throw new Error('TEST262: el exportador no utilizó el ensamblador ASM interceptado. Se bloqueó el PRG Hi-Res.');
+    // Older LVLLVL exporters only call window.download and return undefined.
+    // The interception above keeps their complete PRG in memory, not in a file.
+    if((!output||!output.length)&&captures.length)
+      output=captures[captures.length-1].data;
     if(!output||output===false||!output.length)
       throw new Error('TEST262: el motor de exportación no devolvió un PRG válido.');
     var bytes=output instanceof Uint8Array?output:new Uint8Array(output);
