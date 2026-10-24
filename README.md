@@ -5,7 +5,7 @@
 - **MASTER 24/10:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_24_OCTUBRE_2026
 - **Descargar MASTER ZIP completo:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/MASTER_LVLLVL_RICO_24_OCTUBRE_2026.zip
 - **Web TEST264 con exportación MC simple PASS:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test264-native-multicolor-export/
-- **Documentación consolidada:** [docs/MASTER_LVLVL_RICO_24_OCTUBRE_2026.md](docs/MASTER_LVLVL_RICO_24_OCTUBRE_2026.md)
+- **Documentación consolidada:** [docs/MASTER_LVLLVL_RICO_24_OCTUBRE_2026.md](docs/MASTER_LVLLVL_RICO_24_OCTUBRE_2026.md)
 - **Auditoría de compatibilidad Multicolor TEST265:** [docs/TEST265_AUDITORIA_EXPORT_MULTICOLOR.md](docs/TEST265_AUDITORIA_EXPORT_MULTICOLOR.md)
 - **Matriz preparada para mañana, 25/10 — TEST266:** [docs/PLAN_TEST266_MATRIZ_MULTICOLOR_25_OCTUBRE_2026.md](docs/PLAN_TEST266_MATRIZ_MULTICOLOR_25_OCTUBRE_2026.md)
 - **MASTER 23/10 diagonal TEST254, preservado:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_23_OCTUBRE_2026
