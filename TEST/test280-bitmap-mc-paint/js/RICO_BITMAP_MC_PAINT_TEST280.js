@@ -169,7 +169,12 @@
   function refreshUI(){
     var ed=edNow(),l=ed&&layerOf(ed),yes=active(l),bar=document.getElementById('rico280InkBar');
     if(bar)bar.style.display=yes?'block':'none';
-    if(!bar||!yes)return;
+    if(!yes){
+      var oldNative=document.getElementById('tileEditorC64Colors');
+      if(oldNative)oldNative.style.display='';
+      return;
+    }
+    if(!bar)return;
     var b=brush(ed),p=l.getColorPalette();
     ['bg','c1','c2','c3'].forEach(function(k){
       var v=k==='bg'?(l.getBackgroundColor()&15):b[k];
@@ -180,8 +185,12 @@
     });
     // The native controls do not describe per-cell bitmap colours.
     // Keep native draw tools internally but hide only these misleading swatches.
-    var natives=document.querySelectorAll('#tileEditorC64Colors');
-    for(var i=0;i<natives.length;i++)if(natives[i].parentElement && natives[i].parentElement.id==='tileEditor')natives[i].style.display='none';
+    var nativeContainer=document.getElementById('tileEditorC64Colors');
+    if(nativeContainer) nativeContainer.style.display='none';
+    ['c1','c2','c3'].forEach(function(k){
+      var side=document.getElementById('rico279'+k);
+      if(side)side.value=String(b[k]);
+    });
   }
   function mount(){
     if(document.getElementById('rico280InkBar')){refreshUI();return true;}
@@ -214,6 +223,12 @@
     anchor.parentNode.insertBefore(bar,anchor.nextSibling);
     refreshUI();return true;
   }
+  document.addEventListener('change',function(event){
+    var id=event.target&&event.target.id;
+    if(id==='rico279c1'||id==='rico279c2'||id==='rico279c3'){
+      window.setTimeout(function(){refreshUI();updatePreview(edNow());},0);
+    }
+  });
   var oldInterface=TextModeEditor.prototype.setInterfaceScreenMode;
   TextModeEditor.prototype.setInterfaceScreenMode=function(){
     var r=oldInterface.apply(this,arguments);
