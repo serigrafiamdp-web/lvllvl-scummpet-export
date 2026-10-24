@@ -253,19 +253,22 @@ ToPRGAdv.prototype.createPRG=function(args){
   if(!isStandalone(this))return old.apply(this,arguments);
   try{
     args=args||{};
+    window.RICO_TEST246_LAST_PLAN=null;
     var src=build(this),prg=assemble(this,src);this.prg=prg;
     if(args.download===false)return prg;
-    var filename=args.filename||'rico-test240-group-solo.prg';
+    var plan=window.RICO_TEST246_LAST_PLAN;
+    var defaultName=plan&&plan.mode==='screen-remap-4-fonts'?'RICO_TEST246_REMAP_8PX.prg':'RICO_TEST246_FALLBACK.prg';
+    var filename=args.filename||defaultName;
     if(!/\.prg$/i.test(filename))filename+='.prg';
     if(typeof window.download!=='function')throw new Error('TEST246: download() no disponible.');
     window.download(prg,filename,'application/prg');return prg;
   }catch(e){
     window.RICO_TEST246_LAST_ERROR=e.message;
-    console.error('[RICO TEST240 STANDALONE]',e);
+    console.error('[RICO TEST246 STANDALONE]',e);
     if(typeof window.alert==='function')window.alert('RICO TEST246: '+e.message);
     return false;
   }
 };
 window.RICO_TEST246_STANDALONE={build:build,readGroup:readGroup,isStandalone:isStandalone};
-console.log('[RICO TEST240] Group-only PRG route loaded: Map Scroll not required');
+console.log('[RICO TEST246] Group-only PRG engine with remapped screens loaded; no Map Scroll required');
 })();
