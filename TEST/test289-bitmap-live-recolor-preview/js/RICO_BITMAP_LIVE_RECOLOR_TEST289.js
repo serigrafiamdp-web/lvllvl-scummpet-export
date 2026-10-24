@@ -14,6 +14,7 @@ if(CurrentTile.prototype.__rico289LivePreview)return;
 var metrics={changes:0,indexUpdates:0,cursorUpdates:0,refreshes:0,
   selectedTiles:0,lastInk:null,lastEvent:'',lastError:null};
 var currentEditor=null,latestSelection=null,hasOverride=false,overrideInk=null;
+var persisted={}; // live-chosen C1/C2/C3 saved by selected tile ID
 var pending=false,selectionChange=false,muting=false;
 function edNow(){return window.g_app&&window.g_app.textModeEditor;}
 function layer(ed){try{return ed&&ed.layers&&ed.layers.getSelectedLayerObject&&ed.layers.getSelectedLayerObject();}catch(e){return null;}}
@@ -39,6 +40,10 @@ function decolorActive(){
 function inkFor(id){
  if(decolorActive())return 0x100;
  if(hasOverride&&overrideInk!==null)return overrideInk;
+ if(Object.prototype.hasOwnProperty.call(persisted,id))return persisted[id];
+ var ed=edNow(),l=layer(ed),ts=l&&l.getTileSet&&l.getTileSet();
+ var rec=ts&&ts.tileData&&ts.tileData[id]&&ts.tileData[id].props;
+ if(rec&&Number.isInteger(rec.ricoBmpColors))return rec.ricoBmpColors&4095;
  var source=window.RICO_TEST288_BITMAP.source(id);
  return typeof source==='number'?source:null;
 }
@@ -92,6 +97,34 @@ function recolorCursor(tile){
   visited++;
  }
  if(visited){ctx.putImageData(image,0,0);metrics.cursorUpdates++;}
+}
+// TEST288 preserves colors of the map's source snapshot. When a user has
+// explicitly recolored a tile in TEST289, that new TILE INDEX palette wins
+// on future stamps even after selecting another tile and coming back.
+if(typeof LayerGrid!=='undefined'){
+ var originalCell=LayerGrid.prototype.setCell;
+ LayerGrid.prototype.setCell=function(args){
+  var ed=this.editor||edNow(),tools=ed&&ed.tools&&ed.tools.drawTools;
+  var desired=active(ed)&&!decolorActive()&&tools&&tools.tool==='pen'&&
+    tools.drawCharacter!==false&&args&&Number.isInteger(args.t)&&
+    Object.prototype.hasOwnProperty.call(persisted,args.t)?persisted[args.t]:null;
+  var result=originalCell.apply(this,arguments);
+  if(desired!==null&&Number.isInteger(args.x)&&Number.isInteger(args.y)&&
+    args.x>=0&&args.y>=0&&args.x<this.getGridWidth()&&args.y<this.getGridHeight()){
+   var f=Number.isInteger(args.frame)?args.frame:this.currentFrame;
+   var frame=this.frames&&this.frames[f],
+       cell=frame&&frame.data&&frame.data[args.y]&&frame.data[args.y][args.x];
+   if(cell&&cell.t===args.t){
+    var ink=window.RICO_TEST279_BITMAP.seed(frame,this),pos=args.y*this.getGridWidth()+args.x;
+    if(ink&&ink[pos]!==desired){
+     ink[pos]=desired;if(ed.modified)ed.modified();
+     if(ed.graphic&&ed.graphic.invalidateAllCells)ed.graphic.invalidateAllCells();
+     if(ed.graphic&&ed.graphic.redraw)ed.graphic.redraw({allCells:true});
+    }
+   }
+  }
+  return result;
+ };
 }
 var oldCursor=CurrentTile.prototype.drawCursor;
 CurrentTile.prototype.drawCursor=function(args){
@@ -176,8 +209,22 @@ function onInkChange(ed,event){
  if(!b)return;
  hasOverride=true;overrideInk=pack(b);
  metrics.changes++;metrics.lastInk=overrideInk;metrics.lastEvent=event;
- // Note: currentTile.paint continues using TEST288's brush-change logic.
- // We only apply the same change to VISUAL previews.
+ // Persist the chosen ink palette per selected tile ID. The C64 bitmap
+ // STILL has colors per screen CELL; saving tile props affects future
+ // Pencil stamps and index preview, not existing map cells or glyph bits.
+ if(!decolorActive()){
+  var ids=selectedSet(ed),l=layer(ed),ts=l&&l.getTileSet&&l.getTileSet(),count=0;
+  for(var id in ids){
+   persisted[id]=overrideInk;
+   var entry=ts&&ts.tileData&&ts.tileData[id];
+   if(entry){
+    if(!entry.props)entry.props={};
+    entry.props.ricoBmpColors=overrideInk;
+   }
+   count++;
+  }
+  if(count&&ed.modified)ed.modified();
+ }
  schedule(ed);
 }
 function observeBrush(ed){
@@ -305,7 +352,9 @@ else retry();
 if(window.UI&&UI.on)UI.on('ready',retry);
 window.RICO_TEST289_BITMAP={
  version:'TEST289',refresh:function(){var ed=edNow();if(ed){observeBrush(ed);refreshNow(ed);}},
- observe:observeBrush,inkFor:inkFor,state:metrics,live:function(){return hasOverride?overrideInk:null;}
+ observe:observeBrush,inkFor:inkFor,state:metrics,
+ stored:function(id){return Object.prototype.hasOwnProperty.call(persisted,id)?persisted[id]:null;},
+ live:function(){return hasOverride?overrideInk:null;}
 };
 CurrentTile.prototype.__rico289LivePreview=true;
 console.log(TAG,'live C1/C2/C3/BG refresh for selected index, brush cursor, Tile Editor installed');
