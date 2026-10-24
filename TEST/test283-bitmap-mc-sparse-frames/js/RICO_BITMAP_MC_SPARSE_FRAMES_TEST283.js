@@ -349,6 +349,10 @@ function mount(){
     holder.appendChild(line);bar.appendChild(holder);
   }
   document.getElementById('rico283Holder').style.display=active(edNow())?'block':'none';
+  // TEST282's static exporter is retained as an A/B reference, but its
+  // button must never be mistaken for the animated exporter in TEST283.
+  var staticButton=document.getElementById('rico282Export');
+  if(staticButton)staticButton.textContent='TEST282: Exportar imagen FIJA .PRG';
   return true;
 }
 if(typeof Editor!=='undefined'&&Editor.prototype&&!Editor.prototype.__rico283Menu) {
