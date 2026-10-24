@@ -14,7 +14,7 @@ if(typeof LayerGrid==='undefined'||!window.RICO_TEST279_BITMAP||
 if(LayerGrid.prototype.__rico288StampColors)return;
 var stats={selections:0,stamps:0,colorWrites:0,sampledTiles:0,
   ambiguities:0,uncaptured:0,last:null};
-var selection=null,selectedLayer=null,colors={},brushAtSelection=null;
+var selection=null,selectedLayer=null,selectedIds={},colors={},brushAtSelection=null;
 function editor(){return window.g_app&&window.g_app.textModeEditor;}
 function layerOf(ed){try{return ed&&ed.layers&&ed.layers.getSelectedLayerObject();}catch(e){return null;}}
 function active(layer){return !!(layer&&layer.doc&&layer.doc.ricoBitmapV1Enabled&&
@@ -49,13 +49,13 @@ function tilePalette(l,ts,id){
   if(Array.isArray(c)&&c.length>=3)return pack(c[0],c[1],c[2]);
  }
  // Standard C64 MC index palette: global Multicolor 1/2, tile foreground.
- // In native character MC a foreground 8..15 uses bit3 as MC flag;
- // strip it only for this fallback, not for explicit 12-bit bitmap inks.
+ // Bitmap MC allows all 16 C3 values. Keep the tile palette's full
+ // foreground nibble: unlike native character MC, bit3 is not a mode flag.
  var c1=l.getC64Multi1Color?l.getC64Multi1Color()&15:0;
  var c2=l.getC64Multi2Color?l.getC64Multi2Color()&15:0;
  var fc=ts&&ts.getTileColor?ts.getTileColor(id):
     (Number.isInteger(props.fc)?props.fc:1);
- var c3=Number.isInteger(fc)?(fc>=8&&fc<=15?fc&7:fc&15):1;
+ var c3=Number.isInteger(fc)?(fc&15):1;
  return pack(c1,c2,c3);
 }
 function sourceInkMap(l,selectedIds){
@@ -107,7 +107,7 @@ function recordSelection(ed,g){
   if(sample.sampled[id]){resolved[id]=sample.values[id];fromArt++;}
   else{resolved[id]=tilePalette(l,ts,Number(id));fromTile++;}
  }
- selection=copy;selectedLayer=l;colors=resolved;brushAtSelection=brushInk(ed);
+ selection=copy;selectedLayer=l;selectedIds=needed;colors=resolved;brushAtSelection=brushInk(ed);
  stats.selections++;stats.sampledTiles=fromArt;stats.uncaptured=fromTile;
  stats.last={selection:copy[0].length+'×'+copy.length,selectedInstances:total,
   differentTiles:Object.keys(needed).length,colorsFromArt:fromArt,
@@ -167,13 +167,8 @@ LayerGrid.prototype.setCell=function(args){
    ensureSelection(this);
    // Only alter pens originating from the selected index stamp, never
    // unrelated scripted setCell calls or active tools.
-   if(selection){
-    var allowed=false;
-    for(var sy=0;sy<selection.length&&!allowed;sy++)
-     for(var sx=0;sx<selection[sy].length;sx++)
-      if(selection[sy][sx]===args.t){allowed=true;break;}
-    if(allowed)target=paletteForTile(ed,this,args.t);
-   }
+   if(selection&&Object.prototype.hasOwnProperty.call(selectedIds,args.t))
+    target=paletteForTile(ed,this,args.t);
   }
  }
  var result=baseCell.apply(this,arguments); // TEST287 / TEST280 / TEST279 wrappers
