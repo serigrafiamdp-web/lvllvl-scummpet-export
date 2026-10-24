@@ -88,8 +88,15 @@ function sourceInkMap(l,selectedIds){
  for(var id in selectedIds){
   var options=frequencies[id],best=-1,number=-1,unique=0;
   if(options){
+   // $100 = the exact black/white ink pair stamped by Decolorize.
+   // The blank tile (#0) and existing overpaint often dominate frequency
+   // despite a genuinely colored source occurrence. Prefer a colored
+   // sample when both exist, otherwise preserve an intentional B/W source.
+   var hasColored=Object.keys(options).some(function(k){return Number(k)!==0x100;});
    for(var k in options){unique++;
-    if(options[k]>number){number=options[k];best=Number(k);}
+    var ink=Number(k);
+    if(hasColored&&ink===0x100)continue;
+    if(options[k]>number){number=options[k];best=ink;}
    }
   }
   if(best>=0){result[id]=best;sampled[id]=true;if(unique>1)stats.ambiguities++;}
