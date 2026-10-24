@@ -165,8 +165,31 @@ function build(opt){
    'd018_next247','!byte $14',
    'timer247','!byte '+h(g.ticks),
    'fonts_a247','!byte $14,$16,$18,$1a',
-   'fonts_b247','!byte '+(odd?'$12,$14,$16,$18':'$24,$26,$28,$2a'));
- var fontAddresses=odd?[0x5000,0x5800,0x6000,0x6800,0xc800,0xd000,0xd800,0xe000]:[0x5000,0x5800,0x6000,0x6800];
+   'fonts_b247','!byte '+(odd?'$12,$18,$1a,$1c':'$24,$26,$28,$2a'));
+ // Pack odd charset data below I/O in the PRG. The 6510 moves it to VIC
+ // bank3 after $01=$35. Loading a linear PRG over $D000 would hit I/O.
+ if(odd){
+   var head=a.indexOf('*=$2000'),early=['*=$1000','odd_font_source247_0'];
+   emit(early,variants[4]);
+   early.push('*=$1800','odd_font_source247_1');
+   emit(early,variants[5]);
+   if(head<0)throw Error('TEST247: inicio de código ausente');
+   a.splice.apply(a,[head,0].concat(early));
+   var afterBank=a.indexOf(' sta $01');
+   var bootstrap=[' ldx #$00','copy_odd_fonts247'];
+   var sourceBanks=[0x1000,0x1800,0x2800,0x3000],
+       targetBanks=[0xc800,0xe000,0xe800,0xf000];
+   for(var fb=0;fb<4;fb++)for(var pg=0;pg<8;pg++){
+     bootstrap.push(' lda '+w16(sourceBanks[fb]+pg*256)+',x',
+       ' sta '+w16(targetBanks[fb]+pg*256)+',x');
+   }
+   bootstrap.push(' inx',' bne copy_odd_fonts247');
+   if(afterBank<0)throw Error('TEST247: inicialización CPU ausente');
+   a.splice.apply(a,[afterBank+1,0].concat(bootstrap));
+   a.push('*=$2800','odd_font_source247_2');emit(a,variants[6]);
+   a.push('*=$3000','odd_font_source247_3');emit(a,variants[7]);
+ }
+ var fontAddresses=odd?[0x5000,0x5800,0x6000,0x6800,0xc800,0xe000,0xe800,0xf000]:[0x5000,0x5800,0x6000,0x6800];
  for(var i=0;i<4;i++){
    a.push('*='+w16(fontAddresses[i]),'font247_'+i);emit(a,variants[i]);
  }
@@ -181,10 +204,7 @@ function build(opt){
  a.push(' rts','update_b247',' ldx coarse_now247');
  for(var loc of visible)a.push(' lda map_code247_'+loc.code+',x',' sta '+w16((odd?0xc400:0x4800)+loc.cell));
  a.push(' rts');
- // High VIC bank sources come last: no backwards origin changes in assembler.
- if(odd)for(var i=4;i<8;i++){
-   a.push('*='+w16(fontAddresses[i]),'font247_'+i);emit(a,variants[i]);
- }
+ // Bank3 fonts are materialized by the startup copy: no PRG payload through $D000.
  return {source:a.join('\n')+'\n',reason:'TEST247-FAST-SCROLL',
    speed:g.pixels,direction:typ,positions:visible.length,phaseCount:steps,
    variantCount:fontAddresses.length,vicBanks:odd?2:1,estimatedCyclesPerPhase:visible.length*8+170,
