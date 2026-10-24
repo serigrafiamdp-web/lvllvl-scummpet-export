@@ -1,0 +1,38 @@
+# TEST247 — Group Scroll FAST ASM (23/10/2026)
+
+**Prueba independiente. NO marcar PASS hasta ejecutar en VICE.**
+
+Base aprobada: TEST246 Screen Remap Ping Pong 8px. Página principal, TEST246 y ONDAS originales sin cambios.
+
+## Modos conectados
+- Scroll Left / Right / Up / Down: **1 a 8 píxeles por tick**.
+- Ping Pong Left / Right / Up / Down: **1–7 píxeles por tick**, con retorno de fases correcto.
+- Ping Pong **8 píxeles** continúa usando exactamente TEST246 PASS.
+- ONDAS 4 direcciones conserva el motor progresivo original; no se remapea.
+- Configuración de ticks por grupo se conserva (1–255).
+
+## Mecánica DemoScene
+El movimiento circular usa tablas de remapeo de índices de caracteres. El Ping Pong recorta los píxeles fuera del área del grupo. Ambas variantes desplazan los códigos de pantalla, no reescriben todos los bytes del charset en cada fase.
+
+**Velocidades pares (2,4,6,8):** fuentes precalculadas con residuos pares 0,2,4,6; dos buffers de pantalla $4400/$4800; cuatro fuentes en $5000/$5800/$6000/$6800, VIC bank1.
+
+**Velocidades impares (1,3,5,7):** necesitan también 1,3,5,7. Se usan cuatro fuentes de residuos pares en VIC bank1 y cuatro impares en VIC bank3, con dos buffers de pantalla independientes: $4400 (bank1) y $C400 (bank3). Las fuentes del segundo banco están en $C800/$D000/$D800/$E000. CPU $01=$35 permite escribir RAM bajo I/O. En cada IRQ el controlador conmuta $DD00 y $D018 para presentar una fase completa. **Esta topología de dos VIC banks necesita validación física en VICE.**
+
+RAM sin modificar: editor y proyecto; ninguna fuente se guarda de vuelta. Si no entra una tabla, falta un código vacío (solo Ping Pong) o el grupo no coincide con el banco visible, se vuelve al motor anterior con diagnóstico. No forzar valores ni recortar arte.
+
+## Diagnóstico visual
+Al exportar:
+- `TEST247 SCROLL FAST ACTIVO`: nueva ruta, nombre, velocidad, celdas y bancos VIC.
+- `TEST247 FALLBACK`: causa por la que no se usó el acelerador.
+- `TEST246 REMAP ACTIVO`: Ping Pong 8px sigue en versión aprobada.
+- ONDAS no muestra remapeo nuevo.
+
+## Pruebas de generación realizadas
+- 60 combinaciones geométricas de referencia: 4 Scroll circulares × 8 velocidades + 4 Ping Pong × 7 velocidades (sin 8px del TEST246). Comparación independiente de datos, fases y glifos: cero diferencias.
+- 98 casos de integración, cubriendo BANK1/BANK2, rutas normales, Ping Pong8 heredado y ONDAS legado; sin etiquetas ASM duplicadas ni referencias a etiquetas inexistentes.
+- No se realizaron todavía medidas reales de ciclos ni ejecución VICE de la nueva ruta.
+
+## Integración siguiente
+TEST247 optimiza **Group Animate sin Map Scroll**. Cuando Map Scroll está activo, el proyecto sigue pasando por el motor anterior de combinación. Se requiere otro test para compartir los VIC buffers con Map Scroll; jamás sustituir silenciosamente una animación combinada por un PRG de pantalla quieta.
+
+URL: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test247-group-scroll-fast/
