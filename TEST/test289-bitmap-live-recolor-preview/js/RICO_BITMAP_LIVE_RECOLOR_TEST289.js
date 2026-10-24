@@ -14,7 +14,7 @@ if(CurrentTile.prototype.__rico289LivePreview)return;
 var metrics={changes:0,indexUpdates:0,cursorUpdates:0,refreshes:0,
   selectedTiles:0,lastInk:null,lastEvent:'',lastError:null};
 var currentEditor=null,latestSelection=null,hasOverride=false,overrideInk=null;
-var persisted={}; // live-chosen C1/C2/C3 saved by selected tile ID
+var persisted={},selectedIDs={}; // selected 256 tile IDs + live inks
 var pending=false,selectionChange=false,muting=false;
 function edNow(){return window.g_app&&window.g_app.textModeEditor;}
 function layer(ed){try{return ed&&ed.layers&&ed.layers.getSelectedLayerObject&&ed.layers.getSelectedLayerObject();}catch(e){return null;}}
@@ -107,7 +107,8 @@ if(typeof LayerGrid!=='undefined'){
   var ed=this.editor||edNow(),tools=ed&&ed.tools&&ed.tools.drawTools;
   var desired=null;
   if(active(ed)&&!decolorActive()&&tools&&tools.tool==='pen'&&
-     tools.drawCharacter!==false&&args&&Number.isInteger(args.t)){
+     tools.drawCharacter!==false&&args&&Number.isInteger(args.t)&&
+     Object.prototype.hasOwnProperty.call(selectedIDs,args.t)){
     var ts=this.getTileSet&&this.getTileSet();
     var props=ts&&ts.tileData&&ts.tileData[args.t]&&ts.tileData[args.t].props;
     if(Object.prototype.hasOwnProperty.call(persisted,args.t))
@@ -270,7 +271,8 @@ CurrentTile.prototype.setTiles=function(){
   // TEST288 resets its source palette snapshot during setTiles.
   // Match that reset here, without touching image or map color data.
   hasOverride=false;overrideInk=null;latestSelection=grid(ed);
-  metrics.selectedTiles=Object.keys(selectedSet(ed)).length;
+  selectedIDs=selectedSet(ed);
+  metrics.selectedTiles=Object.keys(selectedIDs).length;
   schedule(ed);
  }
  return result;
@@ -347,8 +349,8 @@ function ready(){
  var ed=edNow();if(!ed)return false;
  if(active(ed)){
   observeBrush(ed);
-  latestSelection=grid(ed);
-  metrics.selectedTiles=Object.keys(selectedSet(ed)).length;schedule(ed);
+  latestSelection=grid(ed);selectedIDs=selectedSet(ed);
+  metrics.selectedTiles=Object.keys(selectedIDs).length;schedule(ed);
  }
  return true;
 }
