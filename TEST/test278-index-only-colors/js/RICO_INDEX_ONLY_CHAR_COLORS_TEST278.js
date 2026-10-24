@@ -161,9 +161,9 @@ function mount(){
   if(!root||!holder)return false;
   var bar=document.createElement('div');
   bar.id='rico278Controls';
-  bar.style.cssText='position:absolute;top:43px;left:2px;right:2px;height:35px;z-index:80;'+
-    'display:flex;align-items:center;gap:6px;padding:2px 5px;box-sizing:border-box;'+
-    'background:#20252d;border-bottom:1px solid #4b5966;overflow:hidden;white-space:nowrap;';
+  bar.style.cssText='position:absolute;top:43px;left:2px;right:2px;min-height:59px;z-index:80;'+
+    'display:flex;align-content:center;align-items:center;flex-wrap:wrap;gap:4px 6px;padding:3px 5px;box-sizing:border-box;'+
+    'background:#20252d;border-bottom:1px solid #4b5966;white-space:normal;';
   var title=document.createElement('span');
   title.textContent='Índice:';
   title.title='Solo miniaturas. Fondo compartido; no altera mapa ni exportación.';
@@ -178,7 +178,7 @@ function mount(){
   status.style.cssText='font-size:10px;color:#b5d4c1;overflow:hidden;text-overflow:ellipsis;';
   bar.appendChild(status);
   root.appendChild(bar);
-  holder.style.setProperty('top','79px','important');
+  holder.style.setProperty('top','105px','important');
   var canvas=document.getElementById('sidecharPaletteCanvas');
   if(canvas&&canvas.addEventListener){
     canvas.addEventListener('mouseup',function(){setTimeout(sync,0);});
