@@ -229,9 +229,9 @@ function paletteSwizzle(original,ids,base){
   for(var id of active){
    var ok=[];
    for(var q=0;q<6;q++){
-    var test=fastCandidate[id][q];
-    if(test.valid&&candidateMatches(test.oneMask,pair[0])&&
-         candidateMatches(test.twoMask,pair[1]))ok.push(q);
+    var candidate=fastCandidate[id][q];
+    if(candidate.valid&&candidateMatches(candidate.oneMask,pair[0])&&
+         candidateMatches(candidate.twoMask,pair[1]))ok.push(q);
    }
    if(!ok.length){feasible=false;break;}
    cands[id]=ok;
