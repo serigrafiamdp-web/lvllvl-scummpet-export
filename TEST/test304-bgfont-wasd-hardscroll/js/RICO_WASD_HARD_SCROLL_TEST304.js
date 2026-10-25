@@ -123,7 +123,7 @@ function makePRG(source){
   ptr(0xe0,z[2]);ptr(0xe2,z[1]);J(0x4c,'plane'+z+'ready');
   L('plane'+z+'one');ptr(0xe0,z[1]);ptr(0xe2,z[2]);L('plane'+z+'ready');
   I(0xA9,z[3]&255);I(0x85,0xec);I(0xA9,z[3]>>8);I(0x85,0xed);
-  I(0xA9,z[4]);I(0x85,0xee);
+  I(0xA9,z[4]);I(0x85,0xee);I(0xA9,0);I(0x85,0xef);
   I(0xA9,(z[3]*25)&255);I(0x85,0xf4);
   I(0xA9,(z[3]*25)>>8);I(0x85,0xf5);
   J(0x20,'scrollDirection');
@@ -167,8 +167,8 @@ function makePRG(source){
  L('keySave');I(0x85,0xf2);
  L('handle');I(0xA5,0xf2);R(0xd0,'pressed');
  I(0xA9,0);I(0x85,0xf0);J(0x4c,'poll');
- L('pressed');I(0xc5,0xf0);R(0xf0,'held');
- I(0x85,0xf0);
+ L('pressed');I(0xc5,0xf0);R(0xd0,'newPress');J(0x4c,'poll');
+ L('newPress');I(0x85,0xf0);
  // Render the offscreen screen, color shadow, bitmap if MC. No background IRQ.
  plane(['scr',screen1,screen2,40,1]);
  plane(['col',color1,color2,40,1]);
@@ -186,7 +186,7 @@ function makePRG(source){
  if(mc){A(0xad,0xdd00);I(0x29,252);A(0x8d,0xdd00);}
  I(0xA9,mc?0x18:0x24);A(0x8d,0xd018);I(0xA9,1);I(0x85,0xf1);
  L('display');I(0xA9,mc?0x3b:0x1b);A(0x8d,0xd011);
- L('held');J(0x4c,'poll');
+ J(0x4c,'poll');
  // -------- scroll kernel ----------------------------------------------
  // Input E0/1 original source address, E2/3 destination,
  // EC/ED row byte stride (40 / 320), EE glyph byte size (1 / 8),
@@ -234,7 +234,7 @@ function makePRG(source){
  countRowMinusUnit();J(0x20,'copyBytes');J(0x20,'advanceBases');
  I(0xc6,0xe6);R(0xd0,'rightRow');b(0x60);
  L('slideUp');restore();addToPtr(0xe0,0xec,0xed);countTotalMinusRow();J(0x20,'copyBytes');
- restore();addToPtr(0xe2,0xe4,0xe5); // CAUTION count consumed above; recompute
+ restore();countTotalMinusRow();addToPtr(0xe2,0xe4,0xe5);
  countRow();J(0x20,'copyBytes');b(0x60);
  L('slideDown');restore();countTotalMinusRow();addToPtr(0xe0,0xe4,0xe5);
  countRow();J(0x20,'copyBytes');
