@@ -6,8 +6,8 @@
 */
 (function(w){
 'use strict';
-var BASE=0x0810,MAP=0x8000,TABLE_ROW_LO=0x4800,TABLE_ROW_HI=0x4900,
-    TABLE_COL_LO=0x4a00,TABLE_COL_HI=0x4b00,TABLE_TILE_LO=0x4c00,TABLE_TILE_HI=0x4d00;
+var BASE=0x0810,MAP=0x8000,TABLE_ROW_LO=0x1000,TABLE_ROW_HI=0x1100,
+    TABLE_COL_LO=0x1200,TABLE_COL_HI=0x1300,TABLE_TILE_LO=0x1400,TABLE_TILE_HI=0x1500;
 function assemble(){
  var bytes=[],labels={},fix=[],sequence=0;
  function b(v){bytes.push(v&255);}
