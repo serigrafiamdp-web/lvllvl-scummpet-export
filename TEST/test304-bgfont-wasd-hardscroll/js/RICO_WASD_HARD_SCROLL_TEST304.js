@@ -251,7 +251,7 @@ function makePRG(source){
  L('copied');b(0x60);
  var asm=c.done();
  if(0x0810+asm.code.length>=0x1000)throw Error('El ASM sobrepasa el área segura del PRG: '+asm.code.length+' bytes.');
- var load=0x0801,end=mc?0x370f:0x5800,prg=new Uint8Array(2+end-load);
+ var load=0x0801,end=mc?0x3710:0x5800,prg=new Uint8Array(2+end-load);
  function at(v){return 2+v-load;}
  prg[0]=1;prg[1]=8;
  prg.set([0x0b,0x08,10,0,0x9e,50,48,54,52,0,0,0],at(0x0801));
