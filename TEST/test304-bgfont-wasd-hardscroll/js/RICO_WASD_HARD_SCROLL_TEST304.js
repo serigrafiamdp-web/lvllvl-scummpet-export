@@ -430,9 +430,9 @@ function manualStep(button){
  catch(err){stopHolding();setStatus('ERROR: '+err.message);if(w.console)w.console.warn('TEST306',err);}
 }
 // TEST312 speed affects ONLY camera cadence (not SID play frequency).
-var SPEEDS={1:{label:'Máxima · 1 frame',mouse:70},2:{label:'Rápida · 2 frames',mouse:105},
- 4:{label:'Media · 4 frames',mouse:160},8:{label:'Lenta · 8 frames',mouse:275},
- 12:{label:'Muy lenta · 12 frames',mouse:420}};
+var SPEEDS={1:{label:'Máxima · sin pausa',mouse:70},2:{label:'Rápida · +8 cuadros',mouse:105},
+ 4:{label:'Media · +16 cuadros',mouse:160},8:{label:'Lenta · +32 cuadros',mouse:275},
+ 12:{label:'Muy lenta · +64 cuadros',mouse:420}};
 function setScrollSpeed(value){
  var n=Number(value);
  if(!Object.prototype.hasOwnProperty.call(SPEEDS,n))throw Error('Velocidad de scroll no válida: '+value);
@@ -489,11 +489,11 @@ function closeManual(){
    '<label style="display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">'+
    '<input type="checkbox" id="rico304wasd"> Export with WASD Scroll Control</label>'+
    '<label style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:12px">'+
-   '<span>Velocidad</span><select id="rico304speed" style="background:#3b3e45;color:#fff;'+
+   '<span>Velocidad</span><select title="Cuadros de pausa adicionales en el PRG; el SID conserva su tempo" id="rico304speed" style="background:#3b3e45;color:#fff;'+
    'border:1px solid #666;padding:4px;border-radius:3px;min-width:145px">'+
-   '<option value="1">Máxima · 1 frame</option><option value="2">Rápida · 2 frames</option>'+
-   '<option value="4">Media · 4 frames</option><option value="8">Lenta · 8 frames</option>'+
-   '<option value="12">Muy lenta · 12 frames</option></select></label>'+
+   '<option value="1">Máxima · sin pausa</option><option value="2">Rápida · +8 cuadros</option>'+
+   '<option value="4">Media · +16 cuadros</option><option value="8">Lenta · +32 cuadros</option>'+
+   '<option value="12">Muy lenta · +64 cuadros</option></select></label>'+
    '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">Editor: solo flechas · 1 celda por clic</div></div>';
   doc.body.appendChild(dlg);
   st.dialog=dlg;st.dialogOpen=true;st.keyboard=false;
