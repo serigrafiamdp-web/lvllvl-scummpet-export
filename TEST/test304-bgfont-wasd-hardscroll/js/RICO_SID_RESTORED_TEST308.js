@@ -328,6 +328,36 @@ function export207(self,args,raw){
    validatePatchBank(alloc);
    source=compact.build({frames:frames,packed:alloc});
  }
+ // TEST309: preserve the original VIC-II per-cell mixed character design.
+ // 'c64multicolor' is only the global permission ($D016 bit4); each cell's
+ // Color RAM bit3 independently selects HiRes (0) or Multicolor (1).
+ // Never OR #$08 into foreground colors or normalize them to one mode.
+ var layer309=null;
+ try{layer309=self.editor&&self.editor.layers&&self.editor.layers.getSelectedLayerObject();}catch(ignore){}
+ var mixedChar309=!!(layer309&&layer309.getScreenMode&&
+  layer309.getScreenMode()==='c64multicolor'&&
+  !(layer309.doc&&layer309.doc.ricoBitmapV1Enabled));
+ if(mixedChar309){
+  var adapter309=window.RICO_TEST264_MULTICOLOR;
+  var context309=adapter309&&adapter309.context&&adapter309.context(self);
+  if(!adapter309||!context309||typeof adapter309.patch!=='function')
+   throw new Error('TEST309: falta inicializar el modo de caracteres Multicolor. Recargá la página.');
+  // This proven patch only enables VIC global Multicolor and shared colors.
+  // World Color RAM data retains its original 0..15 values, including bit3.
+  var patched309=adapter309.patch(source,context309);
+  source=patched309.source;
+  window.RICO_TEST309_LAST_MIXED={
+   mode:'MIXED CHARACTER',staticFrame:fr.length===1,
+   globalMulticolor:true,d016Writes:patched309.d016,
+   sharedMC1:context309.m1.slice(),sharedMC2:context309.m2.slice(),
+   perCellColorRamUnchanged:true,
+   sidMusicRouting:'TEST207/229 INIT PLAY UNCHANGED'
+  };
+ }else{
+  window.RICO_TEST309_LAST_MIXED={
+   mode:layer309&&layer309.doc&&layer309.doc.ricoBitmapV1Enabled?'BITMAP MULTICOLOR (SEPARATE RENDERER)':'HIRES / OTHER',
+   globalMulticolor:false,sidMusicRouting:'UNCHANGED'};
+ }
  var asm=makeSource207(source,sid,speed);
  var a=g_app&&g_app.assembler;
  if(!a)throw new Error('No se encontró el ensamblador LVLLVL.');
