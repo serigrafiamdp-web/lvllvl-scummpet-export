@@ -1,3 +1,44 @@
+# TEST314 — Primer rendimiento del avance por carácter (25 OCT 2026)
+
+**Base exacta:** TEST313. Solo se optimizaron los dos generadores PRG del Manual Scroll: `RICO_FULL_MAP_WASD_TEST307.js` y `RICO_FULLMAP_SID_WASD_TEST311.js`. Los motores de Map Scroll tradicional y su selección TEST313 siguen intactos. No se modificaron los proyectos guardados ni los demás PRG, incluyendo TEST312/311/307 PASS y MASTER.
+
+## Optimización ASM
+
+El motor anterior reconstruía todos los caracteres visibles tras cada movimiento y, dentro del bucle de 1.000 celdas, ejecutaba aritmética de 16 bits para actualizar **tres punteros**: mapa, Screen RAM y color shadow. TEST314 evita esos incrementos 16-bit por celda para los dos tipos de carácter:
+
+- `$E8` = índice de columna de destino (0..windowWidth-1). `$E9` = offset de origen (2 bytes por celda), desde la base del mapa calculada una vez por fila.
+- `LDA (map),Y` (Y = E9) y `STA (screen),Y` (Y = E8) escriben el carácter. Un segundo par escribe su color original (0..15). No normaliza Color RAM: el bit3 continúa seleccionando celdas HiRes vs Multicolor en Multicolor Character.
+- Si el origen cruza el borde del Scroll Area, se vuelve al inicio de la fila y E9 se reinicia. Al terminar la fila visible, las direcciones del screen y de su sombra de colores avanzan **40 celdas una sola vez**, conservando viewport 24/25, 38/40, desplazamiento físico y mapa independiente.
+- Se conserva doble buffer, VBlank, mapa completo, WASD continuo, diagonales, IRQ SID y sus bancos de memoria sin modificaciones.
+- El optimizador solo se activa para **HiRes Character** y **Mixed Multicolor Character** (este último con SID). **Bitmap Multicolor queda íntegramente sin cambios.**
+
+## Benchmarks: simulación 6502, no VICE
+
+| Escenario | TEST313 | TEST314 | Ganancia |
+|--|--:|--:|--:|
+| Char HiRes 40×25, W+A, ciclos entre pasos 2→3 | 118.045 | 98.278 | -16,7 % |
+| Char HiRes viewport 38×24, cerca del wrap, ciclos 2→3 | 117.935 | 98.279 | -16,7 % |
+| Char Multicolor mixto + SID, viewport 38×24, ciclos 2→3 | 117.933 | 99.157 | -15,9 % |
+
+**Verificaciones:** todos los píxeles en modo carácter / colores 0..15 de cada pantalla visible comparados contra el mapa completo — 0 discrepancias en los tres casos; con SID preservados $D016 bit4, $D022/$D023, ZP privada del SID y llamadas PLAY. Pruebas de tamaño y reubicación CPU superadas.
+
+**Control de regresión Bitmap MC:** PRG de 36.721 bytes **idéntico byte por byte al TEST313**, con y sin SID. Esto garantiza que el nuevo patch no altera el renderer bitmap ni sus rutas de audio/WASD.
+
+### Limitaciones y siguiente paso
+
+- La versión nueva sigue **reconstruyendo las celdas visibles**: disminuye aritmética dentro del bucle, pero todavía no es una rutina que copie solamente los bordes.
+- Un desplazamiento completo sigue siendo **8 píxeles**, no fine-scroll de 1 píxel. El Map Scroll tradicional de TEST313 usa sus kernels originales y no se altera.
+- No se puede afirmar 50 pasos/s a partir de este test: 98k ciclos simulados entre pasos es todavía muy superior a ~19,7k ciclos disponibles por cuadro PAL. Además, VICE puede dar resultados diferentes por DMA VIC, IRQ reales y esperas de raster.
+- Si este resultado es PASS en VICE, los próximos candidatos son reutilización de buffer previo + actualización de filas/columnas y optimización de commits de Color RAM. Cambiar esas técnicas requiere volver a medir arte, velocidad y estabilidad SID.
+
+**STATUS:** `TEST314 generado; benchmarks de simulador PASS; **PENDIENTE PASS del usuario en VICE**`.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test314-character-row-index-speed.zip
+
+---
+
 # TEST313 — Recuperación Map Scroll tradicional (25 de octubre de 2026)
 
 **Estado:** PASS de ruteo interno y CPU 6502 para movimiento automático Bitmap MC; **pendiente validación VICE** de las rutas tradicionales HiRes/Multicolor Character y de velocidad real. No declarar MASTER.
