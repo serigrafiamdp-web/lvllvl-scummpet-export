@@ -167,6 +167,8 @@ function compiler(){
  return {b,I,A,L,J,R,done};
 }
 function makePRG(source){
+  if(source&&source.fullMap&&w.RICO_TEST307_FULLMAP&&typeof w.RICO_TEST307_FULLMAP.makePRG==='function')
+   return w.RICO_TEST307_FULLMAP.makePRG(source);
  // Two independent bitmaps, two independent screen matrices, two COLOR-RAM
  // shadow buffers. Held WASD repeats continuously at the render-limited C64 cadence.
  if(source.kind!=='char-hires'&&source.kind!=='bitmap-mc')throw Error('Modo no disponible.');
@@ -666,5 +668,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST306',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST307',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
