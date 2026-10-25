@@ -546,6 +546,7 @@ window.RICO_TEST207_ORIGINAL_SID={
  parseSID:parseSID,detectTimer:detectCIATimer209,buildSource:makeSource207,export:exportSelectedEngine228,legacyExport207:export207,exportSelectedEngine228:exportSelectedEngine228,
  select:function(bytes){var result=parseSID(bytes);SID_STATE.data=bytes;SID_STATE.enabled=true;return result;},
  disable:function(){SID_STATE.enabled=false;},
+ getRawSID:function(){return SID_STATE.enabled&&SID_STATE.data?SID_STATE.data:null;},
  getState:function(){return{enabled:SID_STATE.enabled,name:SID_STATE.name,speed:SID_STATE.speed,message:SID_STATE.lastMessage,tempo:SID_STATE.lastTempo209||''};},
  memory:MEM
 };
