@@ -635,6 +635,22 @@ function installExportCheckbox(){
   group.appendChild(label);
   var content=parent.querySelector&&parent.querySelector('.dialogContent');
   (content||parent).appendChild(group);
+  // Record the original PSID before LVLLVL optionally transforms it into
+  // body bytes for its native player.
+  var fileInput=doc.getElementById('exportPRGSIDFile');
+  if(fileInput&&!fileInput.__rico311SidCapture){
+   fileInput.__rico311SidCapture=true;
+   fileInput.addEventListener('change',function(){
+    st.rawSid311=null;
+    var file=fileInput.files&&fileInput.files[0];
+    if(!file||typeof FileReader==='undefined')return;
+    var reader=new FileReader();
+    reader.onload=function(){
+     if(reader.result instanceof ArrayBuffer)st.rawSid311=new Uint8Array(reader.result);
+    };
+    reader.readAsArrayBuffer(file);
+   });
+  }
   return box;
  }
  ToPRG.prototype.initEvents=function(){
@@ -663,7 +679,12 @@ function installExportCheckbox(){
      if(!raw&&sidAPI&&typeof sidAPI.getRawSID==='function')raw=sidAPI.getRawSID();
      if(!sidAPI||typeof sidAPI.parseSID!=='function'||!raw)
       throw Error('No se encontraron los bytes PSID cargados. Elegí el archivo SID nuevamente.');
-     var sidData=sidAPI.parseSID(raw);
+     var sidData;
+     try{sidData=sidAPI.parseSID(raw);}
+     catch(parseNativeError){
+      if(st.rawSid311)sidData=sidAPI.parseSID(st.rawSid311);
+      else throw parseNativeError;
+     }
      var exporter=w.RICO_TEST311_HYBRID;
      if(!exporter||typeof exporter.makePRG!=='function')
       throw Error('Falta cargar el motor híbrido TEST311. Recargá la página.');
