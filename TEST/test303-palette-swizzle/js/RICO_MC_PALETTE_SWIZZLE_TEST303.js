@@ -46,7 +46,7 @@ function currentIds(){
 }
 function gcd(a,b){while(b){var c=a%b;a=b;b=c;}return a;}
 function test(model,ids){
- var report={version:'TEST301',engine:'MC CHAR REMAP (strict, lossless)',
+ var report={version:'TEST303',engine:'MC CHAR PALETTE SWIZZLE (strict, lossless)',
   atlasTiles:256,physicalCells:1000,animatedCells:model.refreshCount||0,
   groupCount:model.animations.length,rowsCompatible:0,totalRows:25,
   fullScreenEligible:false,mode:'BITMAP MC TEST297 (safe fallback)',
@@ -543,9 +543,9 @@ function exportPRG(opts){
  var built=build(model,report);
  report.mode=built.meta.renderStrategy;report.prgBytes=built.bytes.length;
  report.actualExporter='TEST303 MULTICOLOR CHAR SWIZZLE — NUEVO MOTOR';
- report.prgFilename='RICO_TEST303_MC_CHAR_STREAMING_LOSSLESS.prg';
+ report.prgFilename='RICO_TEST303_MC_PALETTE_SWIZZLE_LOSSLESS.prg';
  if(!(opts&&opts.download===false)){
-  download(built.bytes,'RICO_TEST303_MC_CHAR_STREAMING_LOSSLESS.prg');
+  download(built.bytes,'RICO_TEST303_MC_PALETTE_SWIZZLE_LOSSLESS.prg');
   if(typeof w.alert==='function'&&!(opts&&opts.silent))
    w.alert('TEST303 ACTIVADO: Palette Swizzle SIN PERDIDA.\n'+
       'Tiles remapeados: '+report.swizzle.tilesRemapped+
