@@ -313,7 +313,7 @@ function paletteSwizzle(original,ids,base){
    return result;
   }
  }
- result.compatibilityReason='Ninguna asignación de C1/C2 globales y permutaciones de tiles conserva Color RAM 0–7 estática para todas las fases.';
+ result.compatibilityReason='El buscador no encontró permutaciones de C1/C2/C3 con Color RAM local 0–7 fija durante todas las fases (búsqueda no exhaustiva).';
  result.pixelDifferences=null;
  return result;
 }
@@ -530,12 +530,12 @@ function exportPRG(opts){
   w.RICO_TEST303_LAST_EXPORT=report;
   notice('TEST303: CONVERSIÓN NO ACTIVADA (sin pérdida)\n'+
     'Se exporta TEST297 sin ninguna aceleración nueva.\n'+
-    'Filas compatibles: '+report.rowsCompatible+'/25 · Bandas: '+report.candidateBands.length+
+    'Filas compatibles sin swizzle: '+report.rowsCompatible+'/25 · Bandas: '+report.candidateBands.length+
     '\nMotivo: '+(report.reasons[0]||'Bitmap MC necesario.')+
     '\nArchivo: '+report.prgFilename);
   if(typeof w.alert==='function'&&!(opts&&opts.silent))
    w.alert('TEST303 NO ACTIVADO. Se exporta TEST297 sin mejora de velocidad.\n'+
-      'Filas compatibles: '+report.rowsCompatible+'/25.\n'+
+      'Filas compatibles sin reorganizar tintas: '+report.rowsCompatible+'/25.\n'+
       'Motivo: '+(report.reasons[0]||'No cumple condiciones.'));
   if(w.console&&w.console.log)w.console.log(NAME,'FALLBACK TEST297 · SIN CAMBIOS DE MOTOR',report);
   return null; // Hand off to TEST297 standard Export PRG.
