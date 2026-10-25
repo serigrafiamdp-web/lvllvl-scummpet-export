@@ -1,3 +1,43 @@
+# TEST312 — Rico's Manual Scroll / velocidad configurable
+
+25 OCT 2026 · Rama: `release/test312-manual-scroll-speed`
+
+**Origen:** TEST311 con PSID y WASD ejecutándose juntos, confirmado funcional por el usuario. No modifica TEST311, TEST310, TEST307 PASS, TEST297 PASS ni MASTER.
+
+## Solicitud y solución
+
+- **Nombre correcto:** todos los nombres visibles que heredaban el error `Ricos Manual Scroll` pasan a **Rico's Manual Scroll** en el título de la ventana flotante, el menú `Interfaz`, la entrada heredada `SCREEN` y los mensajes. Los identificadores DOM/menús se conservan por compatibilidad.
+- **Selector `Velocidad` en la misma ventana flotante**, debajo del checkbox WASD. Son cinco niveles compartidos por editor y exportación. La ventana sigue pudiéndose arrastrar, cerrar y reabrir; las flechas continúan desplazando el editor mientras se sostienen; WASD NO desplaza el editor WEB.
+- Valor por defecto **Máxima / sin pausa adicional**, compatible con el ritmo de TEST311. Se conserva la elección mientras el panel está cerrado y al reabrirlo (durante la sesión).
+- En el **editor web**, repetición del mouse por nivel: 70, 105, 160, 275 o 420 milisegundos; primer paso instantáneo, repetición tras 140 ms, y stop al soltar/cerrar/blur.
+- En el **PRG normal WASD (sin SID)**, tras cada cambio de pantalla y copia de Color RAM se aplica una espera de **0 / 8 / 16 / 32 / 64 cuadros PAL aproximadamente**, sincronizada con VIC-II `$D012`. Sin pausas adicionales en Máxima.
+- En el **PRG híbrido SID+WASD**, después del render se guarda el contador de raster IRQ en `$3622`. Antes de aceptar el siguiente paso, el motor exige la diferencia de **0 / 8 / 16 / 32 / 64 interrupciones de video** respecto al contador de `$3621`. La espera ocurre fuera del render y **no retrasa ni desactiva el IRQ musical**, que sigue con el ritmo del PSID/CIA. El SID no cambia de velocidad.
+- El motor conserva mapa completo, diagonales simultáneas, Color RAM, Bitmap Multicolor real y caracteres HiRes/Multicolor mixtos, según corresponda a cada proyecto.
+
+| Menú Velocidad | Espera C64 adicional por paso completo | Editor (intervalo hold) |
+|---|---:|---:|
+| Máxima · sin pausa | 0 cuadros | 70 ms |
+| Rápida · +8 cuadros | 8 cuadros | 105 ms |
+| Media · +16 cuadros | 16 cuadros | 160 ms |
+| Lenta · +32 cuadros | 32 cuadros | 275 ms |
+| Muy lenta · +64 cuadros | 64 cuadros | 420 ms |
+
+**Importante:** son pausas *añadidas a la duración del render*. En Bitmap Multicolor el proceso de reconstrucción puede superar varios cuadros incluso en velocidad Máxima. No se promete que el nivel Máxima sea más rápido que el motor existente ni una cantidad exacta de movimientos por segundo.
+
+## Pruebas internas
+
+- JS sintaxis de panel y ambos motores, generación de 5 configuraciones de ASM normal y SID + WASD, todos debajo de `$1000`: PASS.
+- 10 pruebas del formulario Export PRG: con/sin SID × 5 velocidades, descarga correctas, checkbox WASD permanece marcado y se genera el nivel solicitado: PASS.
+- Prueba DOM simulada: título, selector, pulsación sostenida a velocidad lenta versus rápida, `pointerup`, cierre y limpieza de temporizadores: PASS.
+- Simulación 6502 con W+A sostenidas y PSID que incrementa contador en PLAY: video tras segundo desplazamiento cuadro 54 Máxima, 85 Lenta y 118 Muy lenta; audio PLAY avanzó normalmente (54, 85, 118 llamadas). Ningún bloqueo por el selector: PASS.
+- **Pendiente:** velocidad real, audio y ausencia de parpadeos en VICE de usuario. No marcar como MASTER hasta esa comprobación.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test312-manual-scroll-speed.zip
+
+---
+
 # TEST311 — SID + WASD EN EL MISMO PRG (25 OCT 2026)
 
 **Objetivo:** resolver el defecto mostrado por el usuario en TEST310: la música SID se escuchaba, pero al exportar se desmarcaba automáticamente "Export with WASD Scroll Control" y el PRG carecía de movimiento.
