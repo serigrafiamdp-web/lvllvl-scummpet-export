@@ -373,9 +373,11 @@ function export207(self,args,raw){
    sidMusicRouting:'TEST207/229 INIT PLAY UNCHANGED'
   };
  }else{
+  var bitmapMode309=!!(layer309&&layer309.doc&&layer309.doc.ricoBitmapV1Enabled);
   window.RICO_TEST309_LAST_MIXED={
-   mode:layer309&&layer309.doc&&layer309.doc.ricoBitmapV1Enabled?'BITMAP MULTICOLOR (SEPARATE RENDERER)':'HIRES / OTHER',
-   globalMulticolor:false,sidMusicRouting:'UNCHANGED'};
+   mode:bitmapMode309?'BITMAP MULTICOLOR (SEPARATE RENDERER)':'HIRES / OTHER',
+   globalMulticolor:bitmapMode309,bitmapPlanes:bitmapMode309,
+   sidMusicRouting:'UNCHANGED'};
  }
  var asm=makeSource207(source,sid,speed);
  var a=g_app&&g_app.assembler;
