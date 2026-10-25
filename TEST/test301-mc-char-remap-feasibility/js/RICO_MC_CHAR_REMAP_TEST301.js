@@ -35,7 +35,7 @@ function test(model,ids){
   atlasTiles:256,physicalCells:1000,animatedCells:model.refreshCount||0,
   groupCount:model.animations.length,rowsCompatible:0,totalRows:25,
   fullScreenEligible:false,mode:'BITMAP MC TEST297 (safe fallback)',
-  estimatedByteWritesPerFrame:model.refreshCount*8,viableRows:[],
+  estimatedByteWritesPerFrame:model.refreshCount*8,viableRows:[],candidateBands:[],
   reasons:[],diagnostic:[],phaseCount:0,globalC1:null,globalC2:null};
  function reason(s){if(report.reasons.indexOf(s)<0)report.reasons.push(s);}
  if(model.animations.length!==1){reason('Se requiere exactamente un Group Animate horizontal.');return report;}
@@ -47,7 +47,7 @@ function test(model,ids){
   reason('El grupo contiene huecos; este prototipo solo admite matrices completas.');return report;
  }
  var period=g.width/gcd(g.width,2);
- if(period<2||period>16){reason('Período fuera del límite de 2–16 fases de este experimento.');return report;}
+ if(period<2||period>8){reason('Período fuera del límite de 2–8 fases que caben en $6000–$7FFF.');return report;}
  report.phaseCount=period;
  var coords={},selected={};
  for(var y=0;y<g.height;y++)for(var x=0;x<g.width;x++){
@@ -102,6 +102,22 @@ function test(model,ids){
   if(rowC1[y]>=0){if(global1<0)global1=rowC1[y];else if(global1!==rowC1[y])conflictingRows++;}
   if(rowC2[y]>=0){if(global2<0)global2=rowC2[y];else if(global2!==rowC2[y])conflictingRows++;}
  }
+ // Contiguous horizontal strips having internally consistent MC-Char
+ // global inks. Future hybrid raster splits may use these bands. They
+ // are DIAGNOSTIC ONLY: never export a partial mode without IRQ support.
+ var band=null;
+ for(var y=0;y<25;y++){
+  var okay=report.viableRows.indexOf(y)>=0,
+      v1=rowC1[y],v2=rowC2[y];
+  if(!okay){if(band){report.candidateBands.push(band);band=null;}continue;}
+  var matching=band&&(v1<0||band.c1<0||band.c1===v1)&&
+      (v2<0||band.c2<0||band.c2===v2);
+  if(!matching){if(band)report.candidateBands.push(band);
+    band={startRow:y,endRow:y,rows:1,c1:v1,c2:v2};}
+  else{band.endRow=y;band.rows++;if(band.c1<0)band.c1=v1;
+    if(band.c2<0)band.c2=v2;}
+ }
+ if(band)report.candidateBands.push(band);
  report.globalC1=global1<0?0:global1;
  report.globalC2=global2<0?0:global2;
  report.diagnostic=rowFails.slice(0,12);
@@ -186,8 +202,7 @@ function build(model,report){
  I(0xA9,0);Z(0x85,0xF2);L('phaseOK');
  Z(0xA6,0xF2);
  J(0xBD,'phaseLo');Z(0x85,0xE0);
- J(0xBD,'phaseHi');Z(0x85,0xE1);
- // NOTE opcode BD is LDA abs,X; use a custom fixed-address emitter below.
+ J(0xBD,'phaseHi');Z(0x85,0xE1); // LDA phaseLo/phaseHi,X, patched absolute
  Z(0xA5,0xF3);B(0xF0,'hiddenScreen2');
  I(0xA9,0);Z(0x85,0xE2);I(0xA9,0x44);Z(0x85,0xE3);
  J(0x4C,'targetReady');
@@ -254,7 +269,7 @@ function exportPRG(opts){
  last=report;errors=null;w.RICO_TEST301_LAST_EXPORT=report;
  if(!report.fullScreenEligible){
   notice('TEST301 · Bitmap MC conservado. Filas compatibles: '+report.rowsCompatible+
-   '/25. '+(report.reasons[0]||'Requiere modo bitmap.'));
+   '/25 · bandas candidatas: '+report.candidateBands.length+'. '+(report.reasons[0]||'Requiere modo bitmap.'));
   if(w.console&&w.console.log)w.console.log(NAME,'safe fallback',report);
   return null; // Hand off to TEST297 standard Export PRG.
  }
