@@ -33,11 +33,25 @@ function assemble(){
  }
  return{b,I,A,L,J,R,Q,fresh,finish};
 }
-function build(source,sid,scrollSpeed){
+function build(source,sid,scrollSpeed,autoScroll){
+ var auto=autoScroll&&autoScroll.type?autoScroll:null;
+ if(auto&&!/^(up|down|left|right)$/.test(auto.type))
+  throw Error('TEST313 Bitmap Multicolor Map Scroll: dirección automática no disponible: '+auto.type);
+ // Preserve existing WASD input when no autonomous Map Scroll is requested.
+ var autoRow=auto?(auto.type==='up'?0xfd:auto.type==='down'?0xdf:auto.type==='left'?0xfb:0xff):0xff;
+ var autoCol=auto&&auto.type==='right'?0xfb:0xff;
  var speed=scrollSpeed==null?1:Number(scrollSpeed);
  var extraBySpeed={1:0,2:8,4:16,8:32,12:64};
  if(!Object.prototype.hasOwnProperty.call(extraBySpeed,speed))throw Error('TEST312: velocidad no admitida.');
  var extraFrames=extraBySpeed[speed];
+ if(auto){
+  // Current Bitmap MC engine advances one full 8-pixel character.
+  // Approximate the configured px/tick average with complete redraws;
+  // do NOT pretend this is native subcharacter fine scroll.
+  extraFrames=Math.min(200,Math.max(0,Math.round(
+   (Number(auto.ticksPerStep)||1)*(8/Math.max(1,Number(auto.pixelsPerStep)||8))
+  )));
+ }
  if(!sid||!sid.bytes||!sid.bytes.length||!Number.isInteger(sid.load)||!Number.isInteger(sid.play)||!Number.isInteger(sid.init))
   throw Error('TEST311 requiere un PSID válido con direcciones INIT/PLAY.');
  if(sid.load<0x1000||sid.load+sid.bytes.length>0x3000)
@@ -120,9 +134,16 @@ function build(source,sid,scrollSpeed){
  // Read two keyboard columns. Every key is evaluated independently.
  // Thus W+A, W+D, S+A, S+D each alter BOTH camera coordinates once.
  L('poll');
- I(0xa9,0xfd);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf7);
- I(0xa9,0xfb);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf8);
- I(0xa9,0xff);A(0x8d,0xdc00);
+ if(auto){
+  // Automatic bitmap Map Scroll: emulate the exact CIA key-column masks
+  // that already drive the tested cardinal camera movement and bitmap render.
+  I(0xa9,autoRow);I(0x85,0xf7);
+  I(0xa9,autoCol);I(0x85,0xf8);
+ }else{
+  I(0xa9,0xfd);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf7);
+  I(0xa9,0xfb);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf8);
+  I(0xa9,0xff);A(0x8d,0xdc00);
+ }
  // Gate camera redraw on complete VIC frames, not CPU delay loops.
  // SID IRQ runs at its native pace regardless of speed selection.
  A(0xad,VIDEO_FRAMES);b(0x38);A(0xed,LAST_MOVE_FRAME);
@@ -285,7 +306,7 @@ function build(source,sid,scrollSpeed){
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'TEST311 full map WASD with SID audio IRQ (hardware CIA or PAL raster)',
   sid:{load:sid.load,init:sid.init,play:sid.play,size:sid.bytes.length,hardwareCIA:hardwareCIA},
-  scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed};
+  scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed,autoMapScroll:auto?{...auto,actualStepPixels:8}:null};
 }
 w.RICO_TEST311_HYBRID={version:'TEST311',makePRG:build,engine:'TEST307 FULL MAP WASD + PSID protected raster/CIA IRQ'};
 })(window);
