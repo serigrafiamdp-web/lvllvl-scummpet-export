@@ -142,7 +142,7 @@ function highData(model){
  var warm1=(end+255)&~255,warm2=warm1+256,
      normal=warm2+256,diffEnd=normal+period*256;
  var maskReady=hotIds.length>0&&diffEnd<=END,unchangedStores=0,
-     dirtyRows=0;
+     normalUnchangedStores=0,normalPotentialStores=0,dirtyRows=0;
  if(maskReady){
   var dataExt=new Uint8Array(diffEnd-DATA);dataExt.set(bytes);
   function sourceId(id,p){
@@ -171,14 +171,22 @@ function highData(model){
     var prev=(phase-2+period*2)%period,mask=maskFor(id,phase,prev);
     dataExt[normal-DATA+phase*256+id]=mask;
     unchangedStores+=(8-nbits(mask))*hotWeight;
+    normalUnchangedStores+=(8-nbits(mask))*hotWeight;
+    normalPotentialStores+=8*hotWeight;
     dirtyRows+=nbits(mask);
    }
   }
   bytes=dataExt;end=diffEnd;
  }
- var differential=maskReady&&unchangedStores>=16;
+ // A per-row LSR/BCS check costs cycles even when nothing can be skipped.
+ // Base the decision on STEADY-STATE phases, not a misleading first-flip
+ // warm-up saving: require at least 10% normal rows to remain unchanged.
+ // When no worthwhile normal-phase savings exist, retain TEST294 exactly.
+ var differential=maskReady&&normalPotentialStores>0&&
+     normalUnchangedStores*10>=normalPotentialStores;
  return {data:bytes,speedCode:new Uint8Array(spd),hotMap,hotIds,
-   differential,unchangedStores,dirtyRows,
+   differential,unchangedStores,normalUnchangedStores,
+   normalPotentialStores,dirtyRows,
    warm1,warm2,normal,
    speedcodeBytes:spd.length,header,groupCount:ids.length,list,recordLength:listLen,
    loTables:lo,hiTables:hi,period,end,visible:model.refreshCount,
@@ -426,7 +434,9 @@ function exportPRG(opts){
   stats.last={status:'PENDING VICE',selectedTileLimit:256,videoMode:'BANK1/BANK3 double buffer',
    fasterRenderer:built.renderStrategy,
    distinctTileIDs:built.meta.tiles,
-   skippedRowStoresEstimate:built.meta.unchangedStores||0,
+   skippedRowStoresEstimate:built.meta.normalUnchangedStores||0,
+   steadyStateSkipPercent:built.meta.normalPotentialStores?
+      Math.round(100*built.meta.normalUnchangedStores/built.meta.normalPotentialStores):0,
    differentialCode:!!built.meta.differential,
    speedcodeBytes:built.meta.speedcodeBytes||0,
    specializedIDs:built.meta.hotIds||[],
