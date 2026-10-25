@@ -9,7 +9,8 @@
 var BASE=0x0810,MAP=0x8000,TABLE_ROW_LO=0x3000,TABLE_ROW_HI=0x3100,
     TABLE_COL_LO=0x3200,TABLE_COL_HI=0x3300,TABLE_TILE_LO=0x3400,TABLE_TILE_HI=0x3500;
 // SID occupies its original $1000-$2FFF. No lookup table may overlap the SID.
-var ENGINE_SHADOW=0x3600,SID_SHADOW=0x3610,AUDIO_PHASE=0x3620;
+var ENGINE_SHADOW=0x3600,SID_SHADOW=0x3610,AUDIO_PHASE=0x3620,
+    VIDEO_FRAMES=0x3621,LAST_MOVE_FRAME=0x3622;
 function assemble(){
  var bytes=[],labels={},fix=[],sequence=0;
  function b(v){bytes.push(v&255);}
@@ -32,7 +33,9 @@ function assemble(){
  }
  return{b,I,A,L,J,R,Q,fresh,finish};
 }
-function build(source,sid){
+function build(source,sid,scrollSpeed){
+ var speed=scrollSpeed==null?1:Number(scrollSpeed);
+ if([1,2,4,8,12].indexOf(speed)<0)throw Error('TEST312: velocidad de scroll no admitida.');
  if(!sid||!sid.bytes||!sid.bytes.length||!Number.isInteger(sid.load)||!Number.isInteger(sid.play)||!Number.isInteger(sid.init))
   throw Error('TEST311 requiere un PSID válido con direcciones INIT/PLAY.');
  if(sid.load<0x1000||sid.load+sid.bytes.length>0x3000)
@@ -99,6 +102,8 @@ function build(source,sid){
  I(0xa9,mc?0x3b:0x1b);A(0x8d,0xd011);
  // VIC raster IRQ: PLAY uses its own protected zero-page and does not
  // disturb the scroll renderer, including its 2-buffer Color RAM scheduler.
+ I(0xa9,0);A(0x8d,VIDEO_FRAMES);
+ I(0xa9,(256-speed)&255);A(0x8d,LAST_MOVE_FRAME);
  I(0xa9,0x01);A(0x8d,0xd019);
  I(0xa9,0xfa);A(0x8d,0xd012);
  Q('sidIRQ',false);A(0x8d,0xfffe);
@@ -116,13 +121,18 @@ function build(source,sid){
  I(0xa9,0xfd);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf7);
  I(0xa9,0xfb);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf8);
  I(0xa9,0xff);A(0x8d,0xdc00);
+ // Gate camera redraw on complete VIC frames, not CPU delay loops.
+ // SID IRQ runs at its native pace regardless of speed selection.
+ A(0xad,VIDEO_FRAMES);b(0x38);A(0xed,LAST_MOVE_FRAME);
+ I(0xc9,speed);R(0x90,'poll');
  I(0xa9,0);I(0x85,0xf0);
  I(0xa5,0xf7);I(0x29,2);R(0xd0,'notW');J(0x20,'incCameraY');I(0xe6,0xf0);
  L('notW');I(0xa5,0xf7);I(0x29,32);R(0xd0,'notS');J(0x20,'decCameraY');I(0xe6,0xf0);
  L('notS');I(0xa5,0xf7);I(0x29,4);R(0xd0,'notA');J(0x20,'incCameraX');I(0xe6,0xf0);
  L('notA');I(0xa5,0xf8);I(0x29,4);R(0xd0,'notD');J(0x20,'decCameraX');I(0xe6,0xf0);
  L('notD');I(0xa5,0xf0);R(0xd0,'renderRequested');J(0x4c,'poll');
- L('renderRequested');J(0x20,'renderWindow');
+ L('renderRequested');A(0xad,VIDEO_FRAMES);A(0x8d,LAST_MOVE_FRAME);
+ J(0x20,'renderWindow');
  J(0x20,'waitRaster252');
  I(0xa5,0xf1);R(0xf0,'swapSecond');
  // F1=1: renderWindow just populated first (low) display bank.
@@ -229,8 +239,10 @@ function build(source,sid){
   L('sidCheckRaster');
   A(0xad,0xd019);I(0x29,1);R(0xf0,'sidIRQEnd');
   I(0xa9,1);A(0x8d,0xd019);
+  A(0xee,VIDEO_FRAMES);
  }else{
   I(0xa9,1);A(0x8d,0xd019);
+  A(0xee,VIDEO_FRAMES);
   J(0x20,'sidPlayProtected');
   if(sid.ciaTiming){
    // No provable CIA latch: the TEST207-compatible PAL ~60Hz fallback.
@@ -271,7 +283,8 @@ function build(source,sid){
    physicalX:m.physicalX,physicalY:m.physicalY},
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'TEST311 full map WASD with SID audio IRQ (hardware CIA or PAL raster)',
-  sid:{load:sid.load,init:sid.init,play:sid.play,size:sid.bytes.length,hardwareCIA:hardwareCIA}};
+  sid:{load:sid.load,init:sid.init,play:sid.play,size:sid.bytes.length,hardwareCIA:hardwareCIA},
+  scrollSpeedFrames:speed};
 }
 w.RICO_TEST311_HYBRID={version:'TEST311',makePRG:build,engine:'TEST307 FULL MAP WASD + PSID protected raster/CIA IRQ'};
 })(window);
