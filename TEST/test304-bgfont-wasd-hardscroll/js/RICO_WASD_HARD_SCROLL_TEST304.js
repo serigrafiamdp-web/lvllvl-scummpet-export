@@ -1,4 +1,4 @@
-/* TEST305 — editor scroll with panel arrows only; export PRG optionally uses WASD.
+/* TEST306 — hold-to-scroll panel and continuously repeating WASD PRG.
    Standalone lab + experimental export PRG. Does not patch normal Export PRG.
    A left, D right, W up, S down. No joystick, no arrow keys.
    Map shifts bitmap+screen+color together; Group shifts glyph patterns but
@@ -195,8 +195,8 @@ function makePRG(source){
  plane(['col',color1,color2,40,1]);
  if(mc)plane(['bmp',bmp1,bmp2,320,8]);
  // Display never blanks on a scroll. Finish the new bank offscreen and swap
- // at raster ~250, then update Color RAM top-to-bottom ahead of the beam.
- J(0x20,'waitRaster250');
+ // at raster ~252, then update Color RAM top-to-bottom ahead of the beam.
+ J(0x20,'waitRaster252');
  I(0xA5,0xf1);R(0xf0,'showTwo');
  if(mc){A(0xad,0xdd00);I(0x29,252);I(0x09,2);A(0x8d,0xdd00);}
  I(0xA9,mc?0x78:0x14);A(0x8d,0xd018);I(0xA9,0);I(0x85,0xf1);J(0x4c,'colorFrontOne');
@@ -205,8 +205,8 @@ function makePRG(source){
  I(0xA9,mc?0x18:0x24);A(0x8d,0xd018);I(0xA9,1);I(0x85,0xf1);
  J(0x20,'copyFastColorTwo');J(0x4c,'poll');
  L('colorFrontOne');J(0x20,'copyFastColorOne');J(0x4c,'poll');
- L('waitRaster250');
- L('waitRasterLoop');A(0xad,0xd012);I(0xc9,250);R(0x90,'waitRasterLoop');b(0x60);
+ L('waitRaster252');
+ L('waitRasterLoop');A(0xad,0xd012);I(0xc9,252);R(0x90,'waitRasterLoop');b(0x60);
  // -------- scroll kernel ----------------------------------------------
  // -------- scroll kernel ----------------------------------------------
  // Input E0/1 original source address, E2/3 destination,
@@ -629,5 +629,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST305',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST306',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
