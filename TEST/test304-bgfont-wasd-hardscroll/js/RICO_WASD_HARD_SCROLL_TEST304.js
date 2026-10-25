@@ -651,10 +651,41 @@ function traditionalMapConfig(ed){
  return null;
 }
 function traditionalPRG(ed,normal,sid,filename){
+ var cfg=traditionalMapConfig(ed),layer=ed&&ed.layers&&ed.layers.getSelectedLayerObject(),
+  bitmap=!!(layer&&layer.doc&&layer.doc.ricoBitmapV1Enabled&&layer.getScreenMode()==='c64multicolor');
+ if(bitmap){
+  // TEST313: The character-mode ToPRGAdv cannot be used for Bitmap MC.
+  // TEST290/TEST299 may create a STILL picture when no Group Animate runs.
+  // Use the true bitmap full-map renderer with autonomous cardinal camera.
+  if(!/^(up|down|left|right)$/.test(cfg.type))
+   throw Error('Bitmap Multicolor: Map Scroll '+cfg.type+' aún no recuperado. No se exportará una imagen fija.');
+  var captured=capture(),bitmapBuilder=null,parsed=null;
+  if(sid&&sid.requested){
+   var api=w.RICO_TEST207_ORIGINAL_SID,raw=(sid.nativeSid&&normal&&normal.sidData)||null;
+   if(!raw&&api&&typeof api.getRawSID==='function')raw=api.getRawSID();
+   if(!api||typeof api.parseSID!=='function'||!raw)
+    throw Error('Requiere el SID original PSID cargado, no solo los datos decodificados.');
+   try{parsed=api.parseSID(raw);}catch(sidError){
+    if(st.rawSid311)parsed=api.parseSID(st.rawSid311);
+    else throw sidError;
+   }
+   bitmapBuilder=w.RICO_TEST311_HYBRID;
+  }else bitmapBuilder=w.RICO_TEST307_FULLMAP;
+  if(!bitmapBuilder||typeof bitmapBuilder.makePRG!=='function')
+   throw Error('Falta el renderer Bitmap MC de TEST311/TEST307; recargá la WEB.');
+  var result=parsed?bitmapBuilder.makePRG(captured.source,parsed,1,cfg):
+   bitmapBuilder.makePRG(captured.source,1,cfg);
+  var name=(filename||'rico-map-scroll.prg').replace(/\\.prg$/i,'')+'_BITMAP_AUTO.prg';
+  download(result.bytes,name);
+  st.lastExport={engine:'TEST313 Bitmap MC AUTO MAP 8px',configuration:cfg,
+   sid:!!parsed,actualStepPixels:8,filename:name,bytes:result.bytes.length};
+  w.RICO_TEST313_LAST_EXPORT=st.lastExport;
+  return result;
+ }
  var adv=sidAdvancedInstance(ed,true);
  if(!adv||typeof adv.createPRG!=='function')
   throw Error('No se encontró ToPRGAdv para restaurar Map Scroll.');
- var cfg=traditionalMapConfig(ed),args={download:true,filename:filename||'rico-map-scroll.prg'};
+ var args={download:true,filename:filename||'rico-map-scroll.prg'};
  if(sid&&sid.nativeSid){args.music='sid';args.sidData=normal&&normal.sidData;}
  st.lastExport={engine:'TEST313 ORIGINAL ToPRGAdv MAP SCROLL',configuration:cfg,
   sid:!!(sid&&sid.requested),manualWASD:false};
