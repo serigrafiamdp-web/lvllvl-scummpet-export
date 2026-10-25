@@ -1,4 +1,4 @@
-/* TEST304 — BGFONT-inspired whole-character scrolling, WASD ONLY.
+/* TEST305 — editor scroll with panel arrows only; export PRG optionally uses WASD.
    Standalone lab + experimental export PRG. Does not patch normal Export PRG.
    A left, D right, W up, S down. No joystick, no arrow keys.
    Map shifts bitmap+screen+color together; Group shifts glyph patterns but
@@ -577,5 +577,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST304',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST305',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
