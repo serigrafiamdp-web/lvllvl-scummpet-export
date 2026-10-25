@@ -295,6 +295,24 @@ function export207(self,args,raw){
  SID_STATE.lastTempo209=hardware210?('TEST212 AUTO CIA Timer A real $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' ≈ '+sid.ciaTimer.hz.toFixed(2)+' Hz'):sid.ciaTiming?('CIA sin latch detectable o modo manual; tempo '+(speed===60?'fallback':'seleccionado')):'VBlank PAL 50 Hz';
  var source;
  if(fr.length===1){
+   var bitmapLayer309=null;
+   try{bitmapLayer309=self.editor&&self.editor.layers&&self.editor.layers.getSelectedLayerObject();}catch(ignore){}
+   var actualBitmap309=!!(bitmapLayer309&&bitmapLayer309.doc&&bitmapLayer309.doc.ricoBitmapV1Enabled&&
+     bitmapLayer309.getScreenMode&&bitmapLayer309.getScreenMode()==='c64multicolor');
+   if(actualBitmap309){
+    // Real Bitmap MC: 8000 bitmap bytes + 1000 screen bytes + Color RAM.
+    // Never route it through the HiRes/mixed CHARACTER renderer.
+    var bmp309=window.RICO_TEST282_BITMAP,bitmapSid309=window.RICO_TEST309_BITMAP_SID;
+    if(!bmp309||typeof bmp309.encode!=='function'||!bitmapSid309)
+     throw new Error('TEST309: faltan los módulos de Bitmap Multicolor + SID.');
+    var image309=bmp309.encode(self.editor);
+    source=bitmapSid309.buildSource(image309);
+    window.RICO_TEST309_LAST_BITMAP={mode:'C64 Bitmap Multicolor',source:'TEST282',
+       sidAudio:'TEST207/229 unchanged',bitmapBytes:image309.bitmap.length,
+       screenBytes:image309.screen.length,colorBytes:image309.color.length,
+       sourceWidth:image309.sourceWidth,sourceHeight:image309.sourceHeight,
+       cropped:!!image309.cropped};
+   }else{
    // One-frame export needs no multi-frame storage, and works with horizontal,
    // diagonal or still frame. Reuse their tested routines.
    var type=fr[0].ricoMapScrollV1&&fr[0].ricoMapScrollV1.type||'';
@@ -322,6 +340,7 @@ function export207(self,args,raw){
        var one=horizontal.collect(vv);one.pixels=0;
        source=horizontal.build(one);
      }else throw new Error('TEST208: el tipo de scroll '+type+' aun requiere integrar el player musical; no se exportara con musica omitida.');
+   }
    }
  }else{
    var frames=compact.collect(self),alloc=compact.pack(frames);
