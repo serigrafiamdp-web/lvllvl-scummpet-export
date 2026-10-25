@@ -28,11 +28,22 @@ function assemble(){
  }
  return{b,I,A,L,J,R,fresh,finish};
 }
-function build(source,scrollSpeed){
+function build(source,scrollSpeed,autoScroll){
+ var auto=autoScroll&&autoScroll.type?autoScroll:null;
+ if(auto&&!/^(up|down|left|right)$/.test(auto.type))
+  throw Error('TEST313 Bitmap Multicolor Map Scroll: dirección automática no disponible: '+auto.type);
+ // Preserve existing WASD input when no autonomous Map Scroll is requested.
+ var autoRow=auto?(auto.type==='up'?0xfd:auto.type==='down'?0xdf:auto.type==='left'?0xfb:0xff):0xff;
+ var autoCol=auto&&auto.type==='right'?0xfb:0xff;
  var speed=scrollSpeed==null?1:Number(scrollSpeed);
  var extraBySpeed={1:0,2:8,4:16,8:32,12:64};
  if(!Object.prototype.hasOwnProperty.call(extraBySpeed,speed))throw Error('TEST312: velocidad no admitida.');
  var extraFrames=extraBySpeed[speed];
+ if(auto){
+  extraFrames=Math.min(200,Math.max(0,Math.round(
+   (Number(auto.ticksPerStep)||1)*(8/Math.max(1,Number(auto.pixelsPerStep)||8))
+  )));
+ }
  if(!source||!source.fullMap)throw Error('Falta el mapa completo del editor.');
  var mc=source.kind==='bitmap-mc',hi=source.kind==='char-hires';
  if(!mc&&!hi)throw Error('TEST307 solo exporta HiRes y Bitmap Multicolor.');
@@ -89,9 +100,16 @@ function build(source,scrollSpeed){
  // Read two keyboard columns. Every key is evaluated independently.
  // Thus W+A, W+D, S+A, S+D each alter BOTH camera coordinates once.
  L('poll');
- I(0xa9,0xfd);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf7);
- I(0xa9,0xfb);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf8);
- I(0xa9,0xff);A(0x8d,0xdc00);
+ if(auto){
+  // Automatic bitmap Map Scroll: emulate the exact CIA key-column masks
+  // that already drive the tested cardinal camera movement and bitmap render.
+  I(0xa9,autoRow);I(0x85,0xf7);
+  I(0xa9,autoCol);I(0x85,0xf8);
+ }else{
+  I(0xa9,0xfd);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf7);
+  I(0xa9,0xfb);A(0x8d,0xdc00);A(0xad,0xdc01);I(0x85,0xf8);
+  I(0xa9,0xff);A(0x8d,0xdc00);
+ }
  I(0xa9,0);I(0x85,0xf0);
  I(0xa5,0xf7);I(0x29,2);R(0xd0,'notW');J(0x20,'incCameraY');I(0xe6,0xf0);
  L('notW');I(0xa5,0xf7);I(0x29,32);R(0xd0,'notS');J(0x20,'decCameraY');I(0xe6,0xf0);
@@ -215,7 +233,7 @@ function build(source,scrollSpeed){
    physicalX:m.physicalX,physicalY:m.physicalY},
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'Full configured LVLLVL source, cyclic over Scroll Area instead of 40x25 window',
-  scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed};
+  scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed,autoMapScroll:auto?{...auto,actualStepPixels:8}:null};
 }
 w.RICO_TEST307_FULLMAP={version:'TEST307',makePRG:build};
 })(window);
