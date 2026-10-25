@@ -56,8 +56,30 @@ function capture(){
  bg:typeof l.getBackgroundColor==='function'?l.getBackgroundColor()&15:0,
  bitmap:null,screen:null,color:null};
  var model=null;if(bm){
-  model=w.RICO_TEST290_BITMAP.analyze();src.atlas=model.atlas.slice();src.bitmap=model.bitmap.slice();
-  src.screen=model.screen.slice();src.color=model.color.slice();
+  // Capture a STATIC Bitmap MC directly. Manual MAP scroll MUST work
+  // even without a Group Animate, or with group types unsupported by
+  // the TEST290 animation exporter.
+  var pal=(w.RICO_TEST279_BITMAP&&typeof w.RICO_TEST279_BITMAP.seed==='function')?
+    w.RICO_TEST279_BITMAP.seed(fr,l):fr.ricoBmpColors||[];
+  var bitmap=new Uint8Array(8000),screen=new Uint8Array(1000),
+      color=new Uint8Array(1000);
+  for(var cy=0;cy<25;cy++)for(var cx=0;cx<40;cx++){
+   var k=cy*40+cx,tile=ids[k],within=cy<hh&&cx<ww,
+       ink=within?(Number(pal[cy*ww+cx])||0)&4095:0;
+   bitmap.set(atlas.subarray(tile*8,tile*8+8),k*8);
+   screen[k]=((ink&15)<<4)|((ink>>4)&15);
+   color[k]=(ink>>8)&15;
+  }
+  model={atlas:atlas,bitmap:bitmap,screen:screen,color:color,animations:[]};
+  // GROUP is optional: read a selected group when it can be analyzed.
+  try{
+   if(w.RICO_TEST290_BITMAP&&typeof w.RICO_TEST290_BITMAP.analyze==='function'){
+    var groupModel=w.RICO_TEST290_BITMAP.analyze();
+    if(groupModel&&Array.isArray(groupModel.animations))
+     model.animations=groupModel.animations;
+   }
+  }catch(groupError){ /* MAP is independent of group exporter. */ }
+  src.bitmap=bitmap;src.screen=screen;src.color=color;
  }
  if(src.kind==='char-mc')throw Error('Esta primera prueba PRG cubre Char HiRes y Bitmap MC. No convierte Char Multicolor.');
  return {source:src,model,bank:bank};
