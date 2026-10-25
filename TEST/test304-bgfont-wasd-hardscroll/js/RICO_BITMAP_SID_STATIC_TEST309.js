@@ -60,17 +60,17 @@ function buildSource(raw){
   ' sta $d020',
   ' lda #$18',
   ' sta $d016',
-  // Copy Color RAM separately. The 16-bit per-cell C1/C2 data are already
+  // TEST310: absolute indexed page addresses: LVLLVL's assembler does not\n  // parse label+$100,X expressions. Read $3800-$3BFF directly and\n  // preserve all 0..15 Color RAM nibbles unchanged.\n  // Copy Color RAM separately. The 16-bit per-cell C1/C2 data are already
   // loaded at $5C00 and the packed bitmap already at $6000.
   ' ldx #$00',
   'color309copy',
-  ' lda color309_data,x',
+  ' lda $3800,x',
   ' sta $d800,x',
-  ' lda color309_data+$100,x',
+  ' lda $3900,x',
   ' sta $d900,x',
-  ' lda color309_data+$200,x',
+  ' lda $3a00,x',
   ' sta $da00,x',
-  ' lda color309_data+$300,x',
+  ' lda $3b00,x',
   ' sta $db00,x',
   ' inx',
   ' bne color309copy',
