@@ -675,7 +675,7 @@ function traditionalPRG(ed,normal,sid,filename){
    throw Error('Falta el renderer Bitmap MC de TEST311/TEST307; recargá la WEB.');
   var result=parsed?bitmapBuilder.makePRG(captured.source,parsed,1,cfg):
    bitmapBuilder.makePRG(captured.source,1,cfg);
-  var name=(filename||'rico-map-scroll.prg').replace(/\\.prg$/i,'')+'_BITMAP_AUTO.prg';
+  var name=(filename||'rico-map-scroll.prg').replace(/[.]prg$/i,'')+'_BITMAP_AUTO.prg';
   download(result.bytes,name);
   st.lastExport={engine:'TEST313 Bitmap MC AUTO MAP 8px',configuration:cfg,
    sid:!!parsed,actualStepPixels:8,filename:name,bytes:result.bytes.length};
@@ -754,7 +754,7 @@ function installExportCheckbox(){
   if(autoMap&&!st.exportWithWASD){
    try{
     var inputAuto=doc.getElementById('exportPRGAs'),
-     nameAuto=(inputAuto&&inputAuto.value&&inputAuto.value.trim()||'rico-map-scroll').replace(/\\.prg$/i,'')+'.prg';
+     nameAuto=(inputAuto&&inputAuto.value&&inputAuto.value.trim()||'rico-map-scroll').replace(/[.]prg$/i,'')+'.prg';
     return traditionalPRG(ed,this,sid,nameAuto);
    }catch(errAuto){
     st.lastExport={engine:'TEST313 MAP SCROLL ERROR',configuration:autoMap,error:errAuto.message};
@@ -787,7 +787,7 @@ function installExportCheckbox(){
       throw Error('El motor híbrido entrega PRG. Elegí PRG para combinar SID con WASD.');
      var snapshotHybrid=capture(),builtHybrid=exporter.makePRG(snapshotHybrid.source,sidData,st.scrollSpeed);
      var nameInput=doc.getElementById('exportPRGAs'),
-      hybridName=(nameInput&&nameInput.value&&nameInput.value.trim()||'RICO').replace(/\\.prg$/i,'')+'_SID_WASD.prg';
+      hybridName=(nameInput&&nameInput.value&&nameInput.value.trim()||'RICO').replace(/[.]prg$/i,'')+'_SID_WASD.prg';
      download(builtHybrid.bytes,hybridName);
      st.lastExport={engine:'TEST311 FULL MAP + DIAGONAL WASD + SID',
       bytes:builtHybrid.bytes.length,filename:hybridName,sid:builtHybrid.sid,
