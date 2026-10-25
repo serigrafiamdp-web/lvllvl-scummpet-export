@@ -8,7 +8,7 @@
 'use strict';
 var PRE='rico304',W=40,H=25,SZ=1000;
 var colors=['#000000','#ffffff','#813338','#75cec8','#8e3c97','#56ac4d','#2e2c9b','#edf171','#8e5029','#553800','#c46c71','#4a4a4a','#7b7b7b','#a9ff9f','#706deb','#b2b2b2'];
-var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null};
+var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null,scrollSpeed:1};
 function mod(n,k){return(n%k+k)%k;}
 function equal(a,b){return a.length===b.length&&a.every(function(v,i){return v===b[i];});}
 function clone(s){return{kind:s.kind,tiles:s.tiles.slice(),fg:s.fg.slice(),atlas:s.atlas.slice(),bg:s.bg,
@@ -168,11 +168,11 @@ function compiler(){
  }return{code:new Uint8Array(buf),labels};}
  return {b,I,A,L,J,R,done};
 }
-function makePRG(source){
+function makePRG(source,scrollSpeed){
   if(source&&source.fullMap){
    if(!w.RICO_TEST307_FULLMAP||typeof w.RICO_TEST307_FULLMAP.makePRG!=='function')
     throw Error('TEST307 Full Map no se cargó; recargá la página con Ctrl+F5.');
-   return w.RICO_TEST307_FULLMAP.makePRG(source);
+   return w.RICO_TEST307_FULLMAP.makePRG(source,scrollSpeed||st.scrollSpeed);
   }
  // Two independent bitmaps, two independent screen matrices, two COLOR-RAM
  // shadow buffers. Held WASD repeats continuously at the render-limited C64 cadence.
@@ -429,6 +429,18 @@ function manualStep(button){
  try{moveArtwork(button.getAttribute('data-scroll'));}
  catch(err){stopHolding();setStatus('ERROR: '+err.message);if(w.console)w.console.warn('TEST306',err);}
 }
+// TEST312 speed affects ONLY camera cadence (not SID play frequency).
+var SPEEDS={1:{label:'Máxima · sin pausa',mouse:70},2:{label:'Rápida · +8 cuadros',mouse:105},
+ 4:{label:'Media · +16 cuadros',mouse:160},8:{label:'Lenta · +32 cuadros',mouse:275},
+ 12:{label:'Muy lenta · +64 cuadros',mouse:420}};
+function setScrollSpeed(value){
+ var n=Number(value);
+ if(!Object.prototype.hasOwnProperty.call(SPEEDS,n))throw Error('Velocidad de scroll no válida: '+value);
+ st.scrollSpeed=n;
+ var select=doc.getElementById('rico304speed');
+ if(select&&Number(select.value)!==n)select.value=String(n);
+ return st.scrollSpeed;
+}
 function startHolding(button){
  if(!st.dialogOpen)return;
  stopHolding();st.holdButton=button;manualStep(button);
@@ -439,7 +451,7 @@ function startHolding(button){
    st.holdTimer=w.setInterval(function(){
     if(!st.dialogOpen||st.holdButton!==button){stopHolding();return;}
     manualStep(button);
-   },70);
+   },SPEEDS[st.scrollSpeed].mouse);
   }
  },140);
 }
@@ -460,12 +472,12 @@ function closeManual(){
   var dlg=doc.createElement('div');
   dlg.id='rico304Dialog';
   dlg.setAttribute('role','dialog');
-  dlg.setAttribute('aria-label','Ricos Manual Scroll');
+  dlg.setAttribute('aria-label','Rico\'s Manual Scroll');
   dlg.style.cssText='position:fixed;z-index:2200;top:64px;right:28px;width:280px;box-sizing:border-box;'+
    'background:#292b30;border:1px solid #62666d;border-radius:5px;color:#f4f4f4;font:12px/1.4 sans-serif;'+
    'box-shadow:0 4px 20px rgba(0,0,0,.35);pointer-events:auto;';
   dlg.innerHTML='<div id="rico304Handle" style="padding:7px 10px;display:flex;justify-content:space-between;'+
-   'align-items:center;background:#373a40;cursor:move;user-select:none"><b>Ricos Manual Scroll</b>'+
+   'align-items:center;background:#373a40;cursor:move;user-select:none"><b>Rico\'s Manual Scroll</b>'+
    '<button type="button" id="rico304Close" aria-label="Cerrar" style="background:transparent;border:0;color:#fff;'+
    'font-size:18px;cursor:pointer">×</button></div>'+
    '<div style="padding:10px;text-align:center">'+
@@ -476,6 +488,12 @@ function closeManual(){
    '<span></span><button type="button" class="rico304arrow" data-scroll="down">▼</button><span></span></div>'+
    '<label style="display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">'+
    '<input type="checkbox" id="rico304wasd"> Export with WASD Scroll Control</label>'+
+   '<label style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:12px">'+
+   '<span>Velocidad</span><select title="Cuadros de pausa adicionales en el PRG; el SID conserva su tempo" id="rico304speed" style="background:#3b3e45;color:#fff;'+
+   'border:1px solid #666;padding:4px;border-radius:3px;min-width:145px">'+
+   '<option value="1">Máxima · sin pausa</option><option value="2">Rápida · +8 cuadros</option>'+
+   '<option value="4">Media · +16 cuadros</option><option value="8">Lenta · +32 cuadros</option>'+
+   '<option value="12">Muy lenta · +64 cuadros</option></select></label>'+
    '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">Editor: solo flechas · 1 celda por clic</div></div>';
   doc.body.appendChild(dlg);
   st.dialog=dlg;st.dialogOpen=true;st.keyboard=false;
@@ -484,6 +502,8 @@ function closeManual(){
   var check=doc.getElementById('rico304wasd');
   check.checked=st.exportWithWASD;
   check.onchange=function(){setExportWASD(check.checked);};
+  var speed=doc.getElementById('rico304speed');
+  if(speed){speed.value=String(st.scrollSpeed);speed.onchange=function(){setScrollSpeed(speed.value);};}
   var buttons=dlg.querySelectorAll('.rico304arrow');
   for(var i=0;i<buttons.length;i++){
    var btn=buttons[i];
@@ -541,7 +561,7 @@ function installPanelMenus(){
    var interfaceFound=false,interfaceAdded=false,scheduled=false;
    function addInterfaceEntry(menu){
     if(!menu||typeof menu.addItem!=='function'||interfaceAdded)return;
-    menu.addItem({label:'Ricos Manual Scroll...',id:'interface-rico-manual-scroll'});
+    menu.addItem({label:'Rico\'s Manual Scroll...',id:'interface-rico-manual-scroll'});
     interfaceAdded=true;
    }
    comp.addMenu=function(config){
@@ -552,7 +572,7 @@ function installPanelMenus(){
       var result=nativeAddItem.apply(this,arguments);
       if(item&&item.id==='screen-crop'&&!screenAdded){
        screenAdded=true;
-       nativeAddItem.call(this,{label:'Ricos Manual Scroll...',id:'screen-rico-manual-scroll'});
+       nativeAddItem.call(this,{label:'Rico\'s Manual Scroll...',id:'screen-rico-manual-scroll'});
       }
       return result;
      };
@@ -694,7 +714,7 @@ function installExportCheckbox(){
      var typeHybrid=doc.getElementById('exportPRGType');
      if(typeHybrid&&typeHybrid.value==='d64')
       throw Error('El motor híbrido entrega PRG. Elegí PRG para combinar SID con WASD.');
-     var snapshotHybrid=capture(),builtHybrid=exporter.makePRG(snapshotHybrid.source,sidData);
+     var snapshotHybrid=capture(),builtHybrid=exporter.makePRG(snapshotHybrid.source,sidData,st.scrollSpeed);
      var nameInput=doc.getElementById('exportPRGAs'),
       hybridName=(nameInput&&nameInput.value&&nameInput.value.trim()||'RICO').replace(/\\.prg$/i,'')+'_SID_WASD.prg';
      download(builtHybrid.bytes,hybridName);
@@ -731,14 +751,14 @@ function installExportCheckbox(){
     return oldExport.apply(this,arguments);
    }
    try{
-    var snapshot=capture(),built=makePRG(snapshot.source);
+    var snapshot=capture(),built=makePRG(snapshot.source,st.scrollSpeed);
     var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
     name=name.replace(/\.prg$/i,'')+'_WASD.prg';
     download(built.bytes,name);
     st.lastExport={engine:built.fullMap?'TEST307 FULL MAP + DIAGONAL WASD':'TEST306 LEGACY WASD',bytes:built.bytes.length,filename:name};
     return built;
    }catch(e){
-    if(typeof w.alert==='function')w.alert('Ricos Manual Scroll: '+e.message);
+    if(typeof w.alert==='function')w.alert('Rico\'s Manual Scroll: '+e.message);
     st.lastExport={engine:'TEST304 ERROR',error:e.message};
     return false;
    }
@@ -776,5 +796,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST311',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST312',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
