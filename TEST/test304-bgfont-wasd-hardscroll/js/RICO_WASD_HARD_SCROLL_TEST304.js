@@ -358,85 +358,76 @@ function moveArtwork(direction){
  return {direction,width:ww,height:hh,colorsMoved:!!newColors,steps:st.steps};
 }
 function closeManual(){
- // This manual tool is MODELESS: no UI.showDialog / UI.dialogStack.
- // Do not close an unrelated active modal (e.g. native Export PRG).
- if(!st.dialogOpen)return;
- st.dialogOpen=false;
- st.keyboard=false;
- if(st.dialog&&typeof st.dialog.close==='function')st.dialog.close();
-}
-function showModeless(dlg){
- // UI.showDialog adds a modal UI.dialogStack entry and inhibits
- // UI.canvasRender/UI.webGLRender, freezing and greying out the editor.
- // Show the native-styled UI.Dialog WITHOUT the UI modal stack.
- dlg.show();
- var backdrop=doc.getElementById('rico304Dialog-background');
- if(backdrop&&backdrop.style){
-  backdrop.style.setProperty('display','none','important');
-  backdrop.style.setProperty('pointer-events','none','important');
+  // Real non-modal DOM window: do not enter the UI dialog stack.
+  st.dialogOpen=false;
+  st.keyboard=false;
+  if(st.dialog&&st.dialog.parentNode)st.dialog.parentNode.removeChild(st.dialog);
+  st.dialog=null;
  }
- var windowElement=doc.getElementById('rico304Dialog');
- if(windowElement&&windowElement.style){
-  var width=dlg.width||280,vw=w.innerWidth||1024;
-  dlg.left=Math.max(12,vw-width-28);
-  dlg.top=64;
-  windowElement.style.left=dlg.left+'px';
-  windowElement.style.top='64px';
-  windowElement.style.zIndex='2200';
- }
- // Native titlebar X normally invokes UI.closeDialog(), which sees no modal.
- // Retarget ONLY this dialog's X to closeManual().
- var titleClose=doc.getElementById('rico304Dialogtitlebarclose');
- if(titleClose)titleClose.onclick=function(event){
-  if(event&&event.stopPropagation)event.stopPropagation();
-  closeManual();return false;
- };
-}
-function open(){
- // One small native-styled MODELESS dialog, interactive editor behind it.
- if(typeof UI==='undefined'||typeof UI.create!=='function')
-  throw Error('La interfaz de LVLLVL no está disponible.');
- if(!st.dialog){
-  var dlg=UI.create('UI.Dialog',{id:'rico304Dialog',title:'Ricos Manual Scroll',width:280,height:250});
-  var markup='<div style="padding:10px;font:12px/1.4 sans-serif;text-align:center">'+
-   '<div style="display:grid;grid-template-columns:repeat(3,52px);gap:5px;justify-content:center;margin:4px 0 12px">'+
-   '<span></span><button type="button" class="rico304arrow" data-scroll="up" title="Arriba">▲</button><span></span>'+
-   '<button type="button" class="rico304arrow" data-scroll="left" title="Izquierda">◀</button>'+
-   '<span style="align-self:center">●</span>'+
-   '<button type="button" class="rico304arrow" data-scroll="right" title="Derecha">▶</button>'+
-   '<span></span><button type="button" class="rico304arrow" data-scroll="down" title="Abajo">▼</button><span></span>'+
-   '</div>'+
+ function open(){
+  // Native UI.Dialog.show() creates a blocking gray backdrop even WITHOUT
+  // UI.showDialog(). Use a plain independent floating window instead.
+  if(st.dialogOpen&&st.dialog&&st.dialog.parentNode)return;
+  closeManual();
+  if(!doc.body||!doc.createElement)throw Error('El editor todavía no está preparado.');
+  var dlg=doc.createElement('div');
+  dlg.id='rico304Dialog';
+  dlg.setAttribute('role','dialog');
+  dlg.setAttribute('aria-label','Ricos Manual Scroll');
+  dlg.style.cssText='position:fixed;z-index:2200;top:64px;right:28px;width:280px;box-sizing:border-box;'+
+   'background:#292b30;border:1px solid #62666d;border-radius:5px;color:#f4f4f4;font:12px/1.4 sans-serif;'+
+   'box-shadow:0 4px 20px rgba(0,0,0,.35);pointer-events:auto;';
+  dlg.innerHTML='<div id="rico304Handle" style="padding:7px 10px;display:flex;justify-content:space-between;'+
+   'align-items:center;background:#373a40;cursor:move;user-select:none"><b>Ricos Manual Scroll</b>'+
+   '<button type="button" id="rico304Close" aria-label="Cerrar" style="background:transparent;border:0;color:#fff;'+
+   'font-size:18px;cursor:pointer">×</button></div>'+
+   '<div style="padding:10px;text-align:center">'+
+   '<div style="display:grid;grid-template-columns:repeat(3,50px);gap:5px;justify-content:center;margin:3px 0 13px">'+
+   '<span></span><button type="button" class="rico304arrow" data-scroll="up">▲</button><span></span>'+
+   '<button type="button" class="rico304arrow" data-scroll="left">◀</button><span>●</span>'+
+   '<button type="button" class="rico304arrow" data-scroll="right">▶</button>'+
+   '<span></span><button type="button" class="rico304arrow" data-scroll="down">▼</button><span></span></div>'+
    '<label style="display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">'+
    '<input type="checkbox" id="rico304wasd"> Export with WASD Scroll Control</label>'+
-   '<div id="rico304status" style="font-size:11px;margin-top:10px;opacity:.7">1 celda por movimiento · circular</div>'+
-   '</div>';
-  dlg.add(UI.create('UI.HTMLPanel',{html:markup}));
-  var close=UI.create('UI.Button',{text:'Close',color:'secondary'});
-  dlg.addButton(close);
-  close.on('click',function(){closeManual();});
-  dlg.on('close',function(){st.dialogOpen=false;st.keyboard=false;});
-  st.dialog=dlg;
- }
- st.dialogOpen=true;st.keyboard=true;
- showModeless(st.dialog);
- var checkbox=doc.getElementById('rico304wasd');
- if(checkbox){
-  checkbox.checked=st.exportWithWASD;
-  checkbox.onchange=function(){setExportWASD(checkbox.checked);};
- }
- var arrowButtons=doc.querySelectorAll?doc.querySelectorAll('#rico304Dialog .rico304arrow'):[];
- for(var i=0;i<arrowButtons.length;i++){
-  arrowButtons[i].onclick=function(e){
-   if(!st.dialogOpen)return;
-   try{moveArtwork(this.getAttribute('data-scroll'));}
-   catch(err){setStatus(err.message);}
+   '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">1 celda por movimiento</div></div>';
+  doc.body.appendChild(dlg);
+  st.dialog=dlg;st.dialogOpen=true;st.keyboard=true;
+  var close=doc.getElementById('rico304Close');
+  close.onclick=function(e){e.preventDefault();e.stopPropagation();closeManual();};
+  var check=doc.getElementById('rico304wasd');
+  check.checked=st.exportWithWASD;
+  check.onchange=function(){setExportWASD(check.checked);};
+  var buttons=dlg.querySelectorAll('.rico304arrow');
+  for(var i=0;i<buttons.length;i++){
+   buttons[i].style.cssText='width:50px;height:34px;cursor:pointer;background:#454950;'+
+    'border:1px solid #62666d;border-radius:3px;color:white;font-size:16px;';
+   buttons[i].onclick=function(e){
+    e.preventDefault();e.stopPropagation();
+    if(!st.dialogOpen)return;
+    try{moveArtwork(this.getAttribute('data-scroll'));}
+    catch(err){setStatus('ERROR: '+err.message);if(w.console)w.console.warn('TEST304',err);}
+   };
+  }
+  // Drag by title, leaving the editor fully interactive everywhere else.
+  var handle=doc.getElementById('rico304Handle'),drag=null;
+  handle.onpointerdown=function(e){
+   if(e.target===close)return;
+   var r=dlg.getBoundingClientRect();
+   drag={x:e.clientX,y:e.clientY,left:r.left,top:r.top};
+   if(handle.setPointerCapture)handle.setPointerCapture(e.pointerId);
   };
+  handle.onpointermove=function(e){
+   if(!drag)return;
+   dlg.style.right='auto';
+   dlg.style.left=Math.max(0,drag.left+e.clientX-drag.x)+'px';
+   dlg.style.top=Math.max(0,drag.top+e.clientY-drag.y)+'px';
+  };
+  handle.onpointerup=handle.onpointercancel=function(){drag=null;};
+  setStatus('1 celda por movimiento · circular');
  }
- setStatus('1 celda por movimiento · circular');
-}
-// Native SCREEN menu injection follows.
+ // Native SCREEN menu injection follows.
 
-function installScreenMenu(){
+ function installScreenMenu(){
  // Same native menu construction API already used by the LVLLVL SCREEN mode.
  // Wrapping UI.create before Editor.init means no DOM mutation races.
  if(typeof UI!=='function'||typeof UI.create!=='function'||UI.__rico304ManualScrollMenu)return;
@@ -513,14 +504,10 @@ function installExportCheckbox(){
    // Current manual exporter deliberately excludes music/extra frames/D64.
    var type=doc.getElementById('exportPRGType');
    if(type&&type.value==='d64'){w.alert('Ricos Manual Scroll: exportación WASD disponible solo como PRG.');return false;}
-   // The native export dialog often selects the first existing project
-   // music entry automatically. That is NOT evidence the user loaded a SID.
-   // Block only an explicitly loaded external SID, never a default track.
-   var music=doc.getElementById('exportPRGMusic');
-   if(music&&music.value==='sid'&&this.sidData){
-    w.alert('Ricos Manual Scroll: un SID cargado manualmente no se puede incluir todavía en el PRG WASD.');
-    return false;
-   }
+   // TEST304 v6: the standalone WASD PRG contains no SID.
+   // Native music selection and ToPRG.sidData may be populated automatically.
+   // Neither is reliable evidence of a SID manually loaded by the user.
+   // Ignore music altogether here and build the independent WASD PRG.
    try{
     var snapshot=capture(),built=makePRG(snapshot.source);
     var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
