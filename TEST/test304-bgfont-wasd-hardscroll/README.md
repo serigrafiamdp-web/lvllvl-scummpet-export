@@ -1,3 +1,42 @@
+# TEST315 — HiRes Character: reutilizar buffer + pintar únicamente bordes
+
+**Fecha:** 25 OCT 2026. Base: `release/test314-character-row-index-speed`. Rama nueva: `release/test315-border-only-char-scroll`.
+
+**Objetivo:** superar el motor TEST314 que dibujaba los 1.000 caracteres visibles por cada paso WASD de 8 píxeles; conservar el programa, colores, scroll completo, diagonales y SID. Esta es una primera prueba experimental de optimización, NO un MASTER.
+
+## Nueva técnica ASM de TEST315
+
+- Conserva ambos screen buffers HiRes ($4400/$4800) y ambas sombras de Color RAM ($2800/$2C00). Cada salto de cámara **copia la zona de solapamiento** desde la pantalla previamente visible al otro buffer, ya desplazada 1 fila/columna de caracteres.
+- Para cada movimiento horizontal, solo consulta el mapa completo para **una columna entrante**. Para movimiento vertical, solo consulta el mapa para **una fila entrante**. Para diagonal, consulta ambas (sin necesidad de mantener 1.000 búsquedas).
+- Punteros de copia 6502: `$E0-$E1` pantalla origen, `$E2-$E3` pantalla destino, `$E4-$E5` colores origen, `$E6-$E7` colores destino. El movimiento positivo desplaza el puntero origen y el negativo el destino, sin pisarse porque son dos buffers.
+- Borde nuevo: `deltaFetchCell315` obtiene solamente las celdas nuevas de `MAP=$8000` mediante las tablas ROW/COL de TEST307/311, respetando Scroll Area, wrapping y la Window 38×24 / 40×25. Se copian exactamente los códigos y colores 0..15, incluyendo bit3 HiRes/Multicolor por celda.
+- Al final conserva el flip VIC sincronizado en $D012 y commit completo de Color RAM, ya probados. **Todavía no se optimizó el commit de 1.000 colores**, importante para un futuro TEST316.
+- Detecta cancelación W+S/A+D y no muestra un buffer sin actualizar. Viewports de una sola fila o columna mantienen por seguridad TEST314.
+- Multicolor Character mixto funciona también SIN SID (antes únicamente estaba permitido en el exportador híbrido), sin forzar la resolución por celda.
+- El motor **Bitmap Multicolor** (8.000 bytes de bitmap) no participa de esta optimización, permanece **idéntico byte a byte** a TEST314, con y sin SID.
+
+## Mediciones y límites
+
+- TEST314 HiRes, 40×25, salto diagonal sostenido: ~98.278 ciclos CPU simulados entre los dos últimos movimientos.
+- TEST315 HiRes, 40×25, avance continuo W/A: ~58.969 ciclos simulados entre los dos últimos movimientos. No atribuir toda esta diferencia a solo el tipo de dirección; medir las dos versiones bajo las mismas condiciones antes de declarar una mejora porcentual formal. La primera evidencia es una reducción importante del trabajo interno del renderer.
+- Verificación del código binario: TEST315 usa ~1.743 bytes de núcleo sin SID y ~1.931 bytes en la ruta con SID / Mixed Character, por debajo del espacio $0810–$0FFF.
+- Simulación 6502 sin SID: 24 casos (4 direcciones y 4 diagonales, tres configuraciones de mapa/viewport/wrap), cero errores de screen/color, sin detener el scroll. **PASS interno**.
+- Simulación con SID sintético: W+A, D y S+D en Mixed Character, 3 pantallas verificadas por cada prueba, cero errores de celda, $D016 y $D022/$D023 conservados; el reproductor llegó a PLAY (la duración de estas simulaciones es demasiado corta para validar el ritmo musical). **PASS gráfico interno / audio real pendiente**.
+- Comparación byte por byte: Bitmap MC 36.721 bytes con y sin SID, exactos entre TEST314 y TEST315. **PASS regresión**.
+
+## Qué no se debe afirmar todavía
+
+- No hay prueba real en VICE de esta versión; el usuario debe comprobar la velocidad, fluidez y estabilidad.
+- No se alcanzaron los 50 pasos por segundo del Map Scroll tradicional: cada nuevo paso todavía exige copiar aproximadamente 1.000 bytes de screen, 1.000 bytes de color shadow y luego actualizar Color RAM.
+- No es un desplazamiento fino de 1 píxel: el manual WASD continúa saltando 8 píxeles por paso, en las 8 direcciones.
+- No se alteró Map Scroll tradicional HiRes/Char MC reconectado en TEST313 ni sus parámetros Ticks/Step / Pixels/Step. La prueba del rendimiento debe hacerse en **Manual Scroll con WASD marcado** y **Máxima / sin pausa**.
+
+**WEB:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+**ZIP:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test315-border-only-char-scroll.zip
+
+---
+
 # TEST314 — Primer rendimiento del avance por carácter (25 OCT 2026)
 
 **Base exacta:** TEST313. Solo se optimizaron los dos generadores PRG del Manual Scroll: `RICO_FULL_MAP_WASD_TEST307.js` y `RICO_FULLMAP_SID_WASD_TEST311.js`. Los motores de Map Scroll tradicional y su selección TEST313 siguen intactos. No se modificaron los proyectos guardados ni los demás PRG, incluyendo TEST312/311/307 PASS y MASTER.
