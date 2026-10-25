@@ -254,14 +254,17 @@ function build(model,report){
  I(0xC0,232);B(0xD0,'rawTail');b(0x60);
  // Runtime remap only for original physically selected cells:
  // physical mask sits at $3000; lookup of glyph ID at $5800.
- L('copyMapped1000');I(0xA2,3);L('mapPage');I(0xA0,0);
+ // The remap uses TAX for tile lookup, so the 3-page counter MUST be
+ // held in zero page, not X; otherwise the copy overruns the screen.
+ L('copyMapped1000');I(0xA9,3);Z(0x85,0xE7);
+ L('mapPage');I(0xA0,0);
  L('mapByte');Z(0xB1,0xE4);B(0xF0,'unchanged');
  Z(0xB1,0xE0);b(0xAA);A(0xBD,lutAddress);
  J(0x4C,'storeMapped');
  L('unchanged');Z(0xB1,0xE0);
  L('storeMapped');Z(0x91,0xE2);b(0xC8);B(0xD0,'mapByte');
  Z(0xE6,0xE1);Z(0xE6,0xE3);Z(0xE6,0xE5);
- b(0xCA);B(0xD0,'mapPage');
+ Z(0xC6,0xE7);B(0xD0,'mapPage');
  I(0xA0,0);L('mapTail');Z(0xB1,0xE4);B(0xF0,'tailUnchanged');
  Z(0xB1,0xE0);b(0xAA);A(0xBD,lutAddress);J(0x4C,'tailStore');
  L('tailUnchanged');Z(0xB1,0xE0);
