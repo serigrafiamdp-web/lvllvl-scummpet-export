@@ -1,4 +1,4 @@
-/* TEST304 — BGFONT-inspired whole-character scrolling, WASD ONLY.
+/* TEST305 — editor scroll with panel arrows only; export PRG optionally uses WASD.
    Standalone lab + experimental export PRG. Does not patch normal Export PRG.
    A left, D right, W up, S down. No joystick, no arrow keys.
    Map shifts bitmap+screen+color together; Group shifts glyph patterns but
@@ -389,9 +389,9 @@ function closeManual(){
    '<span></span><button type="button" class="rico304arrow" data-scroll="down">▼</button><span></span></div>'+
    '<label style="display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">'+
    '<input type="checkbox" id="rico304wasd"> Export with WASD Scroll Control</label>'+
-   '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">1 celda por movimiento</div></div>';
+   '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">Editor: solo flechas · 1 celda por clic</div></div>';
   doc.body.appendChild(dlg);
-  st.dialog=dlg;st.dialogOpen=true;st.keyboard=true;
+  st.dialog=dlg;st.dialogOpen=true;st.keyboard=false;
   var close=doc.getElementById('rico304Close');
   close.onclick=function(e){e.preventDefault();e.stopPropagation();closeManual();};
   var check=doc.getElementById('rico304wasd');
@@ -423,38 +423,64 @@ function closeManual(){
    dlg.style.top=Math.max(0,drag.top+e.clientY-drag.y)+'px';
   };
   handle.onpointerup=handle.onpointercancel=function(){drag=null;};
-  setStatus('1 celda por movimiento · circular');
+  setStatus('Editor: solo flechas · movimiento circular');
  }
- // Native SCREEN menu injection follows.
+ // SCREEN and Interfaz menu integration follows.
 
- function installScreenMenu(){
- // Same native menu construction API already used by the LVLLVL SCREEN mode.
- // Wrapping UI.create before Editor.init means no DOM mutation races.
- if(typeof UI!=='function'||typeof UI.create!=='function'||UI.__rico304ManualScrollMenu)return;
- var formerCreate=UI.create;
+ function toggleManual(){
+ // SCREEN and Interfaz share ONE panel instance: the menu items toggle its visibility.
+ if(st.dialogOpen&&st.dialog&&st.dialog.parentNode)closeManual();
+ else open();
+}
+function installPanelMenus(){
+ // Wrap the native menu bar before the editor creates its menus.
+ // Keep the legacy SCREEN entry for compatibility and introduce Interfaz.
+ if(typeof UI!=='function'||typeof UI.create!=='function'||UI.__rico305ManualPanelMenu)return;
+ var originalCreate=UI.create;
  UI.create=function(type,args){
-  var comp=formerCreate.apply(this,arguments);
+  var comp=originalCreate.apply(this,arguments);
   if(type==='UI.MenuBar'&&comp&&typeof comp.addMenu==='function'){
-   var formerAddMenu=comp.addMenu;
+   var nativeAddMenu=comp.addMenu;
+   var interfaceFound=false,interfaceAdded=false,scheduled=false;
+   function addInterfaceEntry(menu){
+    if(!menu||typeof menu.addItem!=='function'||interfaceAdded)return;
+    menu.addItem({label:'Ricos Manual Scroll...',id:'interface-rico-manual-scroll'});
+    interfaceAdded=true;
+   }
    comp.addMenu=function(config){
-    var menu=formerAddMenu.apply(this,arguments);
+    var menu=nativeAddMenu.apply(this,arguments);
     if(config&&config.label==='Screen'&&menu&&typeof menu.addItem==='function'){
-     var formerItem=menu.addItem,added=false;
+     var nativeAddItem=menu.addItem,screenAdded=false;
      menu.addItem=function(item){
-      var result=formerItem.apply(this,arguments);
-      if(item&&item.id==='screen-crop'&&!added){
-       added=true;
-       formerItem.call(this,{label:'Ricos Manual Scroll...',id:'screen-rico-manual-scroll'});
+      var result=nativeAddItem.apply(this,arguments);
+      if(item&&item.id==='screen-crop'&&!screenAdded){
+       screenAdded=true;
+       nativeAddItem.call(this,{label:'Ricos Manual Scroll...',id:'screen-rico-manual-scroll'});
       }
       return result;
      };
+    }
+    if(config&&/^(Interfaz|Interface)$/i.test(String(config.label||''))){
+     interfaceFound=true;
+     addInterfaceEntry(menu);
+    }
+    // Wait until the native menus are constructed. Reuse a native Interfaz
+    // menu if present; otherwise create exactly ONE program menu of that name.
+    if(!scheduled){
+     scheduled=true;
+     w.setTimeout(function(){
+      if(!interfaceFound&&!interfaceAdded){
+       var extra=nativeAddMenu.call(comp,{label:'Interfaz'});
+       addInterfaceEntry(extra);
+      }
+     },0);
     }
     return menu;
    };
   }
   return comp;
  };
- UI.__rico304ManualScrollMenu=true;
+ UI.__rico305ManualPanelMenu=true;
 }
 function setExportWASD(enabled){
  st.exportWithWASD=!!enabled;
@@ -537,7 +563,7 @@ function installMenuAction(){
  if(typeof Editor==='undefined'||!Editor.prototype||Editor.prototype.__rico304ManualScrollAction)return;
  var oldMenuClick=Editor.prototype.menuClick;
  Editor.prototype.menuClick=function(id){
-  if(id==='screen-rico-manual-scroll'){open();return;}
+  if(id==='screen-rico-manual-scroll'||id==='interface-rico-manual-scroll'){toggleManual();return;}
   if(id==='export-prg'&&this.textModeEditor&&this.textModeEditor.toPrg){
    // TEST299 formerly bypassed the native window for Bitmap MC.
    // Restore the regular Export PRG dialog with one optional shared checkbox.
@@ -548,21 +574,8 @@ function installMenuAction(){
  };
  Editor.prototype.__rico304ManualScrollAction=true;
 }
-function key(e){
- // Only when native Ricos Manual Scroll UI.Dialog is open.
- if(!st.dialogOpen||!st.keyboard)return;
- var el=doc.activeElement,tag=el&&String(el.tagName||'').toLowerCase();
- if(tag==='input'&&el.type!=='checkbox'||tag==='textarea'||tag==='select'||e.metaKey||e.ctrlKey||e.altKey)return;
- var dir={a:'left',w:'up',s:'down',d:'right'}[String(e.key||'').toLowerCase()];
- if(!dir)return;
- if(e.preventDefault)e.preventDefault();
- if(e.stopImmediatePropagation)e.stopImmediatePropagation();
- if(e.repeat)return;
- try{moveArtwork(dir);}catch(err){setStatus(err.message);}
-}
-installScreenMenu();
+installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-doc.addEventListener('keydown',key,true);
-w.RICO_TEST304={version:'TEST304',name:'Ricos Manual Scroll',entry:'SCREEN > Ricos Manual Scroll...',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open};
+w.RICO_TEST304={version:'TEST305',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
