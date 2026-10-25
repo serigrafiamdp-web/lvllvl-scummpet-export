@@ -252,7 +252,7 @@ function notice(message){
  var el=doc.getElementById('rico301status');
  if(!el){
   el=doc.createElement('div');el.id='rico301status';
-  el.style.cssText='position:fixed;right:14px;bottom:18px;z-index:999999;max-width:390px;pointer-events:none;background:rgba(16,19,24,.92);border:1px solid #6483a0;border-radius:7px;color:#e7f3fa;padding:10px;font:12px/1.45 sans-serif';
+  el.style.cssText='position:fixed;right:18px;bottom:20px;z-index:999999;max-width:470px;white-space:pre-line;pointer-events:none;background:rgba(14,17,22,.97);border:2px solid #e8a84b;border-radius:8px;color:#fff;padding:14px;font:bold 14px/1.55 sans-serif;box-shadow:0 7px 20px #0009';
   doc.body.appendChild(el);
  }
  el.textContent=message;
@@ -268,16 +268,26 @@ function exportPRG(opts){
  var model=w.RICO_TEST290_BITMAP.analyze(),report=analyze(model);
  last=report;errors=null;w.RICO_TEST301_LAST_EXPORT=report;
  if(!report.fullScreenEligible){
-  notice('TEST301 · Bitmap MC conservado. Filas compatibles: '+report.rowsCompatible+
-   '/25 · bandas candidatas: '+report.candidateBands.length+'. '+(report.reasons[0]||'Requiere modo bitmap.'));
-  if(w.console&&w.console.log)w.console.log(NAME,'safe fallback',report);
+  report.actualExporter='TEST297 BITMAP MULTICOLOR — RUTA ORIGINAL';
+  report.fallbackReason=report.reasons.join(' | ')||'Imagen no convertible en MC Character.';
+  report.prgFilename='RICO_TEST297_MC_DISTRIBUTED_SPEEDCODE_256TILES.prg';
+  w.RICO_TEST301_LAST_EXPORT=report;
+  notice('TEST301: CONVERSIÓN NO ACTIVADA\n'+
+    'Se exporta TEST297 sin ninguna aceleración nueva.\n'+
+    'Filas compatibles: '+report.rowsCompatible+'/25 · Bandas: '+report.candidateBands.length+
+    '\nMotivo: '+(report.reasons[0]||'Bitmap MC necesario.')+
+    '\nArchivo: '+report.prgFilename);
+  if(w.console&&w.console.log)w.console.log(NAME,'FALLBACK TEST297 · SIN CAMBIOS DE MOTOR',report);
   return null; // Hand off to TEST297 standard Export PRG.
  }
  var built=build(model,report);
  report.mode=built.meta.renderStrategy;report.prgBytes=built.bytes.length;
+ report.actualExporter='TEST301 MULTICOLOR CHAR REMAP — NUEVO MOTOR';
+ report.prgFilename='RICO_TEST301_MC_CHAR_REMAP_LOSSLESS.prg';
  if(!(opts&&opts.download===false)){
   download(built.bytes,'RICO_TEST301_MC_CHAR_REMAP_LOSSLESS.prg');
-  notice('TEST301 · MC CHAR REMAP ACTIVO · 1000 bytes de pantalla por fase; colores conservados.');
+  notice('TEST301: CONVERSIÓN ACTIVADA\nMotor nuevo MC CHARACTER: solo 1000 códigos por fase.\n'+
+   'Colores originales conservados.\nArchivo: '+report.prgFilename);
  }
  w.RICO_TEST301_LAST_EXPORT=report;
  return built;
