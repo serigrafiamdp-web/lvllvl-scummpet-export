@@ -513,14 +513,10 @@ function installExportCheckbox(){
    // Current manual exporter deliberately excludes music/extra frames/D64.
    var type=doc.getElementById('exportPRGType');
    if(type&&type.value==='d64'){w.alert('Ricos Manual Scroll: exportación WASD disponible solo como PRG.');return false;}
-   // The native export dialog often selects the first existing project
-   // music entry automatically. That is NOT evidence the user loaded a SID.
-   // Block only an explicitly loaded external SID, never a default track.
-   var music=doc.getElementById('exportPRGMusic');
-   if(music&&music.value==='sid'&&this.sidData){
-    w.alert('Ricos Manual Scroll: un SID cargado manualmente no se puede incluir todavía en el PRG WASD.');
-    return false;
-   }
+   // TEST304 v6: the standalone WASD PRG contains no SID.
+   // Native music selection and ToPRG.sidData may be populated automatically.
+   // Neither is reliable evidence of a SID manually loaded by the user.
+   // Ignore music altogether here and build the independent WASD PRG.
    try{
     var snapshot=capture(),built=makePRG(snapshot.source);
     var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
