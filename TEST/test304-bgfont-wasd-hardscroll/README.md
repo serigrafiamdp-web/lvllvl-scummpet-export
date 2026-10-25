@@ -1,3 +1,42 @@
+# TEST304 — Ricos Manual Scroll (actualización: controles nativos y exportación con WASD)
+
+**Estado:** PASS de simulación/interfaz; falta validar el PRG WASD visualmente en VICE. MASTER, TEST297 PASS y TEST299 conservados.
+
+## Interfaz final
+
+- SCREEN → **Ricos Manual Scroll...** abre solo una pequeña ventana nativa (sin vista previa, sin botones de exportación, sin modos MAPA/GRUPO).
+- Cuatro botones de dirección desplazan **el arte real del área de trabajo**, una celda 8×8 por clic; circular en los cuatro ejes.
+- W/A/S/D hacen lo mismo mientras está abierta la ventana. Al cerrarla, se dejan de interceptar completamente.
+- Un único checkbox: **Export with WASD Scroll Control**. Esta misma opción aparece en la ventana normal **Export C64 PRG**, con una sola variable compartida y sincronización bidireccional.
+- Si está **desmarcada**, el botón OK de Export PRG mantiene el motor normal existente: TEST299 Bitmap MC cuando es elegible, o LVLLVL original para modo HiRes/otros.
+- Si está **marcada**, OK genera el PRG experimental WASD, que presenta el mapa detenido y permite moverlo por teclas en VICE, sin controles de joystick ni flechas. El nombre de archivo se toma de la exportación y termina en `_WASD.prg`.
+- En la ruta WASD la prueba autónoma solo admite PRG, pantalla de 40×25 y no incluye SID; se informa si se ha seleccionado D64 o música. Desmarcar restablece la ruta normal sin restricciones nuevas.
+- Las opciones del PRG de prueba no modifican el menú normal ni los archivos MASTER. La opción queda activa durante la sesión del editor (variable compartida de TEST304).
+
+## Validación realizada
+
+Se ejecutó una simulación de interfaz con las dos rutas HiRes y Bitmap MC:
+
+| Verificación | Bitmap MC | HiRes |
+|---|---|---|
+| Aparece el ítem SCREEN solo una vez | PASS | PASS |
+| Cuatro movimientos WASD sobre el frame | PASS | PASS |
+| Desactivar WASD al cerrar el diálogo | PASS | PASS |
+| Check en Manual Scroll sincroniza check Export PRG | PASS | PASS |
+| Export PRG muestra ventana nativa y check | PASS | PASS |
+| Casilla activada: se genera PRG WASD | 12.049 bytes | 20.481 bytes |
+| Casilla desactivada: vuelve al exportador anterior | TEST299 | LVLLVL |
+
+Las pruebas de ejecución de la CPU 6502 realizadas anteriormente para A→W→D→S→A→D→W→S verificaron **cero diferencias** entre el resultado ASM y el desplazamiento esperado de códigos/colores/bitmap. **Todavía falta la prueba real en VICE del usuario.**
+
+## Acceso
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test304-bgfont-wasd-hardscroll.zip
+
+---
+
 # TEST304 — BGFONT hard-scroll por caracteres completos con WASD (solo teclado)
 
 ## Actualización de interfaz — SCREEN → Ricos Manual Scroll...
