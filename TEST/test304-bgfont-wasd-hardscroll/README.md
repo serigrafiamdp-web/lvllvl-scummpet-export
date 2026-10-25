@@ -1,3 +1,27 @@
+# TEST308 — Restauración de exportación SID (25/10/2026)
+
+**Problema:** TEST307 interceptaba el botón Export PRG y priorizaba el PRG experimental WASD (que NO tiene player SID). Incluso con el checkbox WASD apagado, el exportador rápido Bitmap MC TEST299 podía adelantarse al exportador nativo, descartando la música. Además, el adaptador SID TEST229 seleccionaba la ruta de render dinámico TEST228 incluso cuando había un único frame completamente detenido; la ruta antigua TEST207 para pantalla detenida seguía presente pero no se ejecutaba.
+
+**Correcciones solo en TEST308:**
+
+- El módulo de panel detecta un SID *realmente cargado*: selector nativo `sid` + bytes presentes, o checkbox SID del exportador avanzado TEST207/229 activado. Una canción de proyecto autoseleccionada NO cuenta como SID cargado.
+- Con SID real se da prioridad al exportador musical existente, SIN pasar por el generador WASD autónomo ni por TEST299. Si el checkbox WASD estaba marcado, se desmarca antes de exportar; así **no se genera engañosamente un PRG WASD sin audio**. El resultado en esta ruta es un PRG SID normal (no incorpora control WASD).
+- La instancia avanzada original se reutiliza; si no está conservada en el editor, el código utiliza el prototipo `ToPRGAdv` ya cargado y su mismo `createPRG`. No se construye otro player SID.
+- Dentro de la copia **aislada** `RICO_SID_RESTORED_TEST308.js`, un solo frame con `ricoMapScrollV1.type` vacío se deriva a la ruta legacy `export207` pensada para pantalla detenida. Proyectos animados mantienen la ruta `exportSelectedEngine228`. Se conservan las reglas de PSID INIT/PLAY y CIA/VBlank.
+- Sin SID y con WASD marcado, TEST307 Full Map + diagonales se mantiene tal cual; sin SID y sin WASD, TEST299 (cuando corresponde) y el exportador nativo se mantienen.
+- Si se solicita D64 y queda WASD marcado, se desmarca y deriva al exportador de disco habitual, sin el bloqueo artificial impuesto por la prueba WASD.
+- El código compartido `js/RICO_PRG_EIGHT_FRAMES_ORIGINAL_SID_TEST207.js` **no se modifica**, ni tampoco TEST307, TEST306, TEST305, TEST297 PASS o MASTER.
+
+**Pruebas internas:** siete escenarios de despacho con objetos de exportación simulados PASS (SID nativo, avanzado con/sin instancia, Bitmap MC sin SID, música de proyecto autoseleccionada, D64). Con un PSID de ejemplo y un ensamblador simulado, el adaptador SID de TEST308 eligió `STATIC_SID_TEST207`, ejecutó el ensamblador y produjo 14.353 bytes de PRG sintético. **La música audible, la reproducción en VICE y el arte en Bitmap MC real todavía no están verificados**. Esta rama requiere prueba real del usuario y no se marca MASTER.
+
+**Importante:** TEST308 **restaura SID en la ruta normal**, NO promete un nuevo motor que combine WASD y SID en el mismo ejecutable. Esa integración futura implica un IRQ de audio independiente y replanificación de RAM; no debe confundirse con haber recuperado el player anterior.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test308-restore-sid-export.zip
+
+---
+
 # TEST307 — FULL MAP + DIAGONALES WASD (25 OCT 2026)
 
 **Estado:** PASS de compilación/CPU 6502 simulada, **pendiente evaluación visual y velocidad real en VICE**.
