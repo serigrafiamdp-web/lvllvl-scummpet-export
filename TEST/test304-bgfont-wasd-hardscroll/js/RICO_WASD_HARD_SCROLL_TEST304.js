@@ -82,6 +82,43 @@ function capture(){
   src.bitmap=bitmap;src.screen=screen;src.color=color;
  }
  if(src.kind==='char-mc')throw Error('Esta primera prueba PRG cubre Char HiRes y Bitmap MC. No convierte Char Multicolor.');
+
+ // TEST307: retain every configured map cell, not just the 40x25 viewport.
+ // Packing keeps the full level in 16K of CPU RAM at $8000-$BFFF;
+ // the VIC double bitmaps, screens and C3 shadow buffers stay independent.
+ if(!Number.isInteger(ww)||!Number.isInteger(hh)||ww<1||hh<1||ww>255||hh>255)
+  throw Error('WASD mapa completo admite dimensiones de 1 a 255 celdas por eje.');
+ var count=ww*hh,bytesPerCell=bm?3:2;
+ if(count*bytesPerCell>0x4000)
+  throw Error('WASD: mapa '+ww+'x'+hh+' excede los 16 KB de datos C64 ('+
+   Math.floor(0x4000/bytesPerCell)+' celdas máximas en este motor).');
+ var packed=new Uint8Array(count*bytesPerCell);
+ var wholePal=bm?((w.RICO_TEST279_BITMAP&&typeof w.RICO_TEST279_BITMAP.seed==='function')?
+  w.RICO_TEST279_BITMAP.seed(fr,l):(fr.ricoBmpColors||[])):null;
+ for(var fy=0;fy<hh;fy++)for(var fx=0;fx<ww;fx++){
+  var fi=fy*ww+fx,cell=fr.data[fy]&&fr.data[fy][fx],code=(cell&&Number.isInteger(cell.t)&&cell.t>=0&&cell.t<256)?cell.t:0;
+  packed[fi*bytesPerCell]=code;
+  if(bm){
+   var cp=(Number(wholePal&&wholePal[fi])||0)&4095;
+   packed[fi*3+1]=((cp&15)<<4)|((cp>>4)&15);
+   packed[fi*3+2]=(cp>>8)&15;
+  }else packed[fi*2+1]=cell&&Number.isInteger(cell.fc)?cell.fc&15:1;
+ }
+ var graphic=e.graphic,geo=w.RICO_TEST75_WINDOW_DIMENSION,win=null,area=null;
+ try{if(geo&&graphic&&typeof geo.getConfig==='function')win=geo.getConfig(graphic,f);}catch(ignore){}
+ try{if(geo&&graphic&&typeof geo.getScrollArea==='function')area=geo.getScrollArea(graphic,f);}catch(ignore){}
+ function rect(r){r=r||{};var x=Math.max(0,Math.min(ww-1,Number(r.x)||0)),y=Math.max(0,Math.min(hh-1,Number(r.y)||0));
+  return{x:x,y:y,width:Math.max(1,Math.min(ww-x,Number(r.width)||ww-x)),
+   height:Math.max(1,Math.min(hh-y,Number(r.height)||hh-y))};}
+ win=rect(win);area=rect(area);
+ var vw=Math.min(40,win.width,area.width),vh=Math.min(25,win.height,area.height);
+ var worldX=((win.x-area.x)%area.width+area.width)%area.width;
+ var worldY=((win.y-area.y)%area.height+area.height)%area.height;
+ src.fullMap={width:ww,height:hh,packed:packed,bytesPerCell:bytesPerCell,
+  area:area,window:win,viewWidth:vw,viewHeight:vh,
+  physicalX:Math.max(0,Math.min(40-vw,win.x)),
+  physicalY:Math.max(0,Math.min(25-vh,win.y)),
+  initialX:worldX,initialY:worldY};
  return {source:src,model,bank:bank};
 }
 function verify(src,model){
