@@ -1,3 +1,47 @@
+# TEST307 — FULL MAP + DIAGONALES WASD (25 OCT 2026)
+
+**Estado:** PASS de compilación/CPU 6502 simulada, **pendiente evaluación visual y velocidad real en VICE**.
+
+Se parte de TEST306, aprobado por el usuario como scroll exportado continuo y sin parpadeo negro. Esta prueba deja intactas TEST306, TEST305, TEST297 PASS y MASTER.
+
+## Problemas corregidos
+
+1. TEST306 capturaba siempre solo los primeros 40×25 caracteres de cada frame y desplazaba circularmente esa ventana. El mapa configurado en LVLLVL podía tener 40×50, 80×50, etc.; la mitad inferior y los sectores laterales quedaban invisibles para el ejecutable.
+2. El lector de teclado ASM seleccionaba una sola dirección según prioridad W, A, S, D. Dos teclas simultáneas no producían diagonales.
+
+## Cambios
+
+- Captura completa `getGridWidth() × getGridHeight()` del layer actual, con tile de 8×8 y todos los colores por celda. HiRes = 2 B/celda (ID y FG). Bitmap Multicolor = 3 B/celda (ID, C1/C2 y C3). No aplana la imagen a la ventana 40×25.
+- Se utilizan las dimensiones separadas `RICO_TEST75_WINDOW_DIMENSION.getConfig` y `getScrollArea`, cuando están definidas, o el grid entero como área de scroll si no hay recorte explícito. El viewport físico es como máximo 40×25, y respeta la región recortada configurada y su ubicación dentro de la pantalla C64.
+- El mapa fuente empaquetado está en `$8000-$BFFF` (16 KiB), las tablas de índices en `$1000-$15FF`, atlas de 2048 B en `$4000` (Bitmap MC) o `$5000` (HiRes). Las dos pantallas/buffers y las rutinas de color conservan ubicaciones independientes.
+- La cámara recorre **toda el área de scroll** y retorna circularmente al otro extremo del mapa fuente, no al borde de la ventana visible. Así se pueden revelar sectores inferiores, superiores, derechos e izquierdos sin que el contenido se corte a los 40×25 iniciales.
+- W y S modifican Y, A y D modifican X, **independientemente** en cada lectura CIA1; permite W+A, W+D, S+A y S+D en el mismo paso, con un solo redibujado del buffer oculto y un solo cambio de banco. Se repite mientras se sostienen las teclas.
+- No se vuelve a desactivar la pantalla por movimiento. Se conserva el raster swap y Color RAM de TEST306. **El coste de redibujar el viewport completo con el mapa fuente puede reducir el número de pasos por segundo respecto al desplazamiento circular de TEST306**; hace falta medir en VICE. Es una primera versión correcta para probar las nuevas combinaciones y el mapa completo.
+- El panel WEB sigue igual que TEST306: flechas del mouse con repetición al mantener presionado; sin interceptar WASD del editor. Checkbox en panel y exportación normal sincronizados. La ruta no-WASD sigue usando el exportador habitual.
+
+**Límite de memoria:** exporta mapas de dimensiones de hasta 255 por eje mientras ocupen 16.384 bytes en formato empaquetado: máximo 8.192 celdas HiRes o 5.461 celdas Bitmap MC. Si el mapa supera ese límite, se muestra error explícito; **no se exporta una imagen truncada**. Se deja el soporte para mapas mayores con bancos/streaming para una fase siguiente.
+
+## Pruebas internas del ASM ejecutado por intérprete 6502
+
+| Modo | Mapa | Combinación | Resultado |
+|---|---|---|---|
+| HiRes | 40×50 | W+A sostenidas, dos pasos | 0 diferencias en pantalla y Color RAM, 0 apagados DEN |
+| HiRes | 80×50 | W+A sostenidas, dos pasos | 0 diferencias en pantalla y Color RAM, 0 apagados DEN |
+| Bitmap Multicolor | 40×50 | W+A sostenidas, dos pasos | 0 diferencias en bitmap, Screen RAM y Color RAM, 0 apagados DEN |
+| Bitmap Multicolor | 80×50 | W+A sostenidas, dos pasos | 0 diferencias en bitmap, Screen RAM y Color RAM, 0 apagados DEN |
+| HiRes | 80×50, Scroll Area (12,8,20,34), ventana 18×20 | S+D sostenidas, dos pasos | PASS, recorte y coordenadas, 0 diferencias |
+| Bitmap MC | idem | W+D sostenidas, dos pasos | PASS, incluye vuelta circular vertical, 0 diferencias |
+
+Almacenamiento/ASM verificado: 40×50 Bitmap MC 6.000 B fuente; 80×50 Bitmap MC 12.000 B fuente; motor ASM ~1,2 KiB dentro de $0810–$0FFF. Captura real simulada del editor Bitmap MC 40×50 y viewport 38×24 en (1,1): celda final correcta, motor TEST307 seleccionado.
+
+**IMPORTANTE:** no se ha hecho la validación visual de velocidad o parpadeo cromático en VICE. Esta rama es solo experimental hasta recibir un PASS visual.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test307-fullmap-diagonal-wasd.zip
+
+---
+
 # TEST306 — HOLD SCROLL EN EDITOR Y PRG SIN BLINK POR $D011
 
 Fecha 25 de octubre de 2026. Parte exclusivamente del TEST305 confirmado por el usuario. El MASTER, TEST297 PASS, TEST304 y TEST305 originales se conservan.
