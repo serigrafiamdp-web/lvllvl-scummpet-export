@@ -30,7 +30,9 @@ function assemble(){
 }
 function build(source,scrollSpeed){
  var speed=scrollSpeed==null?1:Number(scrollSpeed);
- if([1,2,4,8,12].indexOf(speed)<0)throw Error('TEST312: velocidad de scroll no admitida.');
+ var extraBySpeed={1:0,2:8,4:16,8:32,12:64};
+ if(!Object.prototype.hasOwnProperty.call(extraBySpeed,speed))throw Error('TEST312: velocidad no admitida.');
+ var extraFrames=extraBySpeed[speed];
  if(!source||!source.fullMap)throw Error('Falta el mapa completo del editor.');
  var mc=source.kind==='bitmap-mc',hi=source.kind==='char-hires';
  if(!mc&&!hi)throw Error('TEST307 solo exporta HiRes y Bitmap Multicolor.');
@@ -102,19 +104,19 @@ function build(source,scrollSpeed){
  // F1=1: renderWindow just populated first (low) display bank.
  if(mc){A(0xad,0xdd00);I(0x29,252);I(0x09,2);A(0x8d,0xdd00);}
  I(0xa9,mc?0x78:0x14);A(0x8d,0xd018);
- I(0xa9,0);I(0x85,0xf1);copyColor('copyColorOne');if(speed>1)J(0x20,'extraDelayFrames');J(0x4c,'poll');
+ I(0xa9,0);I(0x85,0xf1);copyColor('copyColorOne');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
  L('swapSecond');
  if(mc){A(0xad,0xdd00);I(0x29,252);A(0x8d,0xdd00);}
  I(0xa9,mc?0x18:0x24);A(0x8d,0xd018);
- I(0xa9,1);I(0x85,0xf1);copyColor('copyColorTwo');if(speed>1)J(0x20,'extraDelayFrames');J(0x4c,'poll');
+ I(0xa9,1);I(0x85,0xf1);copyColor('copyColorTwo');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
  camInc(0xf9,a.height,'incCameraY');camDec(0xf9,a.height,'decCameraY');
  camInc(0xf6,a.width,'incCameraX');camDec(0xf6,a.width,'decCameraX');
  L('waitRaster252');L('rasterLoop');A(0xad,0xd012);I(0xc9,252);R(0x90,'rasterLoop');b(0x60);
- if(speed>1){
+ if(extraFrames>0){
   // Extra complete frames between movements. Wait for the beam to leave
   // the lower border, then return to it on the next VIC frame.
   // SID-free engine has no raster IRQ; video registers are the clock.
-  L('extraDelayFrames');I(0xa2,speed-1);
+  L('extraDelayFrames');I(0xa2,extraFrames);
   L('waitFrameLeave');A(0xad,0xd012);I(0xc9,252);R(0xb0,'waitFrameLeave');
   J(0x20,'waitRaster252');b(0xca);R(0xd0,'waitFrameLeave');b(0x60);
  }
@@ -213,7 +215,7 @@ function build(source,scrollSpeed){
    physicalX:m.physicalX,physicalY:m.physicalY},
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'Full configured LVLLVL source, cyclic over Scroll Area instead of 40x25 window',
-  scrollSpeedFrames:speed};
+  scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed};
 }
 w.RICO_TEST307_FULLMAP={version:'TEST307',makePRG:build};
 })(window);
