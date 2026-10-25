@@ -1,3 +1,46 @@
+# TEST313 — Recuperación Map Scroll tradicional (25 de octubre de 2026)
+
+**Estado:** PASS de ruteo interno y CPU 6502 para movimiento automático Bitmap MC; **pendiente validación VICE** de las rutas tradicionales HiRes/Multicolor Character y de velocidad real. No declarar MASTER.
+
+Base: TEST312. Se conservan TEST312, TEST311 (SID+WASD), TEST310, TEST307 PASS, TEST297 PASS y MASTER.
+
+## Síntoma denunciado
+
+Seleccionar Map Scroll automático en HiRes o Multicolor, exportar PRG y recibir una imagen detenida. Las rutinas tradicionales ya existían, pero las intervenciones de TEST304–TEST312 habían cambiado **la prioridad del exportador**:
+
+- `Editor.prototype.menuClick('export-prg')` abría forzosamente el diálogo ToPRG básico, eludiendo interceptores tradicionales como TEST77, TEST168, TEST203 y el exportador avanzado.
+- `ToPRG.prototype.exportPrg()` seleccionaba primero SID estático o TEST299 Group Animate, incluso si había una configuración `ricoMapScrollV1.type` de Map Scroll automático.
+- Bitmap MC no comparte el formato del modo de caracteres; usar TEST290/TEST299 sin Group Animate activo podía terminar exportando una pantalla sin movimiento.
+
+## Modificación
+
+La selección ahora lee la configuración real del `graphic.frames[i].ricoMapScrollV1` o del servicio `RICO_TEST57_MAP_SCROLL.getConfig(graphic,i)`.
+
+**SIN checkbox WASD y CON Map Scroll automático configurado:**
+
+- **Char HiRes / Char Multicolor mixto:** llama `ToPRGAdv.prototype.createPRG` y devuelve la selección a los motores ASM tradicionales TEST77/TEST168/TEST203 y TEST228 cuando corresponde SID. No modifica su lógica ni sus ajustes originales `ticksPerStep`/`pixelsPerStep`. Si el exportador falla, no genera silenciosamente una imagen estática como sustituto.
+- **Bitmap Multicolor:** el camino de caracteres antiguo NO se utiliza. Se agregó un recorrido cardinal automático que usa el Bitmap MC real y el **mapa completo**, llamando al renderer TEST307 (sin SID) o TEST311 (con SID) con máscaras sintéticas que equivalen a las mismas direcciones CIA1 usadas por WASD. No se requiere presionar ninguna tecla.
+- Direcciones Bitmap implementadas en esta fase: **Left / Right / Up / Down**. Máscaras de movimiento automático solo al exportar Map Scroll tradicional; WASD manual sigue con su captura y controles originales.
+- **Advertencia importante:** el Bitmap MC automático de TEST313 todavía actualiza **8 píxeles de pantalla por paso**, es decir, un carácter completo. Conserva dirección y avance del mapa, pero **NO recupera todavía el fine-scroll de 1–8 píxeles por paso**. Si `pixelsPerStep` es menor que 8, se usa un intervalo medio aproximado para los saltos de 8px, no los píxeles finos exactos. No se debe afirmar que esta modalidad iguala al scroll fino previo.
+- Para otros tipos Bitmap como Ping Pong/Move In/Out, se muestra un error explícito antes de exportar, en lugar de fingir movimiento.
+- La opción `Export with WASD Scroll Control` **mantiene prioridad cuando está marcada**: exporta TEST311/TEST307 manual, que ya funcionaban. Para probar Map Scroll automático desmarcarla.
+
+**SIN checkbox WASD y SIN Map Scroll automático:** mantiene ruta normal de exportación de frame estático/animaciones previas, incluido TEST299 cuando sea elegible.
+
+## Pruebas
+
+- Mock del formulario: Char HiRes y Char MC con/sin SID y Map Scroll activo enviaron a ToPRGAdv 4/4; Bitmap MC con/sin SID enviaron al motor bitmap automático, no a ToPRGAdv ni a exportador estático, 2/2; sin Map Scroll usó la ruta normal; WASD activado conservó exportación WASD manual.
+- Intérprete 6502 del PRG Bitmap MC: sin teclas pulsadas, imagen desplazó dos veces consecutivas en Left/Right/Up/Down; con SID sintético, avanzó automáticamente en las mismas cuatro direcciones mientras PLAY continuaba (55 llamadas en dos pasos); 0 diferencias en Bitmap, Screen RAM y Color RAM; 0 apagados de pantalla durante movimiento. PASS de 8/8 pruebas internas.
+- Programas no probados todavía con VICE real. La ruta HiRes/Char MC está reconectada pero requiere exportación real del proyecto para confirmar correcto rendimiento.
+
+**Siguiente objetivo:** restaurar/optimizar Bitmap MC fino (1–8 px/step) sin perder SID, evitando reconstruir 8000 bytes en cada avance parcial y comparando con las mediciones del Map Scroll tradicional.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test313-restore-traditional-map-scroll.zip
+
+---
+
 # TEST312 — Rico's Manual Scroll / velocidad configurable
 
 25 OCT 2026 · Rama: `release/test312-manual-scroll-speed`
