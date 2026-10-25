@@ -299,7 +299,7 @@ function renderNow(){
 }
 function key(e){
  var focus=doc.activeElement,node=focus&&focus.tagName&&focus.tagName.toLowerCase();
- if(!doc.getElementById(PRE+'panel')||node==='input'||node==='textarea'||node==='select'||e.ctrlKey||e.altKey||e.metaKey)return;
+ if(!st.keyboard||!doc.getElementById('rico304Dialog')||node==='input'||node==='textarea'||node==='select'||e.ctrlKey||e.altKey||e.metaKey)return;
  var k=String(e.key||'').toLowerCase(),step={a:[1,0],d:[-1,0],w:[0,1],s:[0,-1]}[k];
  if(!step||e.repeat)return; // one step per keypress, no arrows/joystick
  e.preventDefault();st.dx+=step[0];st.dy+=step[1];st.steps++;renderNow();
@@ -308,11 +308,29 @@ function button(name,cb){var b=doc.createElement('button');b.textContent=name;b.
  b.style.cssText='padding:7px;background:#39485c;color:white;border:1px solid #66778e;border-radius:5px;cursor:pointer;';
  return b;}
 function open(){
- if(doc.getElementById(PRE+'panel'))return;
- var root=doc.createElement('section');root.id=PRE+'panel';
- root.style.cssText='position:fixed;right:12px;top:58px;max-height:85vh;overflow:auto;width:360px;max-width:92vw;z-index:90000;background:#131a25;color:#fff;border:1px solid #8190a0;border-radius:9px;padding:12px;font:12px/1.45 sans-serif;box-shadow:0 8px 25px #0009';
- root.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><strong>TEST304 · WASD HARD SCROLL</strong><button id="rico304close" style="color:white;background:transparent;border:0">×</button></div><p>Control SOLO A W D S. Cada pulsación mueve una celda de 8×8.</p><canvas id="rico304canvas" width="320" height="200" style="max-width:100%;image-rendering:pixelated;border:1px solid #666"></canvas><div id="rico304actions" style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0"></div><pre id="rico304status" style="white-space:pre-wrap;color:#e4deb0"></pre>';
- doc.body.appendChild(root);
+ // Native LVLLVL modal, not a floating browser overlay or toolbar button.
+ if(typeof UI==='undefined'||typeof UI.create!=='function')
+  throw Error('La interfaz de ventanas LVLLVL no está disponible.');
+ if(doc.getElementById('rico304Dialog')){
+  st.keyboard=true;
+  UI.showDialog('rico304Dialog');
+  if(st.source)renderNow();
+  return;
+ }
+ var dialog=UI.create('UI.Dialog',{
+  id:'rico304Dialog',title:"Ricos Manual Scroll",width:470,height:500
+ });
+ var markup='<div style="padding:10px;color:#ddd;font:12px/1.4 sans-serif;">'+
+  '<p style="margin:0 0 6px">Vista previa de scroll por caracteres enteros. <b>W A S D</b> solamente; una celda por pulsación.</p>'+
+  '<canvas id="rico304canvas" width="320" height="200" style="display:block;margin:6px auto;max-width:100%;image-rendering:pixelated;border:1px solid #666"></canvas>'+
+  '<div id="rico304actions" style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0"></div>'+
+  '<pre id="rico304status" style="white-space:pre-wrap;color:#e4deb0;font:11px/1.4 monospace;margin:6px 0"></pre></div>';
+ dialog.add(UI.create('UI.HTMLPanel',{html:markup}));
+ var close=UI.create('UI.Button',{text:'Close',color:'secondary'});
+ dialog.addButton(close);
+ close.on('click',function(){UI.closeDialog();});
+ dialog.on('close',function(){st.keyboard=false;});
+ UI.showDialog('rico304Dialog');st.keyboard=true;
  var box=doc.getElementById(PRE+'actions');
  function refresh(){
   try{var o=capture();st.source=o.source;st.model=o.model;st.dx=0;st.dy=0;st.steps=0;renderNow();}
@@ -329,16 +347,48 @@ function open(){
    setStatus('PRG de prueba creado ('+r.bytes.length+' bytes).\nCONTROL A W D S: una celda por pulsación.\nMODO MAPA circular 40×25. La Color RAM se oculta durante la transferencia para evitar costuras parciales.\nSin joystick ni flechas. La exportación habitual no se modificó.');}
   catch(e){setStatus('Error exportando PRG WASD: '+e.message);}
  }));
- doc.getElementById('rico304close').onclick=function(){root.remove();};
  refresh();
 }
-function launcher(){
- if(!doc.body||doc.getElementById('rico304launch'))return;
- var el=button('TEST304 · WASD Scroll',open);el.id='rico304launch';
- el.style.cssText='position:fixed;right:8px;bottom:10px;z-index:90000;padding:9px;border:1px solid #778da7;border-radius:6px;background:#293b50;color:#fff;cursor:pointer;';
- doc.body.appendChild(el);
+function installScreenMenu(){
+ // Same native menu construction API already used by the LVLLVL SCREEN mode.
+ // Wrapping UI.create before Editor.init means no DOM mutation races.
+ if(typeof UI!=='function'||typeof UI.create!=='function'||UI.__rico304ManualScrollMenu)return;
+ var formerCreate=UI.create;
+ UI.create=function(type,args){
+  var comp=formerCreate.apply(this,arguments);
+  if(type==='UI.MenuBar'&&comp&&typeof comp.addMenu==='function'){
+   var formerAddMenu=comp.addMenu;
+   comp.addMenu=function(config){
+    var menu=formerAddMenu.apply(this,arguments);
+    if(config&&config.label==='Screen'&&menu&&typeof menu.addItem==='function'){
+     var formerItem=menu.addItem,added=false;
+     menu.addItem=function(item){
+      var result=formerItem.apply(this,arguments);
+      if(item&&item.id==='screen-crop'&&!added){
+       added=true;
+       formerItem.call(this,{label:'Ricos Manual Scroll...',id:'screen-rico-manual-scroll'});
+      }
+      return result;
+     };
+    }
+    return menu;
+   };
+  }
+  return comp;
+ };
+ UI.__rico304ManualScrollMenu=true;
 }
+function installMenuAction(){
+ if(typeof Editor==='undefined'||!Editor.prototype||Editor.prototype.__rico304ManualScrollAction)return;
+ var oldMenuClick=Editor.prototype.menuClick;
+ Editor.prototype.menuClick=function(id){
+  if(id==='screen-rico-manual-scroll'){open();return;}
+  return oldMenuClick.apply(this,arguments);
+ };
+ Editor.prototype.__rico304ManualScrollAction=true;
+}
+installScreenMenu();
+installMenuAction();
 doc.addEventListener('keydown',key,true);
-if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',launcher);else launcher();
-w.RICO_TEST304={version:'TEST304',capture,mapMove,groupMove,makePRG,selfTest,getState:()=>st,open};
+w.RICO_TEST304={version:'TEST304',name:'Ricos Manual Scroll',entry:'SCREEN > Ricos Manual Scroll...',capture,mapMove,groupMove,makePRG,selfTest,getState:()=>st,open};
 })(window,document);
