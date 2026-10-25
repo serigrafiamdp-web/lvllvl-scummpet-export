@@ -131,7 +131,7 @@ function compiler(){
 }
 function makePRG(source){
  // Two independent bitmaps, two independent screen matrices, two COLOR-RAM
- // shadow buffers. Only one manual step per key press (key release needed).
+ // shadow buffers. Held WASD repeats continuously at the render-limited C64 cadence.
  if(source.kind!=='char-hires'&&source.kind!=='bitmap-mc')throw Error('Modo no disponible.');
  var mc=source.kind==='bitmap-mc',screen1=mc?0x5c00:0x4400,
   screen2=mc?0xc400:0x4800,color1=mc?0x3800:0x2800,color2=mc?0x3c00:0x2c00,
@@ -187,28 +187,27 @@ function makePRG(source){
  L('keyS');I(0xA9,3);J(0x4c,'keySave');
  L('keyD');I(0xA9,4);
  L('keySave');I(0x85,0xf2);
- L('handle');I(0xA5,0xf2);R(0xd0,'pressed');
- I(0xA9,0);I(0x85,0xf0);J(0x4c,'poll');
- L('pressed');I(0xc5,0xf0);R(0xd0,'newPress');J(0x4c,'poll');
- L('newPress');I(0x85,0xf0);
+ // Holding a key repeats immediately after each completed frame redraw.
+ L('handle');I(0xA5,0xf2);R(0xd0,'heldKey');J(0x4c,'poll');
+ L('heldKey');
  // Render the offscreen screen, color shadow, bitmap if MC. No background IRQ.
  plane(['scr',screen1,screen2,40,1]);
  plane(['col',color1,color2,40,1]);
  if(mc)plane(['bmp',bmp1,bmp2,320,8]);
- // Before color RAM copy, disable display, then swap data/video bank.
- I(0xA9,0x0b);A(0x8d,0xd011);
- I(0xA5,0xf1);R(0xf0,'showTwoColor');
- transfer(color1,0xd800,1000);J(0x4c,'colorReady');
- L('showTwoColor');transfer(color2,0xd800,1000);
- L('colorReady');
+ // Display never blanks on a scroll. Finish the new bank offscreen and swap
+ // at raster ~250, then update Color RAM top-to-bottom ahead of the beam.
+ J(0x20,'waitRaster250');
  I(0xA5,0xf1);R(0xf0,'showTwo');
  if(mc){A(0xad,0xdd00);I(0x29,252);I(0x09,2);A(0x8d,0xdd00);}
- I(0xA9,mc?0x78:0x14);A(0x8d,0xd018);I(0xA9,0);I(0x85,0xf1);J(0x4c,'display');
+ I(0xA9,mc?0x78:0x14);A(0x8d,0xd018);I(0xA9,0);I(0x85,0xf1);J(0x4c,'colorFrontOne');
  L('showTwo');
  if(mc){A(0xad,0xdd00);I(0x29,252);A(0x8d,0xdd00);}
  I(0xA9,mc?0x18:0x24);A(0x8d,0xd018);I(0xA9,1);I(0x85,0xf1);
- L('display');I(0xA9,mc?0x3b:0x1b);A(0x8d,0xd011);
- J(0x4c,'poll');
+ J(0x20,'copyFastColorTwo');J(0x4c,'poll');
+ L('colorFrontOne');J(0x20,'copyFastColorOne');J(0x4c,'poll');
+ L('waitRaster250');
+ L('waitRasterLoop');A(0xad,0xd012);I(0xc9,250);R(0x90,'waitRasterLoop');b(0x60);
+ // -------- scroll kernel ----------------------------------------------
  // -------- scroll kernel ----------------------------------------------
  // Input E0/1 original source address, E2/3 destination,
  // EC/ED row byte stride (40 / 320), EE glyph byte size (1 / 8),
@@ -262,15 +261,33 @@ function makePRG(source){
  countRow();J(0x20,'copyBytes');
  restore();addToPtr(0xe2,0xec,0xed);countTotalMinusRow();J(0x20,'copyBytes');b(0x60);
  L('advanceBases');addToPtr(0xe8,0xec,0xed);addToPtr(0xea,0xec,0xed);b(0x60);
- // Copy E5 pages and E4 remaining. Updates source+dest pointer high bytes.
+ // Copy 8 bytes per loop before branching: faster bitmap memory transfers.
  L('copyBytes');I(0xA5,0xe5);R(0xf0,'tailPart');
- L('nextPage');I(0xA0,0);L('pageByte');
- I(0xB1,0xe0);I(0x91,0xe2);b(0xc8);R(0xd0,'pageByte');
+ L('nextPage');I(0xA0,0);L('pageOctet');
+ for(var u=0;u<8;u++){I(0xB1,0xe0);I(0x91,0xe2);b(0xc8);}
+ R(0xd0,'pageOctet');
  I(0xe6,0xe1);I(0xe6,0xe3);I(0xc6,0xe5);R(0xd0,'nextPage');
- L('tailPart');I(0xA0,0);L('tailCheck');
- I(0xc4,0xe4);R(0xf0,'copied');
- I(0xB1,0xe0);I(0x91,0xe2);b(0xc8);J(0x4c,'tailCheck');
+ L('tailPart');I(0xA0,0);I(0xA5,0xe4);R(0xf0,'copied');
+ L('tailByte');I(0xB1,0xe0);I(0x91,0xe2);b(0xc8);
+ I(0xc4,0xe4);R(0xd0,'tailByte');
  L('copied');b(0x60);
+ // Screen colors are copied with unrolled absolute,X groups.
+ function fastColor(label,src){
+  L(label);
+  for(var page=0;page<4;page++){
+   I(0xa2,0);var loop=label+'Page'+page;L(loop);
+   for(var j=0;j<8;j++){
+    A(0xbd,src+page*256+j);
+    A(0x9d,0xd800+page*256+j);
+   }
+   b(0x8a);b(0x18);I(0x69,8);b(0xaa);
+   if(page===3)I(0xe0,232);
+   R(0xd0,loop);
+  }
+  b(0x60);
+ }
+ fastColor('copyFastColorOne',color1);
+ fastColor('copyFastColorTwo',color2);
  var asm=c.done();
  if(0x0810+asm.code.length>=0x1000)throw Error('El ASM sobrepasa el área segura del PRG: '+asm.code.length+' bytes.');
  var load=0x0801,end=mc?0x3710:0x5800,prg=new Uint8Array(2+end-load);
@@ -286,7 +303,7 @@ function makePRG(source){
   prg.set(source.atlas,at(0x5000));
  }
  return {bytes:prg,code:asm.code,labels:asm.labels,mode:source.kind,
-  input:'WASD keyboard via CIA1 ($DC00/$DC01) only; edge-trigger per key press',
+  input:'WASD keyboard via CIA1 ($DC00/$DC01) only; repeat while held; no VIC blank on scroll',
   mapType:'40x25 circular hard scroll; bitmap 8 bytes/cell and separate color matrices'};
 }
 function download(bytes,name){
