@@ -54,6 +54,8 @@ function capture(){
  }
  var src={kind:bm?'bitmap-mc':mode==='c64multicolor'?'char-mc':'char-hires',tiles:ids,fg,atlas,
  bg:typeof l.getBackgroundColor==='function'?l.getBackgroundColor()&15:0,
+ mc1:typeof l.getC64Multi1Color==='function'?l.getC64Multi1Color(f)&15:11,
+ mc2:typeof l.getC64Multi2Color==='function'?l.getC64Multi2Color(f)&15:12,
  bitmap:null,screen:null,color:null};
  var model=null;if(bm){
   // Capture a STATIC Bitmap MC directly. Manual MAP scroll MUST work
@@ -81,7 +83,7 @@ function capture(){
   }catch(groupError){ /* MAP is independent of group exporter. */ }
   src.bitmap=bitmap;src.screen=screen;src.color=color;
  }
- if(src.kind==='char-mc')throw Error('Esta primera prueba PRG cubre Char HiRes y Bitmap MC. No convierte Char Multicolor.');
+ // Mixed Character preserves per-cell Color RAM bit3 (0..7 HiRes, 8..15 Multicolor).
 
  // TEST307: retain every configured map cell, not just the 40x25 viewport.
  // Packing keeps the full level in 16K of CPU RAM at $8000-$BFFF;
@@ -349,6 +351,7 @@ function makePRG(source){
   mapType:'40x25 circular hard scroll; bitmap 8 bytes/cell and separate color matrices'};
 }
 function download(bytes,name){
+ if(typeof w.download==='function')return w.download(bytes,name,'application/prg');
  var url=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));
  var a=doc.createElement('a');a.href=url;a.download=name;doc.body.appendChild(a);a.click();a.remove();
  w.setTimeout(function(){URL.revokeObjectURL(url);},1000);
@@ -635,6 +638,22 @@ function installExportCheckbox(){
   group.appendChild(label);
   var content=parent.querySelector&&parent.querySelector('.dialogContent');
   (content||parent).appendChild(group);
+  // Record the original PSID before LVLLVL optionally transforms it into
+  // body bytes for its native player.
+  var fileInput=doc.getElementById('exportPRGSIDFile');
+  if(fileInput&&!fileInput.__rico311SidCapture){
+   fileInput.__rico311SidCapture=true;
+   fileInput.addEventListener('change',function(){
+    st.rawSid311=null;
+    var file=fileInput.files&&fileInput.files[0];
+    if(!file||typeof FileReader==='undefined')return;
+    var reader=new FileReader();
+    reader.onload=function(){
+     if(reader.result instanceof ArrayBuffer)st.rawSid311=new Uint8Array(reader.result);
+    };
+    reader.readAsArrayBuffer(file);
+   });
+  }
   return box;
  }
  ToPRG.prototype.initEvents=function(){
@@ -653,7 +672,43 @@ function installExportCheckbox(){
   // Explicit SID choices must not be swallowed by WASD or TEST299.
   var sid=sidRequested(this);
   if(sid.requested){
-   if(st.exportWithWASD)setExportWASD(false);
+   if(st.exportWithWASD){
+    // TEST311: SID + held WASD is one PRG, not two incompatible exporters.
+    // Never silently clear the user's checkbox or strip the soundtrack.
+    try{
+     var sidAPI=w.RICO_TEST207_ORIGINAL_SID;
+     var raw=sid.nativeSid?this.sidData:null;
+     if(raw&&raw.data&&!(raw instanceof Uint8Array)&&!(raw instanceof ArrayBuffer))raw=raw.data;
+     if(!raw&&sidAPI&&typeof sidAPI.getRawSID==='function')raw=sidAPI.getRawSID();
+     if(!sidAPI||typeof sidAPI.parseSID!=='function'||!raw)
+      throw Error('No se encontraron los bytes PSID cargados. Elegí el archivo SID nuevamente.');
+     var sidData;
+     try{sidData=sidAPI.parseSID(raw);}
+     catch(parseNativeError){
+      if(st.rawSid311)sidData=sidAPI.parseSID(st.rawSid311);
+      else throw parseNativeError;
+     }
+     var exporter=w.RICO_TEST311_HYBRID;
+     if(!exporter||typeof exporter.makePRG!=='function')
+      throw Error('Falta cargar el motor híbrido TEST311. Recargá la página.');
+     var typeHybrid=doc.getElementById('exportPRGType');
+     if(typeHybrid&&typeHybrid.value==='d64')
+      throw Error('El motor híbrido entrega PRG. Elegí PRG para combinar SID con WASD.');
+     var snapshotHybrid=capture(),builtHybrid=exporter.makePRG(snapshotHybrid.source,sidData);
+     var nameInput=doc.getElementById('exportPRGAs'),
+      hybridName=(nameInput&&nameInput.value&&nameInput.value.trim()||'RICO').replace(/\\.prg$/i,'')+'_SID_WASD.prg';
+     download(builtHybrid.bytes,hybridName);
+     st.lastExport={engine:'TEST311 FULL MAP + DIAGONAL WASD + SID',
+      bytes:builtHybrid.bytes.length,filename:hybridName,sid:builtHybrid.sid,
+      checkboxPreserved:st.exportWithWASD};
+     w.RICO_TEST311_LAST_EXPORT=st.lastExport;
+     return builtHybrid;
+    }catch(e){
+     if(typeof w.alert==='function')w.alert('TEST311 SID + WASD: '+e.message);
+     st.lastExport={engine:'TEST311 ERROR',error:e.message,checkboxPreserved:st.exportWithWASD};
+     return false;
+    }
+   }
    st.lastExport={engine:'NATIVE SID',sidPreserved:true,bypassWASD:true,bypassTEST299:true};
    if(sid.advancedSid){
     var adv=sidAdvancedInstance(ed,true);
@@ -707,7 +762,7 @@ function installMenuAction(){
   if(id==='screen-rico-manual-scroll'||id==='interface-rico-manual-scroll'){toggleManual();return;}
   if(id==='export-prg'&&this.textModeEditor&&this.textModeEditor.toPrg){
    var sid=sidRequested(this.textModeEditor.toPrg);
-   var adv=sid.advancedSid&&sidAdvancedInstance(this.textModeEditor);
+   var adv=sid.advancedSid&&!st.exportWithWASD&&sidAdvancedInstance(this.textModeEditor);
    if(adv&&typeof adv.start==='function')return adv.start();
    // Keep the standard Export PRG dialog only when the dedicated advanced
    // SID path is not selected. No bitmap fast-path may preempt its choice.
@@ -721,5 +776,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST308',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST311',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
