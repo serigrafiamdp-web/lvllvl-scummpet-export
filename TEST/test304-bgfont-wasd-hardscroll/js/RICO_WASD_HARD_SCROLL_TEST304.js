@@ -54,6 +54,8 @@ function capture(){
  }
  var src={kind:bm?'bitmap-mc':mode==='c64multicolor'?'char-mc':'char-hires',tiles:ids,fg,atlas,
  bg:typeof l.getBackgroundColor==='function'?l.getBackgroundColor()&15:0,
+ mc1:typeof l.getC64Multi1Color==='function'?l.getC64Multi1Color(f)&15:11,
+ mc2:typeof l.getC64Multi2Color==='function'?l.getC64Multi2Color(f)&15:12,
  bitmap:null,screen:null,color:null};
  var model=null;if(bm){
   // Capture a STATIC Bitmap MC directly. Manual MAP scroll MUST work
@@ -81,7 +83,7 @@ function capture(){
   }catch(groupError){ /* MAP is independent of group exporter. */ }
   src.bitmap=bitmap;src.screen=screen;src.color=color;
  }
- if(src.kind==='char-mc')throw Error('Esta primera prueba PRG cubre Char HiRes y Bitmap MC. No convierte Char Multicolor.');
+ // Mixed Character preserves per-cell Color RAM bit3 (0..7 HiRes, 8..15 Multicolor).
 
  // TEST307: retain every configured map cell, not just the 40x25 viewport.
  // Packing keeps the full level in 16K of CPU RAM at $8000-$BFFF;
