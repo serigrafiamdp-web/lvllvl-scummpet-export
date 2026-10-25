@@ -8,7 +8,7 @@
 'use strict';
 var PRE='rico304',W=40,H=25,SZ=1000;
 var colors=['#000000','#ffffff','#813338','#75cec8','#8e3c97','#56ac4d','#2e2c9b','#edf171','#8e5029','#553800','#c46c71','#4a4a4a','#7b7b7b','#a9ff9f','#706deb','#b2b2b2'];
-var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,report:null};
+var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,report:null};
 function mod(n,k){return(n%k+k)%k;}
 function equal(a,b){return a.length===b.length&&a.every(function(v,i){return v===b[i];});}
 function clone(s){return{kind:s.kind,tiles:s.tiles.slice(),fg:s.fg.slice(),atlas:s.atlas.slice(),bg:s.bg,
@@ -308,69 +308,99 @@ function selfTest(){
  return {pass:passed,cases:checks,bufferBytes:{bitmap:8000,screen:1000,color:1000},
   control:'W A S D only'};
 }
-function setStatus(msg){var t=doc.getElementById(PRE+'status');if(t)t.textContent=msg;}
-function renderNow(){
- var canvas=doc.getElementById(PRE+'canvas');if(!canvas||!st.source)return;
- st.current=st.kind==='map'?mapMove(st.source,st.dx,st.dy):
- groupMove(st.source,st.model&&st.model.animations&&st.model.animations[0],st.dx,st.dy);
- paint(canvas,st.current);
- setStatus('Modo '+st.kind.toUpperCase()+' · x='+st.dx+' y='+st.dy+' · pasos '+st.steps+
-  '\n'+(st.kind==='map'?'Mueve celdas, bitmap y atributos de color en conjunto.':
-  'Mueve patrones del grupo, colores anclados a la celda física.')+
-  '\nEl proyecto y su Export PRG habitual permanecen intactos.');
+function setStatus(message){
+ var label=doc.getElementById('rico304status');
+ if(label)label.textContent=message;
 }
-function key(e){
- var focus=doc.activeElement,node=focus&&focus.tagName&&focus.tagName.toLowerCase();
- if(!st.keyboard||!doc.getElementById('rico304Dialog')||node==='input'||node==='textarea'||node==='select'||e.ctrlKey||e.altKey||e.metaKey)return;
- var k=String(e.key||'').toLowerCase(),step={a:[1,0],d:[-1,0],w:[0,1],s:[0,-1]}[k];
- if(!step||e.repeat)return; // one step per keypress, no arrows/joystick
- e.preventDefault();st.dx+=step[0];st.dy+=step[1];st.steps++;renderNow();
+function moveArtwork(direction){
+ // BGFONT circular hard-scroll. Move real document cells (not an offscreen preview).
+ // Preserve cell objects and all per-cell fields including rotations, fg/bg colors,
+ // plus Bitmap Multicolor ricoBmpColors packed C1,C2,C3 data.
+ var ed=w.g_app&&w.g_app.textModeEditor,
+     layer=ed&&ed.layers&&ed.layers.getSelectedLayerObject&&ed.layers.getSelectedLayerObject();
+ if(!layer||!layer.frames||!Number.isInteger(layer.currentFrame))
+  throw Error('Primero seleccioná una pantalla y un frame.');
+ var frame=layer.frames[layer.currentFrame],grid=frame&&frame.data;
+ if(!grid||!Array.isArray(grid)||!grid.length)throw Error('No hay un mapa activo.');
+ var ww=layer.getGridWidth(),hh=layer.getGridHeight();
+ if(!ww||!hh||ww>4096||hh>4096)throw Error('Dimensiones del mapa no válidas.');
+ if(!['left','right','up','down'].includes(direction))
+  throw Error('Dirección inválida: '+direction);
+ var sx=direction==='left'?1:direction==='right'?-1:0,
+     sy=direction==='up'?1:direction==='down'?-1:0;
+ var old=grid.map(function(row){return row.slice();}),oldColors=null,newColors=null,
+     bm=layer.doc&&layer.doc.ricoBitmapV1Enabled&&layer.getScreenMode()==='c64multicolor';
+ if(bm){
+  if(w.RICO_TEST279_BITMAP&&typeof w.RICO_TEST279_BITMAP.seed==='function')
+   w.RICO_TEST279_BITMAP.seed(frame,layer);
+  if(Array.isArray(frame.ricoBmpColors)){
+   oldColors=frame.ricoBmpColors.slice();
+   newColors=frame.ricoBmpColors.slice();
+  }
+ }
+ for(var y=0;y<hh;y++){
+  if(!grid[y]||!old[y])throw Error('Fila '+y+' no disponible');
+  for(var x=0;x<ww;x++){
+   var fromY=mod(y+sy,hh),fromX=mod(x+sx,ww);
+   grid[y][x]=old[fromY][fromX];
+   if(newColors)newColors[y*ww+x]=oldColors[fromY*ww+fromX];
+  }
+ }
+ if(newColors)frame.ricoBmpColors=newColors;
+ if(ed.modified)ed.modified();
+ if(ed.graphic){
+  if(ed.graphic.invalidateAllCells)ed.graphic.invalidateAllCells();
+  if(ed.graphic.redraw)ed.graphic.redraw({allCells:true});
+ }
+ if(ed.layers&&ed.layers.updateAllLayerPreviews)ed.layers.updateAllLayerPreviews();
+ st.steps++;
+ setStatus('Movimientos: '+st.steps+' · último: '+direction.toUpperCase());
+ return {direction,width:ww,height:hh,colorsMoved:!!newColors,steps:st.steps};
 }
-function button(name,cb){var b=doc.createElement('button');b.textContent=name;b.type='button';b.onclick=cb;
- b.style.cssText='padding:7px;background:#39485c;color:white;border:1px solid #66778e;border-radius:5px;cursor:pointer;';
- return b;}
 function open(){
- // Native LVLLVL modal, not a floating browser overlay or toolbar button.
+ // Only one compact native UI.Dialog. No floating button, preview or export menu.
  if(typeof UI==='undefined'||typeof UI.create!=='function')
-  throw Error('La interfaz de ventanas LVLLVL no está disponible.');
- if(doc.getElementById('rico304Dialog')){
-  st.keyboard=true;
-  UI.showDialog('rico304Dialog');
-  if(st.source)renderNow();
-  return;
+  throw Error('La interfaz de LVLLVL no está disponible.');
+ if(!st.dialog){
+  var dlg=UI.create('UI.Dialog',{id:'rico304Dialog',title:'Ricos Manual Scroll',width:280,height:250});
+  var markup='<div style="padding:10px;font:12px/1.4 sans-serif;text-align:center">'+
+   '<div style="display:grid;grid-template-columns:repeat(3,52px);gap:5px;justify-content:center;margin:4px 0 12px">'+
+   '<span></span><button type="button" class="rico304arrow" data-scroll="up" title="Arriba">▲</button><span></span>'+
+   '<button type="button" class="rico304arrow" data-scroll="left" title="Izquierda">◀</button>'+
+   '<span style="align-self:center">●</span>'+
+   '<button type="button" class="rico304arrow" data-scroll="right" title="Derecha">▶</button>'+
+   '<span></span><button type="button" class="rico304arrow" data-scroll="down" title="Abajo">▼</button><span></span>'+
+   '</div>'+
+   '<label style="display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">'+
+   '<input type="checkbox" id="rico304wasd"> Activar movimiento scroll WASD</label>'+
+   '<div id="rico304status" style="font-size:11px;margin-top:10px;opacity:.7">1 celda por movimiento · circular</div>'+
+   '</div>';
+  dlg.add(UI.create('UI.HTMLPanel',{html:markup}));
+  var close=UI.create('UI.Button',{text:'Close',color:'secondary'});
+  dlg.addButton(close);
+  close.on('click',function(){UI.closeDialog();});
+  dlg.on('close',function(){st.dialogOpen=false;st.keyboard=false;});
+  st.dialog=dlg;
  }
- var dialog=UI.create('UI.Dialog',{
-  id:'rico304Dialog',title:"Ricos Manual Scroll",width:470,height:500
- });
- var markup='<div style="padding:10px;color:#ddd;font:12px/1.4 sans-serif;">'+
-  '<p style="margin:0 0 6px">Vista previa de scroll por caracteres enteros. <b>W A S D</b> solamente; una celda por pulsación.</p>'+
-  '<canvas id="rico304canvas" width="320" height="200" style="display:block;margin:6px auto;max-width:100%;image-rendering:pixelated;border:1px solid #666"></canvas>'+
-  '<div id="rico304actions" style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0"></div>'+
-  '<pre id="rico304status" style="white-space:pre-wrap;color:#e4deb0;font:11px/1.4 monospace;margin:6px 0"></pre></div>';
- dialog.add(UI.create('UI.HTMLPanel',{html:markup}));
- var close=UI.create('UI.Button',{text:'Close',color:'secondary'});
- dialog.addButton(close);
- close.on('click',function(){UI.closeDialog();});
- dialog.on('close',function(){st.keyboard=false;});
- UI.showDialog('rico304Dialog');st.keyboard=true;
- var box=doc.getElementById(PRE+'actions');
- function refresh(){
-  try{var o=capture();st.source=o.source;st.model=o.model;st.dx=0;st.dy=0;st.steps=0;renderNow();}
-  catch(e){setStatus('No se pudo leer el mapa: '+e.message);}
+ st.dialogOpen=true;st.keyboard=false;
+ UI.showDialog('rico304Dialog');
+ var checkbox=doc.getElementById('rico304wasd');
+ if(checkbox){
+  checkbox.checked=false;
+  checkbox.onchange=function(){st.keyboard=!!(st.dialogOpen&&checkbox.checked);};
  }
- box.appendChild(button('MAPA (colores móviles)',function(){st.kind='map';st.dx=0;st.dy=0;renderNow();}));
- box.appendChild(button('GRUPO (colores fijos)',function(){st.kind='group';st.dx=0;st.dy=0;renderNow();}));
- box.appendChild(button('Reiniciar',function(){st.dx=st.dy=st.steps=0;renderNow();}));
- box.appendChild(button('Recargar proyecto',refresh));
- box.appendChild(button('Verificar 4 direcciones',function(){setStatus(JSON.stringify(selfTest(),null,2));}));
- box.appendChild(button('EXPORTAR PRG WASD (MAPA)',function(){
-  try{if(!st.source)throw Error('No hay mapa.');var r=makePRG(st.source);
-   download(r.bytes,'RICO_TEST304_WASD_'+st.source.kind.toUpperCase().replace('-','_')+'.prg');
-   setStatus('PRG de prueba creado ('+r.bytes.length+' bytes).\nCONTROL A W D S: una celda por pulsación.\nMODO MAPA circular 40×25. La Color RAM se oculta durante la transferencia para evitar costuras parciales.\nSin joystick ni flechas. La exportación habitual no se modificó.');}
-  catch(e){setStatus('Error exportando PRG WASD: '+e.message);}
- }));
- refresh();
+ var arrowButtons=doc.querySelectorAll?doc.querySelectorAll('#rico304Dialog .rico304arrow'):[];
+ for(var i=0;i<arrowButtons.length;i++){
+  arrowButtons[i].onclick=function(e){
+   if(!st.dialogOpen)return;
+   try{moveArtwork(this.getAttribute('data-scroll'));}
+   catch(err){setStatus(err.message);}
+  };
+ }
+ setStatus('1 celda por movimiento · circular');
 }
+// Native SCREEN menu injection follows.
+
 function installScreenMenu(){
  // Same native menu construction API already used by the LVLLVL SCREEN mode.
  // Wrapping UI.create before Editor.init means no DOM mutation races.
@@ -412,5 +442,5 @@ function installMenuAction(){
 installScreenMenu();
 installMenuAction();
 doc.addEventListener('keydown',key,true);
-w.RICO_TEST304={version:'TEST304',name:'Ricos Manual Scroll',entry:'SCREEN > Ricos Manual Scroll...',capture,mapMove,groupMove,makePRG,selfTest,getState:()=>st,open};
+w.RICO_TEST304={version:'TEST304',name:'Ricos Manual Scroll',entry:'SCREEN > Ricos Manual Scroll...',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,getState:()=>st,open};
 })(window,document);
