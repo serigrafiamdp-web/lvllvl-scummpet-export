@@ -1,3 +1,39 @@
+# TEST311 — SID + WASD EN EL MISMO PRG (25 OCT 2026)
+
+**Objetivo:** resolver el defecto mostrado por el usuario en TEST310: la música SID se escuchaba, pero al exportar se desmarcaba automáticamente "Export with WASD Scroll Control" y el PRG carecía de movimiento.
+
+Estado: PASS de generación y simulación CPU 6502 para mapa Bitmap MC + música PSID + WASD simultáneos. Pendiente prueba real de VICE con el archivo SID original de 3798 bytes. No declarar MASTER sin validación visual/audio.
+
+## Cómo funciona TEST311
+
+- NUEVA ruta **híbrida**, únicamente al marcar WASD y seleccionar SID. Si hay SID y no se marcó WASD, sigue intacta la ruta de TEST310 (música y frame detenida). Si se marcó WASD sin SID, sigue la ruta de TEST307 (scroll mapa completo y diagonales).
+- Ya NO se ejecuta `setExportWASD(false)` cuando el SID es solicitado junto con WASD. La selección de la ventana Manual Scroll y del diálogo Export PRG es una única variable compartida que se preserva después de la descarga.
+- Con SID + WASD: `RICO_FULLMAP_SID_WASD_TEST311.js` toma el mapa completo / Scroll Area de TEST307 y la información PSID validada de TEST207/229; genera un PRG combinado.
+- Dos columnas CIA1 escaneadas independientemente: W+A, W+D, S+A, S+D mueven la cámara en ambos ejes; repetir hasta soltar. Las flechas web del panel siguen siendo la única entrada para mover el arte del editor.
+- **IRQ SID** activo mientras se genera una nueva pantalla Bitmap. Se usa el esquema de TEST207 de salvar el bloque ZP `$F0-$FF` del motor, instalar/restaurar el ZP privado del SID durante INIT/PLAY y preservar A/X/Y con PHA/PLA. El cambio de buffer y copia de Color RAM siguen sin escribir DEN=0 en $D011.
+- El PSID conserva las direcciones LOAD/INIT/PLAY declaradas (entre $1000-$2FFF). Para evitar superposición, las seis páginas de tablas de mapa que TEST307 tenía en $1000-$15FF pasan a `$3000-$35FF`. `$3600-$361F` contiene bloques privados motor/SID y `$3620` es contador de rate 60Hz fallback. El bitmap / pantallas / color / atlas y mapa packed en `$8000+` no se desplazan.
+- Temporización PAL: música raster 50Hz con PLAY por IRQ; si el PSID marca CIA Timer A y se detecta latch fiable, activar el hardware original después de INIT sin sobrescribirlo. Si CIA sin latch detectable, fallback 60Hz con 6 PLAY cada 5 raster frames.
+- El módulo SID aislado expone `getRawSID()` para la opción SID avanzada sin tocar PLAY; cuando se usa el selector original **Use A SID File**, se conserva también una copia de los bytes originales en un listener del archivo, por si el exportador nativo almacena solo el cuerpo/bytes procesados.
+- La descarga utiliza preferentemente la API `window.download` nativa; conserva fallback Blob.
+- También se permite **Multicolor Character mixto** en el motor híbrido: $D016 habilita multicolor, $D022/$D023 se toman del layer, los valores Color RAM 0..7 siguen HiRes y 8..15 multicolor. **Bitmap Multicolor** sigue usando el formato separado real, sin forzar HiRes.
+
+## Pruebas internas
+
+1. Prueba 6502 CPU simulada con SID sintético que incrementa $37FF en cada PLAY y mantiene estado privado en ZP $F0: W+A sostenidas produjeron cámaras (0,0) → (1,1) → (2,2), **21 IRQ/PLAY**, 0 errores al comparar colores, Screen RAM y bitmap visibles, 0 apagados de pantalla. Los ZP privados del SID y del motor permanecieron independientes: PASS.
+2. Prueba de integración Export PRG: modo Bitmap Multicolor 40×50, SID detectado, checkbox WASD marcado, descarga `SIX_EYES_SID_WASD.prg`, selección WASD permanece marcada, `NATIVE SID` no intercepta la exportación y no aparecen alertas: PASS.
+3. Motor ASM con PSID de 7900 B dentro de $1000–$2FFF: PAL normal 1372 B, CIA hardware 1396 B, CIA sin latch 1390 B, todos terminan antes de $1000 sin superponer tablas, bitmaps ni mapa: PASS.
+4. Exportación con SID y checkbox desactivado: ruta musical TEST310 **sin cambios**. Exportación sin SID con WASD: ruta TEST307 **sin cambios**.
+
+**Limitaciones actuales:** el motor híbrido exporta un solo frame del proyecto como mapa navegable completo, hasta 16 KB packed (5.461 celdas en Bitmap MC u 8.192 caracteres en HiRes/Multicolor Character). No integra animaciones simultáneas de frames/Group Animate todavía. Con opción híbrida se debe elegir formato **PRG**, no D64. Hay que validar la velocidad real, las colisiones de SID no reubicables que usan memoria RAM adicional fuera de su región LOAD, el modo CIA y los colores en VICE; una simulación no garantiza fidelidad absoluta en todos los SIDs.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test311-sid-wasd-hybrid.zip
+
+NO se modificaron TEST310, TEST309, TEST308, TEST307 PASS, TEST297 PASS ni MASTER.
+
+---
+
 # TEST310 — Fix ensamblador SID / Bitmap Multicolor
 
 Fecha: 25 octubre 2026. Base exacta: TEST309. **No altera** TEST309, TEST308, TEST307 PASS, TEST297 PASS ni MASTER.
