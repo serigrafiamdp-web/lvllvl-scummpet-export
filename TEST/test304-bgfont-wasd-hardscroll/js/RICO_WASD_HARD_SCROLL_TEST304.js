@@ -583,9 +583,15 @@ function setExportWASD(enabled){
  if(exportBox)exportBox.checked=st.exportWithWASD;
  return st.exportWithWASD;
 }
-function sidRequested(){
+function sidRequested(toPrg){
  var selected=doc.getElementById('exportPRGMusic');
- var nativeSid=!!(selected&&selected.value==='sid');
+ // Native LVLLVL can select a default music entry without any SID upload.
+ // Only treat 'sid' as a request if actual binary data was provided.
+ var data=toPrg&&toPrg.sidData;
+ var loaded=!!(data&&((typeof data.byteLength==='number'&&data.byteLength>0)||
+  (typeof data.length==='number'&&data.length>0)||
+  (data.data&&typeof data.data.length==='number'&&data.data.length>0)));
+ var nativeSid=!!(selected&&selected.value==='sid'&&loaded);
  // TEST229 is the original dedicated SID player in the Advanced Export UI.
  var api=w.RICO_TEST207_ORIGINAL_SID,state=null;
  try{state=api&&typeof api.getState==='function'?api.getState():null;}catch(ignore){}
@@ -633,7 +639,7 @@ function installExportCheckbox(){
       bitmap=!!(layer&&layer.doc&&layer.doc.ricoBitmapV1Enabled&&layer.getScreenMode()==='c64multicolor');
   // Existing SID playback is never subordinate to experimental scroll export.
   // Explicit SID choices must not be swallowed by WASD or TEST299.
-  var sid=sidRequested();
+  var sid=sidRequested(this);
   if(sid.requested){
    if(st.exportWithWASD)setExportWASD(false);
    st.lastExport={engine:'NATIVE SID',sidPreserved:true,bypassWASD:true,bypassTEST299:true};
@@ -688,7 +694,7 @@ function installMenuAction(){
  Editor.prototype.menuClick=function(id){
   if(id==='screen-rico-manual-scroll'||id==='interface-rico-manual-scroll'){toggleManual();return;}
   if(id==='export-prg'&&this.textModeEditor&&this.textModeEditor.toPrg){
-   var sid=sidRequested();
+   var sid=sidRequested(this.textModeEditor.toPrg);
    var adv=sid.advancedSid&&sidAdvancedInstance(this.textModeEditor);
    if(adv&&typeof adv.start==='function')return adv.start();
    // Keep the standard Export PRG dialog only when the dedicated advanced
