@@ -35,7 +35,9 @@ function assemble(){
 }
 function build(source,sid,scrollSpeed){
  var speed=scrollSpeed==null?1:Number(scrollSpeed);
- if([1,2,4,8,12].indexOf(speed)<0)throw Error('TEST312: velocidad de scroll no admitida.');
+ var extraBySpeed={1:0,2:8,4:16,8:32,12:64};
+ if(!Object.prototype.hasOwnProperty.call(extraBySpeed,speed))throw Error('TEST312: velocidad no admitida.');
+ var extraFrames=extraBySpeed[speed];
  if(!sid||!sid.bytes||!sid.bytes.length||!Number.isInteger(sid.load)||!Number.isInteger(sid.play)||!Number.isInteger(sid.init))
   throw Error('TEST311 requiere un PSID válido con direcciones INIT/PLAY.');
  if(sid.load<0x1000||sid.load+sid.bytes.length>0x3000)
@@ -103,7 +105,7 @@ function build(source,sid,scrollSpeed){
  // VIC raster IRQ: PLAY uses its own protected zero-page and does not
  // disturb the scroll renderer, including its 2-buffer Color RAM scheduler.
  I(0xa9,0);A(0x8d,VIDEO_FRAMES);
- I(0xa9,(256-speed)&255);A(0x8d,LAST_MOVE_FRAME);
+ I(0xa9,(256-extraFrames)&255);A(0x8d,LAST_MOVE_FRAME);
  I(0xa9,0x01);A(0x8d,0xd019);
  I(0xa9,0xfa);A(0x8d,0xd012);
  Q('sidIRQ',false);A(0x8d,0xfffe);
@@ -124,25 +126,24 @@ function build(source,sid,scrollSpeed){
  // Gate camera redraw on complete VIC frames, not CPU delay loops.
  // SID IRQ runs at its native pace regardless of speed selection.
  A(0xad,VIDEO_FRAMES);b(0x38);A(0xed,LAST_MOVE_FRAME);
- I(0xc9,speed);R(0x90,'poll');
+ I(0xc9,extraFrames);R(0x90,'poll');
  I(0xa9,0);I(0x85,0xf0);
  I(0xa5,0xf7);I(0x29,2);R(0xd0,'notW');J(0x20,'incCameraY');I(0xe6,0xf0);
  L('notW');I(0xa5,0xf7);I(0x29,32);R(0xd0,'notS');J(0x20,'decCameraY');I(0xe6,0xf0);
  L('notS');I(0xa5,0xf7);I(0x29,4);R(0xd0,'notA');J(0x20,'incCameraX');I(0xe6,0xf0);
  L('notA');I(0xa5,0xf8);I(0x29,4);R(0xd0,'notD');J(0x20,'decCameraX');I(0xe6,0xf0);
  L('notD');I(0xa5,0xf0);R(0xd0,'renderRequested');J(0x4c,'poll');
- L('renderRequested');A(0xad,VIDEO_FRAMES);A(0x8d,LAST_MOVE_FRAME);
- J(0x20,'renderWindow');
+ L('renderRequested');J(0x20,'renderWindow');
  J(0x20,'waitRaster252');
  I(0xa5,0xf1);R(0xf0,'swapSecond');
  // F1=1: renderWindow just populated first (low) display bank.
  if(mc){A(0xad,0xdd00);I(0x29,252);I(0x09,2);A(0x8d,0xdd00);}
  I(0xa9,mc?0x78:0x14);A(0x8d,0xd018);
- I(0xa9,0);I(0x85,0xf1);copyColor('copyColorOne');J(0x4c,'poll');
+ I(0xa9,0);I(0x85,0xf1);copyColor('copyColorOne');A(0xad,VIDEO_FRAMES);A(0x8d,LAST_MOVE_FRAME);J(0x4c,'poll');
  L('swapSecond');
  if(mc){A(0xad,0xdd00);I(0x29,252);A(0x8d,0xdd00);}
  I(0xa9,mc?0x18:0x24);A(0x8d,0xd018);
- I(0xa9,1);I(0x85,0xf1);copyColor('copyColorTwo');J(0x4c,'poll');
+ I(0xa9,1);I(0x85,0xf1);copyColor('copyColorTwo');A(0xad,VIDEO_FRAMES);A(0x8d,LAST_MOVE_FRAME);J(0x4c,'poll');
  camInc(0xf9,a.height,'incCameraY');camDec(0xf9,a.height,'decCameraY');
  camInc(0xf6,a.width,'incCameraX');camDec(0xf6,a.width,'decCameraX');
  L('waitRaster252');L('rasterLoop');A(0xad,0xd012);I(0xc9,252);R(0x90,'rasterLoop');b(0x60);
@@ -284,7 +285,7 @@ function build(source,sid,scrollSpeed){
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'TEST311 full map WASD with SID audio IRQ (hardware CIA or PAL raster)',
   sid:{load:sid.load,init:sid.init,play:sid.play,size:sid.bytes.length,hardwareCIA:hardwareCIA},
-  scrollSpeedFrames:speed};
+  scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed};
 }
 w.RICO_TEST311_HYBRID={version:'TEST311',makePRG:build,engine:'TEST307 FULL MAP WASD + PSID protected raster/CIA IRQ'};
 })(window);
