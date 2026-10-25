@@ -598,8 +598,20 @@ function sidRequested(toPrg){
  return {requested:nativeSid||!!(state&&state.enabled),
   nativeSid:nativeSid,advancedSid:!!(state&&state.enabled)};
 }
-function sidAdvancedInstance(editor){
- return editor&&(editor.toPrgAdv||editor.toPRGAdv||editor.prgAdv)||null;
+function sidAdvancedInstance(editor,forExport){
+ if(!editor)return null;
+ var existing=editor.toPrgAdv||editor.toPRGAdv||editor.prgAdv;
+ if(existing)return existing;
+ // On some LVLLVL builds Advanced Export is a menu-only utility and is not
+ // kept as textModeEditor.toPrgAdv. Reuse the already-installed prototype
+ // and its original SID wrapper instead of silently falling back to no music.
+ if(forExport&&typeof ToPRGAdv!=='undefined'&&ToPRGAdv.prototype&&
+    typeof ToPRGAdv.prototype.createPRG==='function'){
+  var adapter=Object.create(ToPRGAdv.prototype);
+  adapter.editor=editor;
+  return adapter;
+ }
+ return null;
 }
 function installExportCheckbox(){
  if(typeof ToPRG==='undefined'||!ToPRG.prototype||ToPRG.prototype.__rico304ExportOption)return;
@@ -644,7 +656,7 @@ function installExportCheckbox(){
    if(st.exportWithWASD)setExportWASD(false);
    st.lastExport={engine:'NATIVE SID',sidPreserved:true,bypassWASD:true,bypassTEST299:true};
    if(sid.advancedSid){
-    var adv=sidAdvancedInstance(ed);
+    var adv=sidAdvancedInstance(ed,true);
     if(adv&&typeof adv.createPRG==='function'){
      var filenameInput=doc.getElementById('exportPRGAs');
      var sidName=filenameInput&&filenameInput.value&&filenameInput.value.trim()||'rico-sid.prg';
