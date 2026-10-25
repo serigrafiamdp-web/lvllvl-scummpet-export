@@ -653,7 +653,38 @@ function installExportCheckbox(){
   // Explicit SID choices must not be swallowed by WASD or TEST299.
   var sid=sidRequested(this);
   if(sid.requested){
-   if(st.exportWithWASD)setExportWASD(false);
+   if(st.exportWithWASD){
+    // TEST311: SID + held WASD is one PRG, not two incompatible exporters.
+    // Never silently clear the user's checkbox or strip the soundtrack.
+    try{
+     var sidAPI=w.RICO_TEST207_ORIGINAL_SID;
+     var raw=sid.nativeSid?this.sidData:null;
+     if(raw&&raw.data&&!(raw instanceof Uint8Array)&&!(raw instanceof ArrayBuffer))raw=raw.data;
+     if(!raw&&sidAPI&&typeof sidAPI.getRawSID==='function')raw=sidAPI.getRawSID();
+     if(!sidAPI||typeof sidAPI.parseSID!=='function'||!raw)
+      throw Error('No se encontraron los bytes PSID cargados. Elegí el archivo SID nuevamente.');
+     var sidData=sidAPI.parseSID(raw);
+     var exporter=w.RICO_TEST311_HYBRID;
+     if(!exporter||typeof exporter.makePRG!=='function')
+      throw Error('Falta cargar el motor híbrido TEST311. Recargá la página.');
+     var typeHybrid=doc.getElementById('exportPRGType');
+     if(typeHybrid&&typeHybrid.value==='d64')
+      throw Error('El motor híbrido entrega PRG. Elegí PRG para combinar SID con WASD.');
+     var snapshotHybrid=capture(),builtHybrid=exporter.makePRG(snapshotHybrid.source,sidData);
+     var nameInput=doc.getElementById('exportPRGAs'),
+      hybridName=(nameInput&&nameInput.value&&nameInput.value.trim()||'RICO').replace(/\\.prg$/i,'')+'_SID_WASD.prg';
+     download(builtHybrid.bytes,hybridName);
+     st.lastExport={engine:'TEST311 FULL MAP + DIAGONAL WASD + SID',
+      bytes:builtHybrid.bytes.length,filename:hybridName,sid:builtHybrid.sid,
+      checkboxPreserved:st.exportWithWASD};
+     w.RICO_TEST311_LAST_EXPORT=st.lastExport;
+     return builtHybrid;
+    }catch(e){
+     if(typeof w.alert==='function')w.alert('TEST311 SID + WASD: '+e.message);
+     st.lastExport={engine:'TEST311 ERROR',error:e.message,checkboxPreserved:st.exportWithWASD};
+     return false;
+    }
+   }
    st.lastExport={engine:'NATIVE SID',sidPreserved:true,bypassWASD:true,bypassTEST299:true};
    if(sid.advancedSid){
     var adv=sidAdvancedInstance(ed,true);
@@ -707,7 +738,7 @@ function installMenuAction(){
   if(id==='screen-rico-manual-scroll'||id==='interface-rico-manual-scroll'){toggleManual();return;}
   if(id==='export-prg'&&this.textModeEditor&&this.textModeEditor.toPrg){
    var sid=sidRequested(this.textModeEditor.toPrg);
-   var adv=sid.advancedSid&&sidAdvancedInstance(this.textModeEditor);
+   var adv=sid.advancedSid&&!st.exportWithWASD&&sidAdvancedInstance(this.textModeEditor);
    if(adv&&typeof adv.start==='function')return adv.start();
    // Keep the standard Export PRG dialog only when the dedicated advanced
    // SID path is not selected. No bitmap fast-path may preempt its choice.
@@ -721,5 +752,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST308',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST311',name:'Ricos Manual Scroll',entry:'Interfaz > Ricos Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
