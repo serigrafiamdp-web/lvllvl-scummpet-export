@@ -167,8 +167,11 @@ function compiler(){
  return {b,I,A,L,J,R,done};
 }
 function makePRG(source){
-  if(source&&source.fullMap&&w.RICO_TEST307_FULLMAP&&typeof w.RICO_TEST307_FULLMAP.makePRG==='function')
+  if(source&&source.fullMap){
+   if(!w.RICO_TEST307_FULLMAP||typeof w.RICO_TEST307_FULLMAP.makePRG!=='function')
+    throw Error('TEST307 Full Map no se cargó; recargá la página con Ctrl+F5.');
    return w.RICO_TEST307_FULLMAP.makePRG(source);
+  }
  // Two independent bitmaps, two independent screen matrices, two COLOR-RAM
  // shadow buffers. Held WASD repeats continuously at the render-limited C64 cadence.
  if(source.kind!=='char-hires'&&source.kind!=='bitmap-mc')throw Error('Modo no disponible.');
@@ -630,7 +633,7 @@ function installExportCheckbox(){
     var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
     name=name.replace(/\.prg$/i,'')+'_WASD.prg';
     download(built.bytes,name);
-    st.lastExport={engine:'TEST304 MANUAL WASD',bytes:built.bytes.length,filename:name};
+    st.lastExport={engine:built.fullMap?'TEST307 FULL MAP + DIAGONAL WASD':'TEST306 LEGACY WASD',bytes:built.bytes.length,filename:name};
     return built;
    }catch(e){
     if(typeof w.alert==='function')w.alert('Ricos Manual Scroll: '+e.message);
