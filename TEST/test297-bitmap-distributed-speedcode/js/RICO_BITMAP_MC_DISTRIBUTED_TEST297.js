@@ -142,6 +142,8 @@ function highData(model){
   }
  }
  return {data:bytes,speedCode:new Uint8Array(spd),hotMap,hotIds,
+   speedcodeCells:hotIds.reduce(function(sum,id){return sum+byTile[id].length;},0),
+   candidateIDs:hotCandidates.length,
    hotLo1,hotHi1,hotLo3,hotHi3,speedcodeBytes:spd.length,
    header,groupCount:ids.length,list,recordLength:listLen,
    loTables:lo,hiTables:hi,period,end:newEnd,visible:model.refreshCount,
@@ -353,7 +355,7 @@ function download(prg){
  if(typeof window.download==='function')return window.download(prg,'RICO_TEST297_MC_DISTRIBUTED_SPEEDCODE_256TILES.prg','application/prg');
  var blob=new Blob([prg],{type:'application/octet-stream'}),
  url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download='RICO_TEST292_MC_DOUBLE_BUFFER_256TILES.prg';
+ a.href=url;a.download='RICO_TEST297_MC_DISTRIBUTED_SPEEDCODE_256TILES.prg';
  document.body.appendChild(a);a.click();a.remove();
  window.setTimeout(function(){URL.revokeObjectURL(url);},2500);
 }
@@ -371,6 +373,8 @@ function exportPRG(opts){
    distinctTileIDs:built.meta.tiles,
    speedcodeBytes:built.meta.speedcodeBytes||0,
    specializedIDs:built.meta.hotIds||[],
+   specializedCells:built.meta.speedcodeCells||0,
+   candidateIDs:built.meta.candidateIDs||0,
    visibleBitmap1:'$6000',visibleBitmap2:'$E000',screen1:'$5C00',screen2:'$C400',
    rasterSwap:250,port01:'$35',
    bytes:out.length,visibleCells:built.meta.visible,groupWidth:built.meta.groupWidth,
