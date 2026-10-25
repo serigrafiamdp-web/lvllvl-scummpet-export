@@ -188,9 +188,10 @@ function build(source,sid,scrollSpeed,autoScroll){
  I(0xa5,0xe1);A(0x7d,TABLE_COL_HI);I(0x85,0xe1);
  I(0xa5,0xf6);I(0x85,0xf3);
  I(0xa9,cols);I(0x85,0xf2);
+ if(!mc){I(0xa9,0);I(0x85,0xe8);I(0x85,0xe9);}
  L('cellLoop');
- I(0xa0,0);I(0xb1,0xe0); // LDA (mapPointer),Y: tile ID
  if(mc){
+  I(0xa0,0);I(0xb1,0xe0); // LDA (mapPointer),Y: tile ID
   b(0xaa);A(0xbd,TABLE_TILE_LO);I(0x85,0xe8);A(0xbd,TABLE_TILE_HI);I(0x85,0xe9);
   // Eight glyph scanlines into offscreen bitmap (one cell).
   I(0xa0,0);
@@ -198,18 +199,30 @@ function build(source,sid,scrollSpeed,autoScroll){
   I(0xa0,1);I(0xb1,0xe0);I(0xa0,0);I(0x91,0xe2);
   I(0xa0,2);I(0xb1,0xe0);I(0xa0,0);I(0x91,0xe4);
  }else{
-  I(0x91,0xe2);
-  I(0xa0,1);I(0xb1,0xe0);I(0xa0,0);I(0x91,0xe4);
+  // TEST314: keep the destination column at $E8 and source byte offset
+  // at $E9. No 16-bit pointer additions for each screen cell.
+  // The renderer resets $E9 to zero whenever the world row wraps.
+  I(0xa4,0xe9);I(0xb1,0xe0);  // Y=2*sourceCol, tile
+  I(0xa4,0xe8);I(0x91,0xe2);  // Y=destCol, screen char
+  I(0xa4,0xe9);b(0xc8);I(0xb1,0xe0); // Y=2*sourceCol+1, Color RAM nibble
+  I(0xa4,0xe8);I(0x91,0xe4);  // Y=destCol, color shadow
+  I(0xe6,0xe8);I(0xe6,0xe9);I(0xe6,0xe9);
  }
- addPtr(0xe2,1);addPtr(0xe4,1);if(mc)addPtr(0xe6,8);
- addPtr(0xe0,sz);
+ if(mc){addPtr(0xe2,1);addPtr(0xe4,1);addPtr(0xe6,8);addPtr(0xe0,sz);}
+
  I(0xe6,0xf3);I(0xa5,0xf3);I(0xc9,a.width);R(0xd0,'xNoWrap');
  I(0xa9,0);I(0x85,0xf3);
  I(0xa4,0xf5);A(0xb9,TABLE_ROW_LO);I(0x85,0xe0);A(0xb9,TABLE_ROW_HI);I(0x85,0xe1);
+ if(!mc){I(0xa9,0);I(0x85,0xe9);}
  L('xNoWrap');
  I(0xc6,0xf2);R(0xf0,'rowDone');J(0x4c,'cellLoop');
  L('rowDone');
- if(skip){addPtr(0xe2,skip);addPtr(0xe4,skip);if(mc)addPtr(0xe6,skip*8);}
+ if(mc){
+  if(skip){addPtr(0xe2,skip);addPtr(0xe4,skip);addPtr(0xe6,skip*8);}
+ }else{
+  // Next visible row begins 40 C64 screen columns after previous row.
+  addPtr(0xe2,40);addPtr(0xe4,40);
+ }
  I(0xe6,0xf5);I(0xa5,0xf5);I(0xc9,a.height);R(0xd0,'yNoWrap');I(0xa9,0);I(0x85,0xf5);
  L('yNoWrap');I(0xc6,0xf4);R(0xf0,'renderDone');J(0x4c,'rowLoop');
  L('renderDone');b(0x60);
@@ -306,6 +319,7 @@ function build(source,sid,scrollSpeed,autoScroll){
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'TEST311 full map WASD with SID audio IRQ (hardware CIA or PAL raster)',
   sid:{load:sid.load,init:sid.init,play:sid.play,size:sid.bytes.length,hardwareCIA:hardwareCIA},
+  rendererOptimization:mc?'unchanged bitmap':'TEST314 indexed character row',
   scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed,autoMapScroll:auto?{...auto,actualStepPixels:8}:null};
 }
 w.RICO_TEST311_HYBRID={version:'TEST311',makePRG:build,engine:'TEST307 FULL MAP WASD + PSID protected raster/CIA IRQ'};
