@@ -12,7 +12,7 @@
 (function(w,doc){
 'use strict';
 if(!w.RICO_TEST290_BITMAP||!w.RICO_TEST297_BITMAP||typeof Editor==='undefined')return;
-var NAME='[RICO TEST301]',last=null,errors=null;
+var NAME='[RICO TEST301]',last=null,errors=null,exportCalls=0;
 function layer(){
  var ed=w.g_app&&w.g_app.textModeEditor;
  return ed&&ed.layers&&ed.layers.getSelectedLayerObject();
@@ -265,7 +265,9 @@ function download(prg,name){
  w.setTimeout(function(){URL.revokeObjectURL(url);},2500);
 }
 function exportPRG(opts){
+ exportCalls++;
  var model=w.RICO_TEST290_BITMAP.analyze(),report=analyze(model);
+ report.exportClickCount=exportCalls;
  last=report;errors=null;w.RICO_TEST301_LAST_EXPORT=report;
  if(!report.fullScreenEligible){
   report.actualExporter='TEST297 BITMAP MULTICOLOR — RUTA ORIGINAL';
@@ -277,6 +279,10 @@ function exportPRG(opts){
     'Filas compatibles: '+report.rowsCompatible+'/25 · Bandas: '+report.candidateBands.length+
     '\nMotivo: '+(report.reasons[0]||'Bitmap MC necesario.')+
     '\nArchivo: '+report.prgFilename);
+  if(typeof w.alert==='function'&&!(opts&&opts.silent))
+   w.alert('TEST301 NO ACTIVADO. Se exporta TEST297 sin mejora de velocidad.\n'+
+      'Filas compatibles: '+report.rowsCompatible+'/25.\n'+
+      'Motivo: '+(report.reasons[0]||'No cumple condiciones.'));
   if(w.console&&w.console.log)w.console.log(NAME,'FALLBACK TEST297 · SIN CAMBIOS DE MOTOR',report);
   return null; // Hand off to TEST297 standard Export PRG.
  }
@@ -286,6 +292,9 @@ function exportPRG(opts){
  report.prgFilename='RICO_TEST301_MC_CHAR_REMAP_LOSSLESS.prg';
  if(!(opts&&opts.download===false)){
   download(built.bytes,'RICO_TEST301_MC_CHAR_REMAP_LOSSLESS.prg');
+  if(typeof w.alert==='function'&&!(opts&&opts.silent))
+   w.alert('TEST301 ACTIVADO: nuevo motor Multicolor Character.\n'+
+      '25/25 filas compatibles; comprobar velocidad en VICE.');
   notice('TEST301: CONVERSIÓN ACTIVADA\nMotor nuevo MC CHARACTER: solo 1000 códigos por fase.\n'+
    'Colores originales conservados.\nArchivo: '+report.prgFilename);
  }
@@ -309,6 +318,7 @@ Editor.prototype.menuClick=function(id){
  }
  return previous.apply(this,arguments);
 };
+w.RICO_TEST301_DIAGNOSTIC_VERSION='diagnostic-v3'; 
 w.RICO_TEST301_MC_REMAP={version:'TEST301',analyze:analyze,test:test,
  build:build,exportPRG:exportPRG,getLast:function(){return last;},
  getError:function(){return errors;}};
