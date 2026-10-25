@@ -1,3 +1,42 @@
+# TEST310 — Fix ensamblador SID / Bitmap Multicolor
+
+Fecha: 25 octubre 2026. Base exacta: TEST309. **No altera** TEST309, TEST308, TEST307 PASS, TEST297 PASS ni MASTER.
+
+## Error observado (captura del usuario)
+
+Exportar un frame Bitmap Multicolor detenido con SID de 3798 bytes, LOAD $1000, fallaba durante el ensamblado:
+
+`RICO TEST229 SID: TEST207 ASM: unknown value: 14336+$100,x`
+`undefined label: color309_data+$100,x`
+
+### Causa
+
+`RICO_BITMAP_SID_STATIC_TEST309.js` generaba `LDA color309_data+$100,X` y expresiones equivalentes para +$200 y +$300. El ensamblador de LVLLVL resolvía la etiqueta como 14336 decimal ($3800), pero no admitía aritmética de etiquetas combinada con indexación X en esa sintaxis. Es un defecto de expresión ASM, **no del SID ni de los datos del arte**.
+
+### Parche mínimo
+
+- `LDA $3800,X` → copia en `$D800,X`
+- `LDA $3900,X` → copia en `$D900,X`
+- `LDA $3A00,X` → copia en `$DA00,X`
+- `LDA $3B00,X` → copia en `$DB00,X`
+
+Se mantienen sin tocar las cuatro zonas de Color RAM, el bitmap completo ($6000), Screen RAM ($5C00), el modelo de datos de TEST282, las llamadas protegidas del SID TEST207/229 y la posibilidad de caracteres mixtos HiRes/Multicolor cuando el proyecto sea de **Multicolor Character**. El archivo del player SID no cambia.
+
+### Pruebas locales de regresión
+
+- Generación del ASM Bitmap+SID sin `color309_data+$... ,X` ni referencias calculadas: PASS.
+- Referencias absolutas $3800/$3900/$3A00/$3B00 y destinos D800/D900/DA00/DB00 presentes: PASS.
+- Secciones $3800 (color), $5C00 (screen), $6000 (bitmap) y SID INIT/PLAY conservadas: PASS.
+- Sintaxis JS de generador y adaptador SID: PASS.
+
+La ruta del SID ya se había comprobado con pruebas simuladas para el caso de 3798 bytes cargado en $1000 y para ~7900 bytes con reubicación del núcleo; estas pruebas **no sustituyen una compilación real en el ensamblador del navegador ni la prueba en VICE**. Pendiente de verificar el PRG visual/audio real por el usuario.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test310-sid-bitmap-asm-colorpages.zip
+
+---
+
 # TEST309 — SID + Multicolor real sin prohibir HiRes/Mixed (25 OCT 2026)
 
 Estado: código y rutas verificadas mediante pruebas JS/ASM textual; falta validación real en VICE del nuevo motor Bitmap+SID.
