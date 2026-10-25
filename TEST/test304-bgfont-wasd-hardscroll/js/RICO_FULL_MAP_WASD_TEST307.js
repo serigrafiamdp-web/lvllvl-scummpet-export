@@ -45,8 +45,8 @@ function build(source,scrollSpeed,autoScroll){
   )));
  }
  if(!source||!source.fullMap)throw Error('Falta el mapa completo del editor.');
- var mc=source.kind==='bitmap-mc',hi=source.kind==='char-hires';
- if(!mc&&!hi)throw Error('TEST307 solo exporta HiRes y Bitmap Multicolor.');
+ var mc=source.kind==='bitmap-mc',hi=source.kind==='char-hires',mixed=source.kind==='char-mc';
+ if(!mc&&!hi&&!mixed)throw Error('TEST315 admite HiRes, Multicolor Character mixto y Bitmap Multicolor.');
  var m=source.fullMap,a=m.area,cols=m.viewWidth,rows=m.viewHeight,count=m.width*m.height,sz=mc?3:2;
  if(m.width>255||m.height>255||a.width>255||a.height>255||sz*count>16384)
   throw Error('TEST307: el mapa excede la RAM disponible (16KB) o 255 celdas/eje.');
@@ -93,8 +93,9 @@ function build(source,scrollSpeed,autoScroll){
  A(0xad,0xdd02);I(0x09,3);A(0x8d,0xdd02);
  A(0xad,0xdd00);I(0x29,252);I(0x09,2);A(0x8d,0xdd00);
  I(0xa9,mc?0x78:0x14);A(0x8d,0xd018);
- I(0xa9,mc?0x18:0x08);A(0x8d,0xd016);
+ I(0xa9,(mc||mixed)?0x18:0x08);A(0x8d,0xd016);
  I(0xa9,source.bg&15);A(0x8d,0xd020);A(0x8d,0xd021);
+ if(mixed){I(0xa9,source.mc1&15);A(0x8d,0xd022);I(0xa9,source.mc2&15);A(0x8d,0xd023);}
  I(0xa9,0);I(0x85,0xf1);
  I(0xa9,mc?0x3b:0x1b);A(0x8d,0xd011);
  // Read two keyboard columns. Every key is evaluated independently.
