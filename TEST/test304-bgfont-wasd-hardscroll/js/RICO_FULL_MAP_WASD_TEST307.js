@@ -45,9 +45,10 @@ function build(source,scrollSpeed,autoScroll){
   )));
  }
  if(!source||!source.fullMap)throw Error('Falta el mapa completo del editor.');
- var mc=source.kind==='bitmap-mc',hi=source.kind==='char-hires';
- if(!mc&&!hi)throw Error('TEST307 solo exporta HiRes y Bitmap Multicolor.');
+ var mc=source.kind==='bitmap-mc',hi=source.kind==='char-hires',mixed=source.kind==='char-mc';
+ if(!mc&&!hi&&!mixed)throw Error('TEST315 admite HiRes, Multicolor Character mixto y Bitmap Multicolor.');
  var m=source.fullMap,a=m.area,cols=m.viewWidth,rows=m.viewHeight,count=m.width*m.height,sz=mc?3:2;
+ var fastChar315=!mc&&cols>1&&rows>1;
  if(m.width>255||m.height>255||a.width>255||a.height>255||sz*count>16384)
   throw Error('TEST307: el mapa excede la RAM disponible (16KB) o 255 celdas/eje.');
  if(!cols||!rows||cols>40||rows>25||a.width<cols||a.height<rows)
@@ -93,8 +94,9 @@ function build(source,scrollSpeed,autoScroll){
  A(0xad,0xdd02);I(0x09,3);A(0x8d,0xdd02);
  A(0xad,0xdd00);I(0x29,252);I(0x09,2);A(0x8d,0xdd00);
  I(0xa9,mc?0x78:0x14);A(0x8d,0xd018);
- I(0xa9,mc?0x18:0x08);A(0x8d,0xd016);
+ I(0xa9,(mc||mixed)?0x18:0x08);A(0x8d,0xd016);
  I(0xa9,source.bg&15);A(0x8d,0xd020);A(0x8d,0xd021);
+ if(mixed){I(0xa9,source.mc1&15);A(0x8d,0xd022);I(0xa9,source.mc2&15);A(0x8d,0xd023);}
  I(0xa9,0);I(0x85,0xf1);
  I(0xa9,mc?0x3b:0x1b);A(0x8d,0xd011);
  // Read two keyboard columns. Every key is evaluated independently.
@@ -111,12 +113,32 @@ function build(source,scrollSpeed,autoScroll){
   I(0xa9,0xff);A(0x8d,0xdc00);
  }
  I(0xa9,0);I(0x85,0xf0);
+ if(fastChar315){I(0xa5,0xf6);I(0x85,0xea);I(0xa5,0xf9);I(0x85,0xeb);}
  I(0xa5,0xf7);I(0x29,2);R(0xd0,'notW');J(0x20,'incCameraY');I(0xe6,0xf0);
  L('notW');I(0xa5,0xf7);I(0x29,32);R(0xd0,'notS');J(0x20,'decCameraY');I(0xe6,0xf0);
  L('notS');I(0xa5,0xf7);I(0x29,4);R(0xd0,'notA');J(0x20,'incCameraX');I(0xe6,0xf0);
  L('notA');I(0xa5,0xf8);I(0x29,4);R(0xd0,'notD');J(0x20,'decCameraX');I(0xe6,0xf0);
  L('notD');I(0xa5,0xf0);R(0xd0,'renderRequested');J(0x4c,'poll');
- L('renderRequested');J(0x20,'renderWindow');
+ L('renderRequested');
+ if(fastChar315){
+  // Preserve exact 8x8 steps; reverse simultaneous keys cancel naturally.
+  I(0xa9,0);I(0x85,0xee);I(0x85,0xef);
+  I(0xa5,0xf6);I(0xc5,0xea);R(0xf0,'dxResolved');
+  I(0xa5,0xf7);I(0x29,4);R(0xd0,'dxNegative');
+  I(0xa9,1);J(0x4c,'dxSave');
+  L('dxNegative');I(0xa9,255);
+  L('dxSave');I(0x85,0xef);
+  L('dxResolved');
+  I(0xa5,0xf9);I(0xc5,0xeb);R(0xf0,'dyResolved');
+  I(0xa5,0xf7);I(0x29,2);R(0xd0,'dyNegative');
+  I(0xa9,1);J(0x4c,'dySave');
+  L('dyNegative');I(0xa9,255);
+  L('dySave');I(0x85,0xee);
+  L('dyResolved');
+  I(0xa5,0xee);I(0x05,0xef);R(0xd0,'deltaReallyMoved315');
+  J(0x4c,'poll');
+  L('deltaReallyMoved315');J(0x20,'renderDelta315');
+ }else J(0x20,'renderWindow');
  J(0x20,'waitRaster252');
  I(0xa5,0xf1);R(0xf0,'swapSecond');
  // F1=1: renderWindow just populated first (low) display bank.
@@ -196,6 +218,107 @@ function build(source,scrollSpeed,autoScroll){
  I(0xe6,0xf5);I(0xa5,0xf5);I(0xc9,a.height);R(0xd0,'yNoWrap');I(0xa9,0);I(0x85,0xf5);
  L('yNoWrap');I(0xc6,0xf4);R(0xf0,'renderDone');J(0x4c,'rowLoop');
  L('renderDone');b(0x60);
+ // TEST315: fast char delta renderer. Both screen/color buffers remain intact.
+ // On each movement, shift the previous displayed bank to the other bank,
+ // then consult the world map for only newly exposed row/column cells.
+ // A 1-cell viewport stays on the proven full-render path.
+ if(fastChar315){
+  function selectBanks315(srcScreen,srcColor,dstScreen,dstColor){
+   ptr(0xe0,srcScreen+phys);ptr(0xe4,srcColor+phys);
+   ptr(0xe2,dstScreen+phys);ptr(0xe6,dstColor+phys);
+  }
+  function target315(extra){
+   I(0xa5,0xf1);R(0xf0,'target315two'+extra);
+   ptr(0xe2,screen1+phys);ptr(0xe4,color1+phys);J(0x4c,'target315ready'+extra);
+   L('target315two'+extra);
+   ptr(0xe2,screen2+phys);ptr(0xe4,color2+phys);
+   L('target315ready'+extra);
+  }
+  function incrementWrapped315(addr,height,label){
+   I(0xe6,addr);I(0xa5,addr);I(0xc9,height);R(0xd0,label);
+   I(0xa9,0);I(0x85,addr);L(label);
+  }
+  L('renderDelta315');
+  I(0xa5,0xee);I(0x05,0xef);R(0xd0,'deltaNonzero315');b(0x60);
+  L('deltaNonzero315');
+  // F1=0 -> front is bank1, render into bank2; F1=1 reverse.
+  I(0xa5,0xf1);R(0xf0,'deltaFromBankOne315');
+  selectBanks315(screen2,color2,screen1,color1);J(0x4c,'deltaBanksReady315');
+  L('deltaFromBankOne315');
+  selectBanks315(screen1,color1,screen2,color2);
+  L('deltaBanksReady315');
+  // Camera +X/+Y: source rectangle begins one tile later.
+  // Camera -X/-Y: destination rectangle begins one tile later.
+  I(0xa5,0xef);I(0xc9,1);R(0xd0,'deltaXPosDone315');
+  addPtr(0xe0,1);addPtr(0xe4,1);
+  L('deltaXPosDone315');
+  I(0xa5,0xef);I(0xc9,255);R(0xd0,'deltaXNegDone315');
+  addPtr(0xe2,1);addPtr(0xe6,1);
+  L('deltaXNegDone315');
+  I(0xa5,0xee);I(0xc9,1);R(0xd0,'deltaYPosDone315');
+  addPtr(0xe0,40);addPtr(0xe4,40);
+  L('deltaYPosDone315');
+  I(0xa5,0xee);I(0xc9,255);R(0xd0,'deltaYNegDone315');
+  addPtr(0xe2,40);addPtr(0xe6,40);
+  L('deltaYNegDone315');
+  I(0xa9,cols);I(0x85,0xf2);I(0xa5,0xef);R(0xf0,'deltaKeepWidth315');I(0xc6,0xf2);L('deltaKeepWidth315');
+  I(0xa9,rows);I(0x85,0xf4);I(0xa5,0xee);R(0xf0,'deltaKeepHeight315');I(0xc6,0xf4);L('deltaKeepHeight315');
+  L('deltaRow315');
+  I(0xa0,0);
+  L('deltaCopyCell315');
+  I(0xb1,0xe0);I(0x91,0xe2);
+  I(0xb1,0xe4);I(0x91,0xe6);
+  b(0xc8);I(0xc4,0xf2);R(0xd0,'deltaCopyCell315');
+  addPtr(0xe0,40);addPtr(0xe2,40);addPtr(0xe4,40);addPtr(0xe6,40);
+  I(0xc6,0xf4);R(0xd0,'deltaRow315');
+  I(0xa5,0xee);R(0xf0,'deltaNoRow315');J(0x20,'deltaEdgeRow315');
+  L('deltaNoRow315');
+  I(0xa5,0xef);R(0xf0,'deltaNoCol315');J(0x20,'deltaEdgeCol315');
+  L('deltaNoCol315');b(0x60);
+  // Generic one-tile map fetch; F3/F5 are world x/y relative to Scroll Area.
+  // E2/E4 are destination pointers; E8 selects a column (0 for vertical edge).
+  L('deltaFetchCell315');
+  I(0xa4,0xf5);A(0xb9,TABLE_ROW_LO);I(0x85,0xe0);
+  A(0xb9,TABLE_ROW_HI);I(0x85,0xe1);
+  I(0xa6,0xf3);b(0x18);I(0xa5,0xe0);A(0x7d,TABLE_COL_LO);I(0x85,0xe0);
+  I(0xa5,0xe1);A(0x7d,TABLE_COL_HI);I(0x85,0xe1);
+  I(0xa0,0);I(0xb1,0xe0);I(0xa4,0xe8);I(0x91,0xe2);
+  I(0xa0,1);I(0xb1,0xe0);I(0xa4,0xe8);I(0x91,0xe4);b(0x60);
+  L('deltaEdgeRow315');
+  target315('row');
+  I(0xa5,0xf9);I(0x85,0xf5); // world Y of first visible row
+  I(0xa5,0xee);I(0xc9,1);R(0xd0,'deltaRowTop315');
+  addPtr(0xe2,(rows-1)*40);addPtr(0xe4,(rows-1)*40);
+  I(0xa2,rows-1);
+  L('deltaRowComputeY315');incrementWrapped315(0xf5,a.height,'deltaRowYNoWrap315');
+  b(0xca);R(0xd0,'deltaRowComputeY315');
+  L('deltaRowTop315');
+  I(0xa5,0xf6);I(0x85,0xf3);
+  I(0xa9,0);I(0x85,0xe8);
+  L('deltaDrawRow315');
+  J(0x20,'deltaFetchCell315');
+  incrementWrapped315(0xf3,a.width,'deltaRowXNoWrap315');
+  I(0xe6,0xe8);I(0xa5,0xe8);I(0xc9,cols);R(0xd0,'deltaDrawRow315');
+  b(0x60);
+  L('deltaEdgeCol315');
+  target315('col');
+  I(0xa5,0xf6);I(0x85,0xf3);
+  I(0xa5,0xef);I(0xc9,1);R(0xd0,'deltaColLeft315');
+  addPtr(0xe2,cols-1);addPtr(0xe4,cols-1);
+  I(0xa2,cols-1);
+  L('deltaColComputeX315');incrementWrapped315(0xf3,a.width,'deltaColXNoWrap315');
+  b(0xca);R(0xd0,'deltaColComputeX315');
+  L('deltaColLeft315');
+  I(0xa5,0xf9);I(0x85,0xf5);
+  I(0xa9,0);I(0x85,0xe8);
+  I(0xa9,rows);I(0x85,0xf4);
+  L('deltaDrawCol315');
+  J(0x20,'deltaFetchCell315');
+  addPtr(0xe2,40);addPtr(0xe4,40);
+  incrementWrapped315(0xf5,a.height,'deltaColYNoWrap315');
+  I(0xc6,0xf4);R(0xd0,'deltaDrawCol315');
+  b(0x60);
+ }
  // Bulk clear used only during startup, when the display is disabled.
  L('fillBytes');I(0xa5,0xe5);R(0xf0,'fillTail');
  L('fillPage');I(0xa0,0);L('fillPageByte');I(0xa5,0xef);I(0x91,0xe0);b(0xc8);R(0xd0,'fillPageByte');
@@ -246,7 +369,7 @@ function build(source,scrollSpeed,autoScroll){
    physicalX:m.physicalX,physicalY:m.physicalY},
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'Full configured LVLLVL source, cyclic over Scroll Area instead of 40x25 window',
-  rendererOptimization:mc?'unchanged bitmap':'TEST314 indexed character row',
+  rendererOptimization:mc?'unchanged bitmap':fastChar315?'TEST315 shifted double-buffer + border-only redraw':'TEST314 narrow viewport fallback',
   scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed,autoMapScroll:auto?{...auto,actualStepPixels:8}:null};
 }
 w.RICO_TEST307_FULLMAP={version:'TEST307',makePRG:build};
