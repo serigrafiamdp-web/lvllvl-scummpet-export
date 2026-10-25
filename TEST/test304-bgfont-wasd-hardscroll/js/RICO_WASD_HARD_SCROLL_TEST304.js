@@ -351,6 +351,7 @@ function makePRG(source){
   mapType:'40x25 circular hard scroll; bitmap 8 bytes/cell and separate color matrices'};
 }
 function download(bytes,name){
+ if(typeof w.download==='function')return w.download(bytes,name,'application/prg');
  var url=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));
  var a=doc.createElement('a');a.href=url;a.download=name;doc.body.appendChild(a);a.click();a.remove();
  w.setTimeout(function(){URL.revokeObjectURL(url);},1000);
