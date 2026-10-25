@@ -8,7 +8,7 @@
 'use strict';
 var PRE='rico304',W=40,H=25,SZ=1000;
 var colors=['#000000','#ffffff','#813338','#75cec8','#8e3c97','#56ac4d','#2e2c9b','#edf171','#8e5029','#553800','#c46c71','#4a4a4a','#7b7b7b','#a9ff9f','#706deb','#b2b2b2'];
-var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,report:null};
+var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null};
 function mod(n,k){return(n%k+k)%k;}
 function equal(a,b){return a.length===b.length&&a.every(function(v,i){return v===b[i];});}
 function clone(s){return{kind:s.kind,tiles:s.tiles.slice(),fg:s.fg.slice(),atlas:s.atlas.slice(),bg:s.bg,
@@ -372,7 +372,7 @@ function open(){
    '<span></span><button type="button" class="rico304arrow" data-scroll="down" title="Abajo">▼</button><span></span>'+
    '</div>'+
    '<label style="display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer">'+
-   '<input type="checkbox" id="rico304wasd"> Activar movimiento scroll WASD</label>'+
+   '<input type="checkbox" id="rico304wasd"> Export with WASD Scroll Control</label>'+
    '<div id="rico304status" style="font-size:11px;margin-top:10px;opacity:.7">1 celda por movimiento · circular</div>'+
    '</div>';
   dlg.add(UI.create('UI.HTMLPanel',{html:markup}));
@@ -382,12 +382,12 @@ function open(){
   dlg.on('close',function(){st.dialogOpen=false;st.keyboard=false;});
   st.dialog=dlg;
  }
- st.dialogOpen=true;st.keyboard=false;
+ st.dialogOpen=true;st.keyboard=true;
  UI.showDialog('rico304Dialog');
  var checkbox=doc.getElementById('rico304wasd');
  if(checkbox){
-  checkbox.checked=false;
-  checkbox.onchange=function(){st.keyboard=!!(st.dialogOpen&&checkbox.checked);};
+  checkbox.checked=st.exportWithWASD;
+  checkbox.onchange=function(){setExportWASD(checkbox.checked);};
  }
  var arrowButtons=doc.querySelectorAll?doc.querySelectorAll('#rico304Dialog .rico304arrow'):[];
  for(var i=0;i<arrowButtons.length;i++){
@@ -430,17 +430,114 @@ function installScreenMenu(){
  };
  UI.__rico304ManualScrollMenu=true;
 }
+function setExportWASD(enabled){
+ st.exportWithWASD=!!enabled;
+ var manual=doc.getElementById('rico304wasd'),exportBox=doc.getElementById('rico304exportWasd');
+ if(manual)manual.checked=st.exportWithWASD;
+ if(exportBox)exportBox.checked=st.exportWithWASD;
+ return st.exportWithWASD;
+}
+function installExportCheckbox(){
+ if(typeof ToPRG==='undefined'||!ToPRG.prototype||ToPRG.prototype.__rico304ExportOption)return;
+ var oldInitEvents=ToPRG.prototype.initEvents;
+ var oldInitContent=ToPRG.prototype.initContent;
+ function ensureCheckbox(){
+  var existing=doc.getElementById('rico304exportWasd');
+  if(existing){existing.checked=st.exportWithWASD;return existing;}
+  var parent=doc.getElementById('toPrgDialog');
+  if(!parent||!doc.createElement)return null;
+  var group=doc.createElement('div');group.id='rico304wasdExportGroup';
+  group.className='formGroup';
+  group.style.cssText='padding:7px 12px;margin:5px 0;border-top:1px solid #555';
+  var label=doc.createElement('label');
+  label.style.cssText='display:flex;gap:9px;align-items:center;cursor:pointer';
+  var box=doc.createElement('input');box.type='checkbox';box.id='rico304exportWasd';
+  box.checked=st.exportWithWASD;
+  box.addEventListener('change',function(){setExportWASD(box.checked);});
+  label.appendChild(box);
+  label.appendChild(doc.createTextNode('Export with WASD Scroll Control'));
+  group.appendChild(label);
+  var content=parent.querySelector&&parent.querySelector('.dialogContent');
+  (content||parent).appendChild(group);
+  return box;
+ }
+ ToPRG.prototype.initEvents=function(){
+  var r=oldInitEvents.apply(this,arguments);
+  ensureCheckbox();return r;
+ };
+ ToPRG.prototype.initContent=function(){
+  var r=oldInitContent.apply(this,arguments);
+  ensureCheckbox();return r;
+ };
+ var oldExport=ToPRG.prototype.exportPrg;
+ ToPRG.prototype.exportPrg=function(){
+  var ed=this.editor,layer=ed&&ed.layers&&ed.layers.getSelectedLayerObject(),
+      bitmap=!!(layer&&layer.doc&&layer.doc.ricoBitmapV1Enabled&&layer.getScreenMode()==='c64multicolor');
+  if(st.exportWithWASD){
+   // This is an optional stand-alone 40x25 hard-cell MAP-scroll export.
+   // Current manual exporter deliberately excludes music/extra frames/D64.
+   var type=doc.getElementById('exportPRGType');
+   if(type&&type.value==='d64'){w.alert('Ricos Manual Scroll: exportación WASD disponible solo como PRG.');return false;}
+   var music=doc.getElementById('exportPRGMusic');
+   if(music&&music.value&&music.value!=='no'){
+    w.alert('Ricos Manual Scroll: el PRG WASD experimental aún no permite SID. Desactivá la opción WASD para la exportación normal.');
+    return false;
+   }
+   try{
+    var snapshot=capture(),built=makePRG(snapshot.source);
+    var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
+    name=name.replace(/\.prg$/i,'')+'_WASD.prg';
+    download(built.bytes,name);
+    st.lastExport={engine:'TEST304 MANUAL WASD',bytes:built.bytes.length,filename:name};
+    return built;
+   }catch(e){
+    if(typeof w.alert==='function')w.alert('Ricos Manual Scroll: '+e.message);
+    st.lastExport={engine:'TEST304 ERROR',error:e.message};
+    return false;
+   }
+  }
+  if(bitmap&&w.RICO_TEST299_BITMAP&&typeof w.RICO_TEST299_BITMAP.exportPRG==='function'){
+    var result=w.RICO_TEST299_BITMAP.exportPRG({download:true});
+    if(result!==null){
+     st.lastExport={engine:'TEST299 Bitmap Multicolor normal'};
+     return result;
+    }
+  }
+  st.lastExport={engine:'LVLLVL normal'};
+  return oldExport.apply(this,arguments);
+ };
+ ToPRG.prototype.__rico304ExportOption=true;
+}
 function installMenuAction(){
  if(typeof Editor==='undefined'||!Editor.prototype||Editor.prototype.__rico304ManualScrollAction)return;
  var oldMenuClick=Editor.prototype.menuClick;
  Editor.prototype.menuClick=function(id){
   if(id==='screen-rico-manual-scroll'){open();return;}
+  if(id==='export-prg'&&this.textModeEditor&&this.textModeEditor.toPrg){
+   // TEST299 formerly bypassed the native window for Bitmap MC.
+   // Restore the regular Export PRG dialog with one optional shared checkbox.
+   installExportCheckbox();
+   return this.textModeEditor.toPrg.start();
+  }
   return oldMenuClick.apply(this,arguments);
  };
  Editor.prototype.__rico304ManualScrollAction=true;
 }
+function key(e){
+ // Only when native Ricos Manual Scroll UI.Dialog is open.
+ if(!st.dialogOpen||!st.keyboard)return;
+ var el=doc.activeElement,tag=el&&String(el.tagName||'').toLowerCase();
+ if(tag==='input'&&el.type!=='checkbox'||tag==='textarea'||tag==='select'||e.metaKey||e.ctrlKey||e.altKey)return;
+ var dir={a:'left',w:'up',s:'down',d:'right'}[String(e.key||'').toLowerCase()];
+ if(!dir)return;
+ if(e.preventDefault)e.preventDefault();
+ if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+ if(e.repeat)return;
+ try{moveArtwork(dir);}catch(err){setStatus(err.message);}
+}
 installScreenMenu();
+installExportCheckbox();
 installMenuAction();
 doc.addEventListener('keydown',key,true);
-w.RICO_TEST304={version:'TEST304',name:'Ricos Manual Scroll',entry:'SCREEN > Ricos Manual Scroll...',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,getState:()=>st,open};
+w.RICO_TEST304={version:'TEST304',name:'Ricos Manual Scroll',entry:'SCREEN > Ricos Manual Scroll...',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,getState:()=>st,open};
 })(window,document);
