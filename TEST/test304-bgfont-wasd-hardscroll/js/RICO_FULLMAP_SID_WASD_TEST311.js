@@ -60,6 +60,7 @@ function build(source,sid,scrollSpeed,autoScroll){
  var mc=source.kind==='bitmap-mc',hi=source.kind==='char-hires',mixed=source.kind==='char-mc';
  if(!mc&&!hi&&!mixed)throw Error('TEST311 admite HiRes, caracteres mixtos y Bitmap Multicolor.');
  var m=source.fullMap,a=m.area,cols=m.viewWidth,rows=m.viewHeight,count=m.width*m.height,sz=mc?3:2;
+ var fastChar315=!mc&&cols>1&&rows>1;
  if(m.width>255||m.height>255||a.width>255||a.height>255||sz*count>16384)
   throw Error('TEST307: el mapa excede la RAM disponible (16KB) o 255 celdas/eje.');
  if(!cols||!rows||cols>40||rows>25||a.width<cols||a.height<rows)
@@ -149,14 +150,14 @@ function build(source,sid,scrollSpeed,autoScroll){
  A(0xad,VIDEO_FRAMES);b(0x38);A(0xed,LAST_MOVE_FRAME);
  I(0xc9,extraFrames);R(0x90,'poll');
  I(0xa9,0);I(0x85,0xf0);
- if(!mc){I(0xa5,0xf6);I(0x85,0xea);I(0xa5,0xf9);I(0x85,0xeb);}
+ if(fastChar315){I(0xa5,0xf6);I(0x85,0xea);I(0xa5,0xf9);I(0x85,0xeb);}
  I(0xa5,0xf7);I(0x29,2);R(0xd0,'notW');J(0x20,'incCameraY');I(0xe6,0xf0);
  L('notW');I(0xa5,0xf7);I(0x29,32);R(0xd0,'notS');J(0x20,'decCameraY');I(0xe6,0xf0);
  L('notS');I(0xa5,0xf7);I(0x29,4);R(0xd0,'notA');J(0x20,'incCameraX');I(0xe6,0xf0);
  L('notA');I(0xa5,0xf8);I(0x29,4);R(0xd0,'notD');J(0x20,'decCameraX');I(0xe6,0xf0);
  L('notD');I(0xa5,0xf0);R(0xd0,'renderRequested');J(0x4c,'poll');
  L('renderRequested');
- if(!mc){
+ if(fastChar315){
   // Preserve exact 8x8 steps; reverse simultaneous keys cancel naturally.
   I(0xa9,0);I(0x85,0xee);I(0x85,0xef);
   I(0xa5,0xf6);I(0xc5,0xea);R(0xf0,'dxResolved');
@@ -171,7 +172,9 @@ function build(source,sid,scrollSpeed,autoScroll){
   L('dyNegative');I(0xa9,255);
   L('dySave');I(0x85,0xee);
   L('dyResolved');
-  J(0x20,'renderDelta315');
+  I(0xa5,0xee);I(0x05,0xef);R(0xd0,'deltaReallyMoved315');
+  J(0x4c,'poll');
+  L('deltaReallyMoved315');J(0x20,'renderDelta315');
  }else J(0x20,'renderWindow');
  J(0x20,'waitRaster252');
  I(0xa5,0xf1);R(0xf0,'swapSecond');
@@ -247,7 +250,8 @@ function build(source,sid,scrollSpeed,autoScroll){
  // TEST315: fast char delta renderer. Both screen/color buffers remain intact.
  // On each movement, shift the previous displayed bank to the other bank,
  // then consult the world map for only newly exposed row/column cells.
- if(!mc){
+ // A 1-cell viewport stays on the proven full-render path.
+ if(fastChar315){
   function selectBanks315(srcScreen,srcColor,dstScreen,dstColor){
    ptr(0xe0,srcScreen+phys);ptr(0xe4,srcColor+phys);
    ptr(0xe2,dstScreen+phys);ptr(0xe6,dstColor+phys);
@@ -437,7 +441,7 @@ function build(source,sid,scrollSpeed,autoScroll){
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'TEST311 full map WASD with SID audio IRQ (hardware CIA or PAL raster)',
   sid:{load:sid.load,init:sid.init,play:sid.play,size:sid.bytes.length,hardwareCIA:hardwareCIA},
-  rendererOptimization:mc?'unchanged bitmap':'TEST315 shifted double-buffer + border-only redraw',
+  rendererOptimization:mc?'unchanged bitmap':fastChar315?'TEST315 shifted double-buffer + border-only redraw':'TEST314 narrow viewport fallback',
   scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed,autoMapScroll:auto?{...auto,actualStepPixels:8}:null};
 }
 w.RICO_TEST311_HYBRID={version:'TEST311',makePRG:build,engine:'TEST307 FULL MAP WASD + PSID protected raster/CIA IRQ'};
