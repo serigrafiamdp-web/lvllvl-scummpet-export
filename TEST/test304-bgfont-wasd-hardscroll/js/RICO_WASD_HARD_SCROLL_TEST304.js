@@ -8,7 +8,7 @@
 'use strict';
 var PRE='rico304',W=40,H=25,SZ=1000;
 var colors=['#000000','#ffffff','#813338','#75cec8','#8e3c97','#56ac4d','#2e2c9b','#edf171','#8e5029','#553800','#c46c71','#4a4a4a','#7b7b7b','#a9ff9f','#706deb','#b2b2b2'];
-var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null};
+var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null};
 function mod(n,k){return(n%k+k)%k;}
 function equal(a,b){return a.length===b.length&&a.every(function(v,i){return v===b[i];});}
 function clone(s){return{kind:s.kind,tiles:s.tiles.slice(),fg:s.fg.slice(),atlas:s.atlas.slice(),bg:s.bg,
@@ -357,7 +357,32 @@ function moveArtwork(direction){
  setStatus('Movimientos: '+st.steps+' · último: '+direction.toUpperCase());
  return {direction,width:ww,height:hh,colorsMoved:!!newColors,steps:st.steps};
 }
+function stopHolding(){
+ if(st.holdDelayTimer!==null){w.clearTimeout(st.holdDelayTimer);st.holdDelayTimer=null;}
+ if(st.holdTimer!==null){w.clearInterval(st.holdTimer);st.holdTimer=null;}
+ st.holdButton=null;
+}
+function manualStep(button){
+ if(!st.dialogOpen)return;
+ try{moveArtwork(button.getAttribute('data-scroll'));}
+ catch(err){stopHolding();setStatus('ERROR: '+err.message);if(w.console)w.console.warn('TEST306',err);}
+}
+function startHolding(button){
+ if(!st.dialogOpen)return;
+ stopHolding();st.holdButton=button;manualStep(button);
+ if(st.holdButton!==button)return;
+ st.holdDelayTimer=w.setTimeout(function(){
+  st.holdDelayTimer=null;
+  if(st.dialogOpen&&st.holdButton===button){
+   st.holdTimer=w.setInterval(function(){
+    if(!st.dialogOpen||st.holdButton!==button){stopHolding();return;}
+    manualStep(button);
+   },70);
+  }
+ },140);
+}
 function closeManual(){
+  stopHolding();
   // Real non-modal DOM window: do not enter the UI dialog stack.
   st.dialogOpen=false;
   st.keyboard=false;
@@ -399,14 +424,24 @@ function closeManual(){
   check.onchange=function(){setExportWASD(check.checked);};
   var buttons=dlg.querySelectorAll('.rico304arrow');
   for(var i=0;i<buttons.length;i++){
-   buttons[i].style.cssText='width:50px;height:34px;cursor:pointer;background:#454950;'+
-    'border:1px solid #62666d;border-radius:3px;color:white;font-size:16px;';
-   buttons[i].onclick=function(e){
-    e.preventDefault();e.stopPropagation();
-    if(!st.dialogOpen)return;
-    try{moveArtwork(this.getAttribute('data-scroll'));}
-    catch(err){setStatus('ERROR: '+err.message);if(w.console)w.console.warn('TEST304',err);}
-   };
+   var btn=buttons[i];
+   btn.style.cssText='width:50px;height:34px;cursor:pointer;touch-action:none;'+
+    'background:#454950;border:1px solid #62666d;border-radius:3px;color:white;font-size:16px;';
+   btn.addEventListener('pointerdown',function(e){
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    if(e.preventDefault)e.preventDefault();
+    if(e.stopPropagation)e.stopPropagation();
+    if(this.setPointerCapture)this.setPointerCapture(e.pointerId);
+    startHolding(this);
+   });
+   btn.addEventListener('pointerup',stopHolding);
+   btn.addEventListener('pointercancel',stopHolding);
+   btn.addEventListener('lostpointercapture',stopHolding);
+  }
+  if(!w.__rico306HoldStopInstalled){
+   w.addEventListener('blur',stopHolding);
+   doc.addEventListener('visibilitychange',function(){if(doc.hidden)stopHolding();});
+   w.__rico306HoldStopInstalled=true;
   }
   // Drag by title, leaving the editor fully interactive everywhere else.
   var handle=doc.getElementById('rico304Handle'),drag=null;
