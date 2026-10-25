@@ -295,6 +295,24 @@ function export207(self,args,raw){
  SID_STATE.lastTempo209=hardware210?('TEST212 AUTO CIA Timer A real $'+('0000'+sid.ciaTimer.latch.toString(16)).slice(-4)+' ≈ '+sid.ciaTimer.hz.toFixed(2)+' Hz'):sid.ciaTiming?('CIA sin latch detectable o modo manual; tempo '+(speed===60?'fallback':'seleccionado')):'VBlank PAL 50 Hz';
  var source;
  if(fr.length===1){
+   var bitmapLayer309=null;
+   try{bitmapLayer309=self.editor&&self.editor.layers&&self.editor.layers.getSelectedLayerObject();}catch(ignore){}
+   var actualBitmap309=!!(bitmapLayer309&&bitmapLayer309.doc&&bitmapLayer309.doc.ricoBitmapV1Enabled&&
+     bitmapLayer309.getScreenMode&&bitmapLayer309.getScreenMode()==='c64multicolor');
+   if(actualBitmap309){
+    // Real Bitmap MC: 8000 bitmap bytes + 1000 screen bytes + Color RAM.
+    // Never route it through the HiRes/mixed CHARACTER renderer.
+    var bmp309=window.RICO_TEST282_BITMAP,bitmapSid309=window.RICO_TEST309_BITMAP_SID;
+    if(!bmp309||typeof bmp309.encode!=='function'||!bitmapSid309)
+     throw new Error('TEST309: faltan los módulos de Bitmap Multicolor + SID.');
+    var image309=bmp309.encode(self.editor);
+    source=bitmapSid309.buildSource(image309);
+    window.RICO_TEST309_LAST_BITMAP={mode:'C64 Bitmap Multicolor',source:'TEST282',
+       sidAudio:'TEST207/229 unchanged',bitmapBytes:image309.bitmap.length,
+       screenBytes:image309.screen.length,colorBytes:image309.color.length,
+       sourceWidth:image309.sourceWidth,sourceHeight:image309.sourceHeight,
+       cropped:!!image309.cropped};
+   }else{
    // One-frame export needs no multi-frame storage, and works with horizontal,
    // diagonal or still frame. Reuse their tested routines.
    var type=fr[0].ricoMapScrollV1&&fr[0].ricoMapScrollV1.type||'';
@@ -323,10 +341,43 @@ function export207(self,args,raw){
        source=horizontal.build(one);
      }else throw new Error('TEST208: el tipo de scroll '+type+' aun requiere integrar el player musical; no se exportara con musica omitida.');
    }
+   }
  }else{
    var frames=compact.collect(self),alloc=compact.pack(frames);
    validatePatchBank(alloc);
    source=compact.build({frames:frames,packed:alloc});
+ }
+ // TEST309: preserve the original VIC-II per-cell mixed character design.
+ // 'c64multicolor' is only the global permission ($D016 bit4); each cell's
+ // Color RAM bit3 independently selects HiRes (0) or Multicolor (1).
+ // Never OR #$08 into foreground colors or normalize them to one mode.
+ var layer309=null;
+ try{layer309=self.editor&&self.editor.layers&&self.editor.layers.getSelectedLayerObject();}catch(ignore){}
+ var mixedChar309=!!(layer309&&layer309.getScreenMode&&
+  layer309.getScreenMode()==='c64multicolor'&&
+  !(layer309.doc&&layer309.doc.ricoBitmapV1Enabled));
+ if(mixedChar309){
+  var adapter309=window.RICO_TEST264_MULTICOLOR;
+  var context309=adapter309&&adapter309.context&&adapter309.context(self);
+  if(!adapter309||!context309||typeof adapter309.patch!=='function')
+   throw new Error('TEST309: falta inicializar el modo de caracteres Multicolor. Recargá la página.');
+  // This proven patch only enables VIC global Multicolor and shared colors.
+  // World Color RAM data retains its original 0..15 values, including bit3.
+  var patched309=adapter309.patch(source,context309);
+  source=patched309.source;
+  window.RICO_TEST309_LAST_MIXED={
+   mode:'MIXED CHARACTER',staticFrame:fr.length===1,
+   globalMulticolor:true,d016Writes:patched309.d016,
+   sharedMC1:context309.m1.slice(),sharedMC2:context309.m2.slice(),
+   perCellColorRamUnchanged:true,
+   sidMusicRouting:'TEST207/229 INIT PLAY UNCHANGED'
+  };
+ }else{
+  var bitmapMode309=!!(layer309&&layer309.doc&&layer309.doc.ricoBitmapV1Enabled);
+  window.RICO_TEST309_LAST_MIXED={
+   mode:bitmapMode309?'BITMAP MULTICOLOR (SEPARATE RENDERER)':'HIRES / OTHER',
+   globalMulticolor:bitmapMode309,bitmapPlanes:bitmapMode309,
+   sidMusicRouting:'UNCHANGED'};
  }
  var asm=makeSource207(source,sid,speed);
  var a=g_app&&g_app.assembler;
