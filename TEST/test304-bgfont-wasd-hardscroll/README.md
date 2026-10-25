@@ -1,3 +1,45 @@
+# TEST309 — SID + Multicolor real sin prohibir HiRes/Mixed (25 OCT 2026)
+
+Estado: código y rutas verificadas mediante pruebas JS/ASM textual; falta validación real en VICE del nuevo motor Bitmap+SID.
+
+Parte únicamente del TEST308 (reproducción SID recuperada, usuario confirmado). TEST308, TEST307 PASS, TEST306, TEST305, TEST297 y MASTER no se modificaron.
+
+## Causa del defecto y corrección
+
+La ruta de SID para una sola frame detenida introducida en TEST308 usaba TEST186, un **reproductor de CHARACTERS** con Map Scroll horizontal a 0 píxeles. Esta rutina escribía $D016 con el bit 4 borrado, forzando HiRes global. El editor podía estar en multicolor y quedar distinto del PRG. Además, si la frame provenía del nuevo SCREEN → Bitmap Multicolor (TEST279), ese motor de caracteres era fundamentalmente incorrecto: el VIC-II necesita 8000 bytes de BITMAP, 1000 bytes de SCREEN para C1/C2 y 1000 bytes de COLOR RAM para C3.
+
+### Ruta 1: Multicolor Character mixto + SID
+
+- La copia aislada de TEST308 introduce el corrector ya probado `RICO_TEST264_MULTICOLOR.patch()` **solo si SCREEN es Multicolor Character** y no está activo Bitmap MC.
+- Rehabilita el bit 4 de `$D016` y restaura `$D022/$D023` de la configuración real del layer.
+- **No altera** `world_colors` ni fuerza el bit 3 en Color RAM. Las celdas con color 0–7 siguen HiRes (un píxel de ancho), y las celdas con color 8–15 siguen Multicolor (píxeles dobles). Esto deja usar HiRes + Multicolor mezclados cuando se desee.
+- La música sigue procesándose por la **misma** rutina TEST207/229 de SID INIT/PLAY.
+
+### Ruta 2: Bitmap Multicolor verdadero, una frame detenida + SID
+
+- Un módulo independiente `RICO_BITMAP_SID_STATIC_TEST309.js` toma el modelo nativo del exportador **TEST282** mediante `RICO_TEST282_BITMAP.encode(editor)`.
+- Produce ASM para VIC bank $4000 con bitmap en `$6000–$7F3F`, screen en `$5C00–$5FE7`, Color RAM $D800 alimentada desde `$3800–$3BFF` y modo VIC `$D011=$3B / $D016=$18 / $D018=$78`.
+- No convierte el bitmap a caracteres. No altera el contenido de las tres matrices, salvo la copia necesaria de Color RAM a su región I/O.
+- Se entrega a `makeSource207`, que añade el reproductor SID probado: INIT, PLAY y temporización raster/CIA, con protección de ZP. SID con carga $1000–$1FFF conserva core $2000; el planificador TEST229 reubica el core cuando la música invade $2000–$2FFF.
+- El motor Bitmap MC soporta aquí **imagen fija sin scroll del mapa y una frame**, con la misma captura 40×25 de TEST282. Los mapas más grandes siguen limitados a la primera región 40×25 en esta ruta musical experimental (la reproducción Bitmap MC + SID + WASD y viewport desplazado requieren integración posterior). Esta limitación no afecta al PRG de scroll independiente de TEST307.
+- Bitmap Multicolor **no posee mezcla HiRes/MC por carácter**. La mezcla es una función nativa de *Multicolor Character Mode*, que esta prueba conserva.
+
+## Validación interna
+
+- TEST309 SID estático Char Multicolor: una compilación simulada; en el ASM resultante aparece `ORA #$10; STA $D016` y las escrituras $D022/$D023 con valores del layer. Bytes del mapa de colores `$03,$0B,$00,$08` preservados íntegros. El audio integrado contiene `sid_init_protected211` y `sid_play_protected211`: PASS.
+- TEST309 Bitmap MC + SID: fuente ASM con `$D016=$18`, `$D011=$3B`, bitmap completo (8.000 B), screen (1.000 B), colores (1.000 B), copia explícita a $D800 y SID original. Datos y llamadas de IRQ encontrados en la misma fuente: PASS.
+- Prueba con un SID sintético de 3798 bytes cargado en $1000: resultado fuente compilada por mock 1 vez, sin errores, SID y bitmap coexistentes, sin relocalización.
+- Prueba con SID sintético 7900 bytes cargado en $1000: planificador TEST229 cambia el core a $C000 y actualiza BASIC SYS49152. No se mueven bytes de SID ni bitmap.
+- HiRes sin multicolor: ruta sin patch $D016: PASS.
+
+**Pendientes de validar con VICE real:** ejecución audible, igualdad de píxeles/colores, música CIA, y diferentes SID. La simulación del ensamblador no demuestra por sí sola el funcionamiento físico completo de la C64. No declarar MASTER hasta pasar visual + audio.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test309-sid-mixed-character-fidelity.zip
+
+---
+
 # TEST308 — Restauración de exportación SID (25/10/2026)
 
 **Problema:** TEST307 interceptaba el botón Export PRG y priorizaba el PRG experimental WASD (que NO tiene player SID). Incluso con el checkbox WASD apagado, el exportador rápido Bitmap MC TEST299 podía adelantarse al exportador nativo, descartando la música. Además, el adaptador SID TEST229 seleccionaba la ruta de render dinámico TEST228 incluso cuando había un único frame completamente detenido; la ruta antigua TEST207 para pantalla detenida seguía presente pero no se ejecutaba.
