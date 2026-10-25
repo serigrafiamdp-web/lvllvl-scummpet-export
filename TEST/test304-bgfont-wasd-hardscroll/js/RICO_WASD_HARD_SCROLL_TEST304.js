@@ -636,6 +636,64 @@ function sidAdvancedInstance(editor,forExport){
  }
  return null;
 }
+// TEST313: respect LVLLVL's existing autonomous Map Scroll metadata.
+function traditionalMapConfig(ed){
+ if(!ed||!ed.graphic)return null;
+ var frames=ed.graphic.frames||[],service=w.RICO_TEST57_MAP_SCROLL||w.RICO_TEST56_MAP_SCROLL||w.RICO_TEST37_MAP_SCROLL;
+ for(var i=0;i<frames.length;i++){
+  var f=frames[i]||{},cfg=f.ricoMapScrollV1||null;
+  try{if(service&&typeof service.getConfig==='function')cfg=service.getConfig(ed.graphic,i)||cfg;}catch(ignore){}
+  if(cfg&&typeof cfg.type==='string'&&cfg.type.trim()){
+   return {frame:i,type:cfg.type,ticksPerStep:Math.max(1,Number(cfg.ticksPerStep)||1),
+    pixelsPerStep:Math.max(1,Number(cfg.pixelsPerStep)||1)};
+  }
+ }
+ return null;
+}
+function traditionalPRG(ed,normal,sid,filename){
+ var cfg=traditionalMapConfig(ed),layer=ed&&ed.layers&&ed.layers.getSelectedLayerObject(),
+  bitmap=!!(layer&&layer.doc&&layer.doc.ricoBitmapV1Enabled&&layer.getScreenMode()==='c64multicolor');
+ if(bitmap){
+  // TEST313: The character-mode ToPRGAdv cannot be used for Bitmap MC.
+  // TEST290/TEST299 may create a STILL picture when no Group Animate runs.
+  // Use the true bitmap full-map renderer with autonomous cardinal camera.
+  if(!/^(up|down|left|right)$/.test(cfg.type))
+   throw Error('Bitmap Multicolor: Map Scroll '+cfg.type+' aún no recuperado. No se exportará una imagen fija.');
+  var captured=capture(),bitmapBuilder=null,parsed=null;
+  if(sid&&sid.requested){
+   var api=w.RICO_TEST207_ORIGINAL_SID,raw=(sid.nativeSid&&normal&&normal.sidData)||null;
+   if(!raw&&api&&typeof api.getRawSID==='function')raw=api.getRawSID();
+   if(!api||typeof api.parseSID!=='function'||!raw)
+    throw Error('Requiere el SID original PSID cargado, no solo los datos decodificados.');
+   try{parsed=api.parseSID(raw);}catch(sidError){
+    if(st.rawSid311)parsed=api.parseSID(st.rawSid311);
+    else throw sidError;
+   }
+   bitmapBuilder=w.RICO_TEST311_HYBRID;
+  }else bitmapBuilder=w.RICO_TEST307_FULLMAP;
+  if(!bitmapBuilder||typeof bitmapBuilder.makePRG!=='function')
+   throw Error('Falta el renderer Bitmap MC de TEST311/TEST307; recargá la WEB.');
+  var result=parsed?bitmapBuilder.makePRG(captured.source,parsed,1,cfg):
+   bitmapBuilder.makePRG(captured.source,1,cfg);
+  var name=(filename||'rico-map-scroll.prg').replace(/[.]prg$/i,'')+'_BITMAP_AUTO.prg';
+  download(result.bytes,name);
+  st.lastExport={engine:'TEST313 Bitmap MC AUTO MAP 8px',configuration:cfg,
+   sid:!!parsed,actualStepPixels:8,filename:name,bytes:result.bytes.length};
+  w.RICO_TEST313_LAST_EXPORT=st.lastExport;
+  return result;
+ }
+ var adv=sidAdvancedInstance(ed,true);
+ if(!adv||typeof adv.createPRG!=='function')
+  throw Error('No se encontró ToPRGAdv para restaurar Map Scroll.');
+ var args={download:true,filename:filename||'rico-map-scroll.prg'};
+ if(sid&&sid.nativeSid){args.music='sid';args.sidData=normal&&normal.sidData;}
+ st.lastExport={engine:'TEST313 ORIGINAL ToPRGAdv MAP SCROLL',configuration:cfg,
+  sid:!!(sid&&sid.requested),manualWASD:false};
+ var result=adv.createPRG(args);
+ if(result===false||result==null)
+  throw Error('El motor Map Scroll no pudo exportar; no se generará una imagen fija como sustituto.');
+ return result;
+}
 function installExportCheckbox(){
  if(typeof ToPRG==='undefined'||!ToPRG.prototype||ToPRG.prototype.__rico304ExportOption)return;
  var oldInitEvents=ToPRG.prototype.initEvents;
@@ -690,7 +748,20 @@ function installExportCheckbox(){
       bitmap=!!(layer&&layer.doc&&layer.doc.ricoBitmapV1Enabled&&layer.getScreenMode()==='c64multicolor');
   // Existing SID playback is never subordinate to experimental scroll export.
   // Explicit SID choices must not be swallowed by WASD or TEST299.
-  var sid=sidRequested(this);
+  var sid=sidRequested(this),autoMap=traditionalMapConfig(ed);
+  // A configured autonomous Map Scroll must use the original fast
+  // ToPRGAdv renderers, not the BASIC static exporter or TEST299.
+  if(autoMap&&!st.exportWithWASD){
+   try{
+    var inputAuto=doc.getElementById('exportPRGAs'),
+     nameAuto=(inputAuto&&inputAuto.value&&inputAuto.value.trim()||'rico-map-scroll').replace(/[.]prg$/i,'')+'.prg';
+    return traditionalPRG(ed,this,sid,nameAuto);
+   }catch(errAuto){
+    st.lastExport={engine:'TEST313 MAP SCROLL ERROR',configuration:autoMap,error:errAuto.message};
+    if(typeof w.alert==='function')w.alert('Map Scroll tradicional: '+errAuto.message);
+    return false;
+   }
+  }
   if(sid.requested){
    if(st.exportWithWASD){
     // TEST311: SID + held WASD is one PRG, not two incompatible exporters.
@@ -716,7 +787,7 @@ function installExportCheckbox(){
       throw Error('El motor híbrido entrega PRG. Elegí PRG para combinar SID con WASD.');
      var snapshotHybrid=capture(),builtHybrid=exporter.makePRG(snapshotHybrid.source,sidData,st.scrollSpeed);
      var nameInput=doc.getElementById('exportPRGAs'),
-      hybridName=(nameInput&&nameInput.value&&nameInput.value.trim()||'RICO').replace(/\\.prg$/i,'')+'_SID_WASD.prg';
+      hybridName=(nameInput&&nameInput.value&&nameInput.value.trim()||'RICO').replace(/[.]prg$/i,'')+'_SID_WASD.prg';
      download(builtHybrid.bytes,hybridName);
      st.lastExport={engine:'TEST311 FULL MAP + DIAGONAL WASD + SID',
       bytes:builtHybrid.bytes.length,filename:hybridName,sid:builtHybrid.sid,
@@ -796,5 +867,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST312',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST313',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
