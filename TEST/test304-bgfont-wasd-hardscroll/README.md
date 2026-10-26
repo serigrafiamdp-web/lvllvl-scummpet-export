@@ -1,3 +1,47 @@
+# TEST324 — Restauración del Bitmap Multicolor real y WASD
+
+**Fecha: 26 OCT 2026 · Rama:** `release/test324-bitmap-fidelity-wasd-restore` · Base TEST323. **PENDIENTE VICE**.
+
+## Incidente corregido
+
+El usuario reportó TEST323 sin movimiento y con mezcla de gráficos HiRes y Multicolor. Había dos problemas diferentes:
+
+1. Su proyecto tenía el flag `ricoBitmapV1Enabled` activado, aunque el diálogo de exportación dijera «Multicolour Character». TEST323 ofrecía «Interpretar Bitmap como Multicolor Character», pero esa conversión no puede conservar las tres tintas independientes de cada celda Bitmap: altera la imagen y puede producir patrones aparentemente mezclados.
+2. El motor VIC-II nativo del mapa vertical (>25 filas, TEST321/322) **solamente acepta W y S**. Si se presionan A/D no se mueve. El selector lo presentaba de forma susceptible de confundirse con WASD completo.
+
+## Cambio TEST324
+
+- **Se elimina por completo la casilla de reinterpretación Bitmap→Character**. No vuelve a exportarse un Bitmap auténtico como matriz de caracteres solo para aparentar velocidad.
+- Si se detecta Bitmap Multicolor y estaba elegido «VIC-II original», el exportador **cambia automáticamente a «Avance 8 px»**, actualiza el selector del panel y genera el **Bitmap WASD real** de TEST307, que conserva 8.000 bytes de patrones bitmap iniciales, matrices de Screen/Color RAM y el mapa completo de celdas con 3 bytes por entrada (tile ID + C1/C2 + C3). No cambia la capa ni `ricoBmpColors`.
+- Este Bitmap real recupera W/A/S/D y diagonales para el mapa completo de hasta 16 KB de celdas empaquetadas. Sigue usando el motor anterior y por tanto **NO ofrece aún la velocidad del VIC-II Character**.
+- Se hace una aserción antes de exportar: si la capa indica Bitmap pero `capture().source.kind` no es `bitmap-mc`, no genera el PRG y muestra error. Evita un segundo caso de «mezcla de modos» accidental.
+- Para HiRes y Multicolor Character reales, el motor original VIC-II sigue disponible en su ruta experimental: 40×25 cuatro direcciones; mapas más altos W/S solamente. No existe todavía horizontal nativo ni Bitmap Multicolor rápido sobre mapas grandes.
+- Con SID real y motor VIC-II nativo continúa el aviso de incompatibilidad. Para SID + WASD debe seleccionarse el motor de 8 px. No se silencia ni se descarta música.
+- Todos los cambios están aislados al panel y su control de exportación. Los motores TEST318/TEST307/TEST321 y el MASTER no se modifican.
+
+## Pruebas internas (no VICE)
+
+Proyecto falso pero representativo de Bitmap Multicolor 40×50 con valores locales C1/C2/C3 diferentes en cada celda:
+- Selección inicial `VIC-II original` + Bitmap activo → selecciona automáticamente `Avance 8 px`, genera PRG Bitmap **36.721 bytes**, modo `bitmap-mc`, mapa completo 6.000 bytes, y preserva el estado Bitmap.
+- Selección `Avance 8 px` + Bitmap activo → exactamente la misma ruta Bitmap y dimensiones.
+- Multicolor Character real (flag Bitmap desactivado) → genera PRG de caracteres, sin activar Bitmap ni reinterpretación.
+- Browser index actualiza el módulo del panel con una nueva etiqueta de versión para evitar usar el código TEST323 en caché.
+
+### Cómo probar en VICE
+
+1. Actualizar la WEB con Ctrl+F5.
+2. Con tu proyecto actual Bitmap experimental de 40×50, abrir «Rico's Manual Scroll», marcar WASD, seleccionar `Avance 8 px` (o dejar que el programa cambie automáticamente si intentaste VIC-II).
+3. Elegir `No Music` para la primera medición y exportar PRG.
+4. En VICE, comprobar W/S/A/D y diagonales, especialmente que **no aparezca la mezcla HiRes/Multicolor** y que cada celda conserve los tres colores originales.
+
+**WEB:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+**ZIP:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test324-bitmap-fidelity-wasd-restore.zip
+
+**Limitación importante:** no es la solución definitiva de rendimiento. Para igualar/superar el Map Scroll original sin perder el Bitmap por celda se requiere implementar un motor VIC-II específico de Bitmap Multicolor que maneje los planos de 8.000 bytes y los tres colores de cada celda en un mapa grande. No disfrazar Character como Bitmap.
+
+---
+
 # TEST323 — Distinguir Bitmap experimental de Multicolor Character real
 
 **Fecha:** 26 OCT 2026 · Base: TEST322 · Rama: `release/test323-explicit-character-projection`.
