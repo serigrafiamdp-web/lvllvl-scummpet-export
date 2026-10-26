@@ -247,6 +247,7 @@ function hasGroups155(ts){
   try{var r=ts.getDocRecord(),v=r&&r.data&&r.data.ricoGroupAnimationsV1;return !!(v&&((v.bank1&&v.bank1.length)||(v.bank2&&v.bank2.length)));}catch(e){return false;}
 }
 function collect(self,args){
+  var manual319=!!(args&&args.ricoWASD319);
   var ed=self.editor,fc=frameCount(ed),layer=ed.layers.getSelectedLayerObject(),ts=getTileSet(ed),frames=[],hasScroll=false;
   var b2=getBank2(ts),bank1=charsetBytes(ts.tileData,ts.tileData),bank2=b2?charsetBytes(b2,ts.tileData):bank1;
   // TEST172: choose bank-aware extraction only for an active switch group.
@@ -255,7 +256,7 @@ function collect(self,args){
   var switchMode172=!!(stored172&&[...(stored172.bank1||[]),...(stored172.bank2||[])].some(function(g){return g.type==='switch-bank';}));
   var nativeAnimations=collectNativeAnimations(ts,switchMode172);
   for(var i=0;i<fc;i++){
-    var c=getCfg(ed,i),type=(c&&c.type)||'';
+    var c=manual319?{type:'left',ticksPerStep:clamp(args.ricoWASD319Speed,1,255,1),pixelsPerStep:8}:getCfg(ed,i),type=(c&&c.type)||'';
     if(typeof TYPE_CODE[type]==='undefined')throw new Error('TEST75 no reconoce '+type+'.');
     if(type)hasScroll=true;
     var duration=12;try{duration=ed.graphic.getFrameDuration(i);}catch(e){var f=ed.graphic.frames&&ed.graphic.frames[i];duration=f&&f.duration;}
@@ -277,7 +278,7 @@ function collect(self,args){
   }
   var group155=readGroup155(ts,frames,nativeAnimations);
   var blankChar=chooseBlankChar(frames,bank1,bank2,nativeAnimations,group155?group155.ids:[]);
-  return {editor:ed,layer:layer,tileSet:ts,frames:frames,bank1:bank1,bank2:bank2,hasScroll:hasScroll,blankChar:blankChar,nativeAnimations:nativeAnimations,group155:group155};
+  return {editor:ed,layer:layer,tileSet:ts,frames:frames,bank1:bank1,bank2:bank2,hasScroll:hasScroll,blankChar:blankChar,nativeAnimations:nativeAnimations,group155:group155,wasd319:manual319};
 }
 function supports(self,args){
   var ed=self.editor;if(!ed)return false;
@@ -287,6 +288,7 @@ function supports(self,args){
   var ts=getTileSet(ed);if(!ts||ts.getTileWidth()!=8||ts.getTileHeight()!=8)return false;
   var w=args&&args.gridWidth?parseInt(args.gridWidth,10):40,h=args&&args.gridHeight?parseInt(args.gridHeight,10):25;
   if(w!==40||h!==25)return false;
+  if(args&&args.ricoWASD319)return fc===1;
   var any=false,anyPing=false,anyMove=false;
   for(var i=0;i<fc;i++){var c=getCfg(ed,i),t=(c&&c.type)||'';if(t)any=true;if(t.indexOf('pingpong-')===0)anyPing=true;if(t.indexOf('move-')===0||t.indexOf('movein-')===0)anyMove=true;if(typeof TYPE_CODE[t]==='undefined')return false;}
   // TEST77: single-frame wrap scrolls must also use the modern Window + Scroll Area runtime.
@@ -297,6 +299,7 @@ function supports(self,args){
 }
 function buildSource(d,options){
   options=options||{};
+  var manual319=!!d.wasd319;
   var f=d.frames,out=[];
   // Calling buildSource directly in tests may not provide hasScroll: derive
   // the runtime mode from frame metadata as an additional guard.
@@ -499,6 +502,10 @@ function buildSource(d,options){
   out.push('patch_phase=$45');
   // TEST135: single-frame, 1 tick/pixel, cardinals only. Keep old paths for other modes.
   out.push('fast_prefetch=$46');
+  if(manual319){
+    out.push('wasd319_column1=$4a');
+    out.push('wasd319_column2=$4b');
+  }
   // TEST138: the gear is active only for fast 1T scroll with animated glyphs.
   // Preserve the prior assembly byte for byte in every other mode.
   var gearCoupled=fastColorOnePass && hasAnyAnim && !switchNative172; // TEST175: do not gate dual-bank native clocks on map pixels
@@ -547,6 +554,18 @@ function buildSource(d,options){
     out.push(' sta gear_wait_count');
   }
   out.push(' jsr load_frame');
+  if(manual319){
+    // The legacy scroll begins with type LEFT for its 8-pixel prefetch
+    // setup. Disable automatic movement until the first real WASD keypress.
+    out.push(' lda #$00');
+    out.push(' sta scroll_type');
+    out.push(' lda #$ff');
+    out.push(' sta $dc02'); // CIA1 port A outputs
+    out.push(' lda #$00');
+    out.push(' sta $dc03'); // CIA1 port B inputs
+    out.push(' lda #$ff');
+    out.push(' sta $dc00');
+  }
   out.push(' lda #$01');
   out.push(' sta $d01a');
   out.push(' lda #$fa');
@@ -650,6 +669,7 @@ function buildSource(d,options){
   out.push(' jsr fast_busy_fine_tick');
   out.push(' jmp irq_skip_tick');
   out.push('irq_normal_tick');
+  if(manual319)out.push(' jsr poll_wasd319');
   out.push(' jsr frame_tick');
   out.push('irq_skip_tick');
   if(asyncNative176){
@@ -1074,6 +1094,55 @@ function buildSource(d,options){
   out.push('fast_busy_done');
   out.push(' rts');
   out.push('');
+  if(manual319){
+    // TEST319 — dynamic keyboard in the original TEST77 raster IRQ.
+    // One active direction at a time; no new screen-pipeline allocations.
+    out.push('poll_wasd319');
+    out.push(' lda prep_request');
+    out.push(' ora patch_pending');
+    out.push(' ora main_busy');
+    out.push(' bne wasd319_return');
+    out.push(' lda #$fd'); // CIA keyboard col1: W/A/S
+    out.push(' sta $dc00');
+    out.push(' lda $dc01');
+    out.push(' sta wasd319_column1');
+    out.push(' lda #$fb'); // CIA keyboard col2: D
+    out.push(' sta $dc00');
+    out.push(' lda $dc01');
+    out.push(' sta wasd319_column2');
+    out.push(' lda #$ff');
+    out.push(' sta $dc00');
+    out.push(' lda wasd319_column1');
+    out.push(' and #$02');
+    out.push(' beq wasd319_up');
+    out.push(' lda wasd319_column1');
+    out.push(' and #$20');
+    out.push(' beq wasd319_down');
+    out.push(' lda wasd319_column1');
+    out.push(' and #$04');
+    out.push(' beq wasd319_left');
+    out.push(' lda wasd319_column2');
+    out.push(' and #$04');
+    out.push(' beq wasd319_right');
+    out.push(' lda #$00');
+    out.push(' jmp wasd319_store');
+    out.push('wasd319_up');
+    out.push(' lda #$01');
+    out.push(' jmp wasd319_store');
+    out.push('wasd319_down');
+    out.push(' lda #$02');
+    out.push(' jmp wasd319_store');
+    out.push('wasd319_left');
+    out.push(' lda #$03');
+    out.push(' jmp wasd319_store');
+    out.push('wasd319_right');
+    out.push(' lda #$04');
+    out.push('wasd319_store');
+    out.push(' sta scroll_type');
+    out.push('wasd319_return');
+    out.push(' rts');
+    out.push('');
+  }
   out.push('frame_tick');
   out.push(' lda transition_request');
   out.push(' beq frame_tick_timer');
