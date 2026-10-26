@@ -8,7 +8,7 @@
 'use strict';
 var PRE='rico304',W=40,H=25,SZ=1000;
 var colors=['#000000','#ffffff','#813338','#75cec8','#8e3c97','#56ac4d','#2e2c9b','#edf171','#8e5029','#553800','#c46c71','#4a4a4a','#7b7b7b','#a9ff9f','#706deb','#b2b2b2'];
-var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null,scrollSpeed:1,scrollEngine319:'character'};
+var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null,scrollSpeed:1,scrollEngine319:'character',charProjection323:false};
 function mod(n,k){return(n%k+k)%k;}
 function equal(a,b){return a.length===b.length&&a.every(function(v,i){return v===b[i];});}
 function clone(s){return{kind:s.kind,tiles:s.tiles.slice(),fg:s.fg.slice(),atlas:s.atlas.slice(),bg:s.bg,
@@ -497,9 +497,13 @@ function closeManual(){
    '<label style="display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px">'+
    '<span>Motor PRG</span><select id="rico304engine319" style="background:#3b3e45;color:#fff;'+
    'border:1px solid #666;padding:4px;border-radius:3px;max-width:190px">'+
-   '<option value="native">VIC-II original · TEST321 (HiRes / Char MC)</option>'+
+   '<option value="native">VIC-II original · TEST323 (HiRes / Char MC)</option>'+
    '<option value="character">Avance 8 px · TEST318</option></select></label>'+
-   '<div style="font-size:10px;opacity:.70;margin-top:5px">Original: Screen 40×25 W/A/S/D · Screen 40×N W/S · exporta frame 1</div>'+
+   '<div style="font-size:10px;opacity:.70;margin-top:5px">Motor nativo: Screen 40×25 W/A/S/D · Screen alto W/S · frame 1</div>'+
+    '<label style="display:flex;align-items:flex-start;text-align:left;gap:7px;margin-top:8px;font-size:11px">'+
+    '<input type="checkbox" id="rico304charProjection323" style="margin-top:2px">'+
+    '<span>Interpretar Bitmap como Multicolor Character (solo PRG)</span></label>'+
+    '<div style="font-size:10px;opacity:.80;text-align:left;margin-top:2px">No modifica tu arte. Conserva caracteres, NO los tres colores locales Bitmap.</div>'+
    '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">Editor: solo flechas · 1 celda por clic</div></div>';
   doc.body.appendChild(dlg);
   st.dialog=dlg;st.dialogOpen=true;st.keyboard=false;
@@ -512,6 +516,9 @@ function closeManual(){
   if(speed){speed.value=String(st.scrollSpeed);speed.onchange=function(){setScrollSpeed(speed.value);};}
   var engine319=doc.getElementById('rico304engine319');
   if(engine319){engine319.value=st.scrollEngine319;engine319.onchange=function(){st.scrollEngine319=engine319.value;};}
+  var projection323=doc.getElementById('rico304charProjection323');
+  if(projection323){projection323.checked=st.charProjection323;
+   projection323.onchange=function(){st.charProjection323=!!projection323.checked;};}
   var buttons=dlg.querySelectorAll('.rico304arrow');
   for(var i=0;i<buttons.length;i++){
    var btn=buttons[i];
@@ -771,6 +778,13 @@ function installExportCheckbox(){
    }
   }
   if(sid.requested){
+   if(st.exportWithWASD&&st.scrollEngine319==='native'){
+    var msg323='El motor VIC-II original con WASD todavía no reproduce SID. '+
+     'Seleccioná No Music para probar su velocidad. '+
+     'Si querés SID con WASD, elegí el motor Avance 8 px.';
+    if(typeof w.alert==='function')w.alert('Rico\'s Manual Scroll: '+msg323);
+    st.lastExport={engine:'TEST323 SID UNSUPPORTED',error:msg323};return false;
+   }
    if(st.exportWithWASD){
     // TEST311: SID + held WASD is one PRG, not two incompatible exporters.
     // Never silently clear the user's checkbox or strip the soundtrack.
@@ -853,11 +867,24 @@ function installExportCheckbox(){
          (to322&&Number(to322.value)!==1))
        throw Error('TEST322: con '+frameCount+' frames, seleccioná Export Frames 1 To 1.');
      }
-     if(!layer319||!layer319.getType||layer319.getType()!=='grid'||
-        (layer319.doc&&layer319.doc.ricoBitmapV1Enabled))
-      throw Error('TEST319 original: solo HiRes Character, Layer Grid; Bitmap no admitido.');
+     if(!layer319||!layer319.getType||layer319.getType()!=='grid')
+      throw Error('TEST323: seleccioná una capa Grid de caracteres.');
      var mode319=layer319.getScreenMode&&layer319.getScreenMode(),
+      bitmapActive323=!!(layer319.doc&&layer319.doc.ricoBitmapV1Enabled&&
+       mode319==='c64multicolor'),
       isCharMC320=mode319==='c64multicolor';
+     // The Bitmap editor TEST279 uses 'c64multicolor' internally;
+     // the export dialog's "Multicolour Character" radio is not proof.
+     // For the explicit opt-in, generate a char interpretation directly
+     // from its native tile IDs and FC fields, NEVER mutate project data.
+     if(bitmapActive323&&!st.charProjection323)
+      throw Error('TEST323 detectó Bitmap Multicolor experimental ACTIVO en la capa. '+
+       'La ventana Export muestra Multicolour Character porque ambos comparten el modo interno. '+
+       'Para probar el VIC-II rápido, activá la casilla "Interpretar Bitmap como Multicolor Character" '+
+       'en Rico\'s Manual Scroll. No modifica el proyecto, pero cambia los colores '+
+       'respecto a Bitmap. Para conservar los tres colores locales, usá Avance 8 px.');
+     if(mode319!=='c64multicolor'&&mode319!=='textmode'&&mode319!=='c64standard')
+      throw Error('TEST323: modo de capa no compatible: '+mode319);
      // Native TEST77 uses a character matrix. Mixed per-cell MC needs
      // the existing TEST264 VIC bit4 + shared $D022/$D023 patch.
      // Bitmap MC must NEVER be sent through character-mode TEST77.
@@ -875,19 +902,21 @@ function installExportCheckbox(){
      if(large321&&(!w.RICO_TEST168_PRG_LARGE_MAP||!w.RICO_TEST168_PRG_LARGE_MAP.wasd321))
       throw Error('TEST322: no cargó el motor vertical para '+gridW+'×'+gridH+'. Ctrl+F5 para actualizar.');
      var generated319=advanced319.createPRG(large321?
-      {download:true,filename:name319.replace('TEST319','TEST322'),
+      {download:true,filename:name319.replace('TEST319','TEST323'),
        ricoWASD321:true,ricoWASD321Speed:st.scrollSpeed,gridWidth:gridW,gridHeight:gridH}:
       {download:true,filename:name319,ricoWASD319:true,
        ricoWASD319Speed:st.scrollSpeed,gridWidth:40,gridHeight:25}
      );
      if(generated319===false||!generated319||!generated319.length)
       throw Error('El ensamblador del motor VIC-II no produjo PRG válido. Para 40×50 se utiliza el motor vertical TEST168.');
-     st.lastExport={engine:large321?'TEST322 ORIGINAL VIC-II DYNAMIC LARGE MAP VERTICAL WASD':isCharMC320?'TEST320 VIC-II MULTICOLOR CHARACTER + WASD':'TEST319 ORIGINAL VIC-II FINE SCROLL + WASD',
+     st.lastExport={engine:large321?'TEST323 ORIGINAL VIC-II LARGE MAP VERTICAL WASD':isCharMC320?'TEST320 VIC-II MULTICOLOR CHARACTER + WASD':'TEST319 ORIGINAL VIC-II FINE SCROLL + WASD',
       speed:st.scrollSpeed,bytes:generated319.length,
-      filename:large321?name319.replace('TEST319','TEST321'):name319,
+      filename:large321?name319.replace('TEST319','TEST323'):name319,
       mode:isCharMC320?'Multicolor Character':'HiRes Character',
       sid:false,diagonal:false,map:gridW+'×'+gridH,
-      directions:large321?'W/S solamente':'W/S/A/D'};
+      directions:large321?'W/S solamente':'W/S/A/D',
+      characterProjection:bitmapActive323&&st.charProjection323,
+      bitmapOriginalPreserved:bitmapActive323};
      w.RICO_TEST319_LAST_EXPORT=st.lastExport;
      return generated319;
     }
@@ -936,5 +965,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST322',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST323',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
