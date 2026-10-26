@@ -858,6 +858,8 @@ function installExportCheckbox(){
      var input319=doc.getElementById('exportPRGAs'),
       name319=(input319&&input319.value&&input319.value.trim()||'RICO').replace(/[.]prg$/i,'')+'_VIC_WASD_TEST319.prg';
      var large321=gridH===50;
+     if(large321&&(!w.RICO_TEST168_PRG_LARGE_MAP||!w.RICO_TEST168_PRG_LARGE_MAP.wasd321))
+      throw Error('TEST321 40×50: no se cargó el adaptador del motor vertical. Recargá la WEB.');
      var generated319=advanced319.createPRG(large321?
       {download:true,filename:name319.replace('TEST319','TEST321'),
        ricoWASD321:true,ricoWASD321Speed:st.scrollSpeed,gridWidth:40,gridHeight:50}:
