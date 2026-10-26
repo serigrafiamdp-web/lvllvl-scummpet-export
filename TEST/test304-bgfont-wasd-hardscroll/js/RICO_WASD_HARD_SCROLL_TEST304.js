@@ -499,7 +499,7 @@ function closeManual(){
    'border:1px solid #666;padding:4px;border-radius:3px;max-width:190px">'+
    '<option value="native">VIC-II original · TEST321 (HiRes / Char MC)</option>'+
    '<option value="character">Avance 8 px · TEST318</option></select></label>'+
-   '<div style="font-size:10px;opacity:.70;margin-top:5px">Original: 40×25 W/A/S/D · 40×50 W/S · 1 frame, sin SID. Bitmap MC pendiente</div>'+
+   '<div style="font-size:10px;opacity:.70;margin-top:5px">Original: Screen 40×25 W/A/S/D · Screen 40×N W/S · exporta frame 1</div>'+
    '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">Editor: solo flechas · 1 celda por clic</div></div>';
   doc.body.appendChild(dlg);
   st.dialog=dlg;st.dialogOpen=true;st.keyboard=false;
@@ -839,8 +839,20 @@ function installExportCheckbox(){
       gridH=ed.graphic.getGridHeight?ed.graphic.getGridHeight():0,
       frameCount=ed.graphic.getFrameCount?ed.graphic.getFrameCount():(ed.graphic.frames||[]).length,
       layer319=ed.layers.getSelectedLayerObject();
-     if(gridW!==40||(gridH!==25&&gridH!==50)||frameCount!==1)
-      throw Error('TEST321 VIC-II original: permite 40×25 (WASD) o 40×50 (W/S vertical solamente), un frame. Para otros tamaños utilizá "Avance 8 px · TEST318".');
+     // TEST322: use actual Screen dimensions, not hardcoded 40x50.
+     gridW=Number(gridW)||0;gridH=Number(gridH)||0;
+     if(gridW<40||gridH<25||gridH>255||frameCount<1)
+      throw Error('TEST322: Screen detectado '+gridW+'×'+gridH+
+       ', frames='+frameCount+'. Motor VIC-II: mínimo 40 columnas y 25 filas, altura máxima 255. Rico\'s Window es independiente.');
+     if(gridH===25&&gridW!==40)
+      throw Error('TEST322: Screen '+gridW+'×25. El motor de cuatro direcciones requiere 40×25; el vertical admite alturas mayores.');
+     if(frameCount>1){
+      var from322=doc.getElementById('exportFrameFrom'),
+          to322=doc.getElementById('exportFrameTo');
+      if((from322&&Number(from322.value)!==1)||
+         (to322&&Number(to322.value)!==1))
+       throw Error('TEST322: con '+frameCount+' frames, seleccioná Export Frames 1 To 1.');
+     }
      if(!layer319||!layer319.getType||layer319.getType()!=='grid'||
         (layer319.doc&&layer319.doc.ricoBitmapV1Enabled))
       throw Error('TEST319 original: solo HiRes Character, Layer Grid; Bitmap no admitido.');
@@ -857,22 +869,24 @@ function installExportCheckbox(){
       throw Error('No se encontró el motor ToPRGAdv original.');
      var input319=doc.getElementById('exportPRGAs'),
       name319=(input319&&input319.value&&input319.value.trim()||'RICO').replace(/[.]prg$/i,'')+'_VIC_WASD_TEST319.prg';
-     var large321=gridH===50;
+     var large321=gridH>25;
+     // The source may have more frames, but this native WASD experiment
+     // intentionally exports the first frame only (1 To 1), no mutation.
      if(large321&&(!w.RICO_TEST168_PRG_LARGE_MAP||!w.RICO_TEST168_PRG_LARGE_MAP.wasd321))
-      throw Error('TEST321 40×50: no se cargó el adaptador del motor vertical. Recargá la WEB.');
+      throw Error('TEST322: no cargó el motor vertical para '+gridW+'×'+gridH+'. Ctrl+F5 para actualizar.');
      var generated319=advanced319.createPRG(large321?
-      {download:true,filename:name319.replace('TEST319','TEST321'),
-       ricoWASD321:true,ricoWASD321Speed:st.scrollSpeed,gridWidth:40,gridHeight:50}:
+      {download:true,filename:name319.replace('TEST319','TEST322'),
+       ricoWASD321:true,ricoWASD321Speed:st.scrollSpeed,gridWidth:gridW,gridHeight:gridH}:
       {download:true,filename:name319,ricoWASD319:true,
        ricoWASD319Speed:st.scrollSpeed,gridWidth:40,gridHeight:25}
      );
      if(generated319===false||!generated319||!generated319.length)
       throw Error('El ensamblador del motor VIC-II no produjo PRG válido. Para 40×50 se utiliza el motor vertical TEST168.');
-     st.lastExport={engine:large321?'TEST321 ORIGINAL VIC-II LARGE MAP 40x50 VERTICAL WASD':isCharMC320?'TEST320 VIC-II MULTICOLOR CHARACTER + WASD':'TEST319 ORIGINAL VIC-II FINE SCROLL + WASD',
+     st.lastExport={engine:large321?'TEST322 ORIGINAL VIC-II DYNAMIC LARGE MAP VERTICAL WASD':isCharMC320?'TEST320 VIC-II MULTICOLOR CHARACTER + WASD':'TEST319 ORIGINAL VIC-II FINE SCROLL + WASD',
       speed:st.scrollSpeed,bytes:generated319.length,
       filename:large321?name319.replace('TEST319','TEST321'):name319,
       mode:isCharMC320?'Multicolor Character':'HiRes Character',
-      sid:false,diagonal:false,map:large321?'40×50':'40×25',
+      sid:false,diagonal:false,map:gridW+'×'+gridH,
       directions:large321?'W/S solamente':'W/S/A/D'};
      w.RICO_TEST319_LAST_EXPORT=st.lastExport;
      return generated319;
@@ -922,5 +936,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST321',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST322',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
