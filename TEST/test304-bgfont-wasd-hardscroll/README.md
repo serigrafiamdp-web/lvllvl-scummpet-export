@@ -1,3 +1,50 @@
+# TEST323 — Distinguir Bitmap experimental de Multicolor Character real
+
+**Fecha:** 26 OCT 2026 · Base: TEST322 · Rama: `release/test323-explicit-character-projection`.
+**Estado:** validación interna de generador PASS, aún NO VICE PASS.
+
+## Causa confirmada del error de la captura
+
+La alerta original `TEST319 original: solo HiRes Character, Layer Grid; Bitmap no admitido` aparecía aunque la ventana *Export C64 PRG* tuviera marcado **Multicolour Character Mode**. La razón está en TEST279: la modalidad **Multicolor Bitmap (Experimental)** utiliza internamente `layer.getScreenMode()==='c64multicolor'` pero almacena `layer.doc.ricoBitmapV1Enabled=true` y, por frame, datos adicionales `ricoBmpColors` con **tres colores locales por celda**. El selector de exportación normal solo indica el modo base; no refleja ese segundo indicador. Por lo tanto, ignorarlo o borrarlo automáticamente produciría una exportación de colores incorrecta o pérdida de configuración.
+
+## Solución TEST323
+
+1. Se conserva el motor VIC-II original 40×25 (W/A/S/D) y 40×N con N>25 (solo W/S), sin SID, usando la rama TEST322.
+2. En `Rico's Manual Scroll` añadimos una casilla **«Interpretar Bitmap como Multicolor Character (solo PRG)»**, por defecto **DESMARCADA**. Solo afecta la exportación cuando está seleccionado `VIC-II original`.
+3. Si la capa tiene el modo Bitmap experimental activo y la casilla está desmarcada, se muestra una alerta correcta que explica el conflicto: la exportación dice Character pero la capa sigue en Bitmap, cómo habilitar una interpretación de caracteres y cómo conservar fidelidad Bitmap usando el otro motor.
+4. Si el usuario marca la casilla, el PRG rápido usa los **tile IDs, patrones del charset y colores FC 0–15** de la capa como Multicolor Character y configura el VIC-II con el patch TEST264. **No toca la capa, `ricoBitmapV1Enabled`, `ricoBmpColors`, el tamaño del mapa ni los frames guardados.** Las tres tintas locales Bitmap no se reproducen en un renderer Character: los colores de esa exportación pueden diferir notablemente; por eso exige una elección explícita.
+5. Si el usuario necesita preservar el Bitmap Multicolor real (tres colores locales por celda), mantiene el motor **«Avance 8 px · TEST318»**. Ese motor es más lento; aún no existe una versión nativa VIC-II de Bitmap MC con esa misma fidelidad.
+6. Cuando se ha cargado realmente un SID, el motor `VIC-II original` rechaza la combinación con una explicación clara, en lugar de exportar silenciosamente por la ruta lenta TEST311; elegir **No Music** para medir, o **Avance 8 px** para combinar SID+WASD.
+
+## Pruebas internas
+
+Simulación del flujo real ToPRGAdv con compilador ASM interceptado:
+- Capa Bitmap flag=true y casilla desmarcada → **bloqueo claro y sin modificaciones del proyecto**.
+- Capa Bitmap flag=true y casilla marcada → **ASM VIC original** con `poll_wasd321`, mapa completo 40×50, patch de `$D016`, `$D022/$D023`, sin cambiar el flag Bitmap.
+- Capa Multicolor Character real flag=false → exportación rápida normal, **sin necesitar casilla**.
+- Capa Bitmap con SID realmente cargado → bloquea la ruta rápida sin música con aviso específico.
+- Capa HiRes → conserva exportación nativa.
+- Motor TEST322/TEST321 compartido, Bitmap renderer, proyecto y MASTER no modificados.
+
+Se utilizó ensamblador simulado: aún no hay prueba de ensamblado real ni ejecución en VICE. No marcar PASS definitivo.
+
+## Probar con el proyecto de la captura
+
+Abrir la WEB TEST323, recargar completamente. En `Rico's Manual Scroll`:
+- `Export with WASD Scroll Control` ✓
+- `Motor PRG`: `VIC-II original · TEST323`
+- `Interpretar Bitmap como Multicolor Character (solo PRG)` ✓ **solo si se acepta la interpretación Character**; no representa fidelidad Bitmap.
+- Velocidad `Máxima · sin pausa`.
+- En `Export C64 PRG`, seleccionar **No Music** y Export Frames **1 To 1**.
+- Exportar PRG, comprobar en VICE W/S; en Screen >25 filas A/D sigue pendiente del kernel horizontal.
+
+Alternativa para modo Character puro: **guardar copia** y cambiar en `Screen → Screen Mode` de *Multicolor Bitmap (Experimental)* a *C64 Multicolour Character*; esto desactiva el flag Bitmap, pero los colores por celda se reinterpretan. No hacerlo automáticamente desde el exportador.
+
+**WEB:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+**ZIP:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test323-explicit-character-projection.zip
+
+---
 # TEST322 — Corrección de dimensiones reales del Screen (26 OCT 2026)
 
 **Motivo:** En la WEB TEST321 el panel bloqueaba todo proyecto salvo exactamente Screen 40×25 o Screen 40×50 y un único frame, incluso al seleccionar *Export Frames: 1 To 1*. Un usuario trabajando en Multicolor Character recibió esa alerta al exportar.
