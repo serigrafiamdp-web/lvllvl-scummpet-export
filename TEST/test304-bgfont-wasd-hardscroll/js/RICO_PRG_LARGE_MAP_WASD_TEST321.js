@@ -1292,6 +1292,6 @@ ToPRGAdv.prototype.createPRG=function(args){
 };
 
 window.RICO_TEST173_WINDOW_STATIC_EXPORT={hasActiveMapScroll:hasActiveMapScroll,exportRicoWindowOnly:exportRicoWindowOnly};
-window.RICO_TEST168_PRG_LARGE_MAP={buildSource:buildSource,vertical:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],sourceMapSeparateFromVIC:true,colorMapBase:COLOR_DATA_BASE,perCellColors:true,sparseColorCommit:true,blankCellsUseDominantVisibleColor:true,doubleBuffer:true,pipelined8px:true,maxPalSpeed:'8px/frame'};
+window.RICO_TEST168_PRG_LARGE_MAP={buildSource:buildSource,vertical:true,wasd321:true,screenWidth:40,maxMapHeight:MAX_MAP_HEIGHT,windowHeights:[24,25],types:['up','down'],sourceMapSeparateFromVIC:true,colorMapBase:COLOR_DATA_BASE,perCellColors:true,sparseColorCommit:true,blankCellsUseDominantVisibleColor:true,doubleBuffer:true,pipelined8px:true,maxPalSpeed:'8px/frame'};
 console.log('[RICO TEST181] 40-column viewport export from wide source Screen, no classic fallback.');
 })();
