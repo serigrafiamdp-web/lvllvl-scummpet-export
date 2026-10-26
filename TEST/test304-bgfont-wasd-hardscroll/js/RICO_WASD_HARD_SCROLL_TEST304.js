@@ -497,9 +497,9 @@ function closeManual(){
    '<label style="display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px">'+
    '<span>Motor PRG</span><select id="rico304engine319" style="background:#3b3e45;color:#fff;'+
    'border:1px solid #666;padding:4px;border-radius:3px;max-width:190px">'+
-   '<option value="native">VIC-II original · TEST319</option>'+
+   '<option value="native">VIC-II original · TEST320 (HiRes / Char MC)</option>'+
    '<option value="character">Avance 8 px · TEST318</option></select></label>'+
-   '<div style="font-size:10px;opacity:.70;margin-top:5px">Original: HiRes 40×25, 1 frame, sin SID; 4 direcciones (experimental)</div>'+
+   '<div style="font-size:10px;opacity:.70;margin-top:5px">Original: HiRes o Multicolor Character 40×25, 1 frame, sin SID; Bitmap MC pendiente</div>'+
    '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">Editor: solo flechas · 1 celda por clic</div></div>';
   doc.body.appendChild(dlg);
   st.dialog=dlg;st.dialogOpen=true;st.keyboard=false;
@@ -844,9 +844,14 @@ function installExportCheckbox(){
      if(!layer319||!layer319.getType||layer319.getType()!=='grid'||
         (layer319.doc&&layer319.doc.ricoBitmapV1Enabled))
       throw Error('TEST319 original: solo HiRes Character, Layer Grid; Bitmap no admitido.');
-     var mode319=layer319.getScreenMode&&layer319.getScreenMode();
-     if(mode319==='c64multicolor')
-      throw Error('TEST319 inicial: HiRes Character únicamente.');
+     var mode319=layer319.getScreenMode&&layer319.getScreenMode(),
+      isCharMC320=mode319==='c64multicolor';
+     // Native TEST77 uses a character matrix. Mixed per-cell MC needs
+     // the existing TEST264 VIC bit4 + shared $D022/$D023 patch.
+     // Bitmap MC must NEVER be sent through character-mode TEST77.
+     if(isCharMC320&&(!w.RICO_TEST264_MULTICOLOR||
+          typeof w.RICO_TEST264_MULTICOLOR.patch!=='function'))
+      throw Error('TEST320 Multicolor Character: falta el módulo VIC-II Multicolor TEST264. Recargá la WEB.');
      var advanced319=sidAdvancedInstance(ed,true);
      if(!advanced319||typeof advanced319.createPRG!=='function')
       throw Error('No se encontró el motor ToPRGAdv original.');
@@ -858,8 +863,9 @@ function installExportCheckbox(){
      });
      if(generated319===false||!generated319||!generated319.length)
       throw Error('El ensamblador del motor tradicional no produjo PRG válido.');
-     st.lastExport={engine:'TEST319 ORIGINAL VIC-II FINE SCROLL + WASD',
+     st.lastExport={engine:isCharMC320?'TEST320 VIC-II MULTICOLOR CHARACTER + WASD':'TEST319 ORIGINAL VIC-II FINE SCROLL + WASD',
       speed:st.scrollSpeed,bytes:generated319.length,filename:name319,
+      mode:isCharMC320?'Multicolor Character':'HiRes Character',
       sid:false,diagonal:false,map:'40×25'};
      w.RICO_TEST319_LAST_EXPORT=st.lastExport;
      return generated319;
@@ -909,5 +915,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST319',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST320',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
