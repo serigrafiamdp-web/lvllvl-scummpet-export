@@ -69,7 +69,7 @@ function build(source,scrollSpeed,autoScroll){
       TABLE_COL_HI=fastColor317?0x3300:0x1300,
       TABLE_TILE_LO=fastColor317?0x3400:0x1400,
       TABLE_TILE_HI=fastColor317?0x3500:0x1500;
-  var c=assemble(fastColor317?0x2000:0x1000),b=c.b,I=c.I,A=c.A,L=c.L,J=c.J,R=c.R,uid=c.fresh;
+  var c=assemble(fastColor317?0x2800:0x1000),b=c.b,I=c.I,A=c.A,L=c.L,J=c.J,R=c.R,uid=c.fresh;
  // ZP E0/E1 map pointer, E2/E3 destination screen, E4/E5 color,
  // E6/E7 destination bitmap, E8/E9 atlas char,
  // EF tile id, F0 input movement, F1 displayed buffer,
@@ -151,16 +151,33 @@ function build(source,scrollSpeed,autoScroll){
   J(0x4c,'poll');
   L('deltaReallyMoved315');J(0x20,'renderDelta315');
  }else J(0x20,'renderWindow');
- J(0x20,'waitRaster252');
+ if(fastColor317){
+  // TEST318: visual left (camera +X) has raster-safe Color RAM updates.
+  // Other directions preserve the original TEST317 path.
+  I(0xa9,0);I(0x85,0xed);
+  I(0xa5,0xee);R(0xd0,'normalRaster318');
+  I(0xa5,0xef);I(0xc9,1);R(0xd0,'normalRaster318');
+  J(0x20,'colorShiftLeftRaster318');
+  I(0xa9,1);I(0x85,0xed);
+  J(0x4c,'rasterReady318');
+  L('normalRaster318');J(0x20,'waitRaster252');
+  L('rasterReady318');
+ }else J(0x20,'waitRaster252');
  I(0xa5,0xf1);R(0xf0,'swapSecond');
  // F1=1: renderWindow just populated first (low) display bank.
  if(mc){A(0xad,0xdd00);I(0x29,252);I(0x09,2);A(0x8d,0xdd00);}
  I(0xa9,mc?0x78:0x14);A(0x8d,0xd018);
- I(0xa9,0);I(0x85,0xf1);if(fastColor317)J(0x20,'colorShift317');else copyColor('copyColorOne');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
+ I(0xa9,0);I(0x85,0xf1);if(fastColor317){
+  I(0xa5,0xed);R(0xd0,'skipColorCopyBankOne318');
+  J(0x20,'colorShift317');L('skipColorCopyBankOne318');
+ }else copyColor('copyColorOne');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
  L('swapSecond');
  if(mc){A(0xad,0xdd00);I(0x29,252);A(0x8d,0xdd00);}
  I(0xa9,mc?0x18:0x24);A(0x8d,0xd018);
- I(0xa9,1);I(0x85,0xf1);if(fastColor317)J(0x20,'colorShift317');else copyColor('copyColorTwo');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
+ I(0xa9,1);I(0x85,0xf1);if(fastColor317){
+  I(0xa5,0xed);R(0xd0,'skipColorCopyBankTwo318');
+  J(0x20,'colorShift317');L('skipColorCopyBankTwo318');
+ }else copyColor('copyColorTwo');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
  camInc(0xf9,a.height,'incCameraY');camDec(0xf9,a.height,'decCameraY');
  camInc(0xf6,a.width,'incCameraX');camDec(0xf6,a.width,'decCameraX');
  L('waitRaster252');L('rasterLoop');A(0xad,0xd012);I(0xc9,252);R(0x90,'rasterLoop');b(0x60);
@@ -336,6 +353,34 @@ function build(source,scrollSpeed,autoScroll){
  // Preserves per-cell colors (0-15) without copying Color RAM shadows.
  // All screen codes still use tested TEST315 double-buffer renderer.
  if(fastColor317){
+
+  // Raster-safe in-place screen-left movement, 8 pixels per step.
+  // Copy row n only AFTER the VIC-II scanned the prior image at raster
+  // 58+8*n. Repaint incoming right column from the correct color shadow.
+  // The new screen buffer is enabled only after all 25 rows have changed.
+  L('colorShiftLeftRaster318');
+  for(var row318=0;row318<25;row318++){
+   var start318=row318*40,raster318=58+row318*8,
+       name318='rasterLeft318row'+row318;
+   L(name318);
+   A(0xad,0xd012);I(0xc9,raster318);R(0xd0,name318);
+   I(0xa2,0);L(name318+'bulk');
+   for(var i318=0;i318<8;i318++){
+    A(0xbd,0xd800+start318+1+i318);
+    A(0x9d,0xd800+start318+i318);
+   }
+   b(0x8a);b(0x18);I(0x69,8);b(0xaa);
+   I(0xe0,32);R(0xd0,name318+'bulk');
+   for(var i318=32;i318<39;i318++){
+    A(0xad,0xd800+start318+1+i318);
+    A(0x8d,0xd800+start318+i318);
+   }
+   I(0xa5,0xf1);R(0xf0,name318+'fromSecond');
+   A(0xad,color1+start318+39);J(0x4c,name318+'store');
+   L(name318+'fromSecond');A(0xad,color2+start318+39);
+   L(name318+'store');A(0x8d,0xd800+start318+39);
+  }
+  b(0x60);
   L('colorShift317');
   I(0xa5,0xee);I(0xc9,1);R(0xf0,'colorDyPos317');
   I(0xc9,255);R(0xf0,'colorDyNeg317');
@@ -517,7 +562,7 @@ function build(source,scrollSpeed,autoScroll){
    physicalX:m.physicalX,physicalY:m.physicalY},
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'Full configured LVLLVL source, cyclic over Scroll Area instead of 40x25 window',
-  rendererOptimization:mc?'unchanged bitmap':fastColor317?'TEST317 Color RAM in-place shifting + edge-only recolor':fastChar315?'TEST315 shifted double-buffer + border-only redraw':'TEST314 narrow viewport fallback',
+  rendererOptimization:mc?'unchanged bitmap':fastColor317?'TEST318 raster-chased left border / TEST317 other directions':fastChar315?'TEST315 shifted double-buffer + border-only redraw':'TEST314 narrow viewport fallback',
   scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed,autoMapScroll:auto?{...auto,actualStepPixels:8}:null};
 }
 w.RICO_TEST307_FULLMAP={version:'TEST307',makePRG:build};
