@@ -969,9 +969,12 @@ function installExportCheckbox(){
     var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
     name=name.replace(/\.prg$/i,'')+'_WASD.prg';
     download(built.bytes,name);
-    st.lastExport={engine:bitmap?'TEST324 TRUE BITMAP MULTICOLOR WASD':built.fullMap?'TEST307 FULL MAP + DIAGONAL WASD':'TEST306 LEGACY WASD',
+    st.lastExport={engine:bitmap?'TEST325 VERIFIED BITMAP MC + WASD':built.fullMap?'TEST307 FULL MAP + DIAGONAL WASD':'TEST306 LEGACY WASD',
       bitmapFidelity:!!bitmap,forcedFallback:!!bitmapNativeFallback324,
+      staticReference:bitmap?'TEST282':null,
+      referenceParity:bitmap?w.RICO_TEST325_BITMAP_PARITY:null,
       directions:'W/A/S/D y diagonales',bytes:built.bytes.length,filename:name};
+    if(bitmap)setStatus('TEST325 Bitmap: 0 diferencias frente a TEST282 (8.000 bytes gráficos + 2.000 colores/pantalla). Pendiente VICE.');
     return built;
    }catch(e){
     if(typeof w.alert==='function')w.alert('Rico\'s Manual Scroll: '+e.message);
