@@ -1,3 +1,37 @@
+# TEST325 — Bitmap MC: lectura canónica y prueba diferencial de píxeles y colores
+
+**26 OCT 2026. Rama aislada:** `release/test325-bitmap-reference-pixel-parity` basada en TEST324. TEST324, TEST323, TEST318 y MASTER quedan intactos. **No es VICE PASS.**
+
+## Motivo
+
+El usuario sigue observando HiRes/Multicolor mezclados con el motor de WASD Bitmap de TEST324. Cambiar automáticamente de motor o desactivar el flag Bitmap no corrige el origen y puede introducir errores nuevos. Inspección técnica reveló que el exportador estático de referencia **TEST282** usa `TileSet.getData()[tile]` para extraer las matrices de bits por par, mientras que la captura WASD utilizaba `tileData[t].data[0]`. Estos orígenes pueden divergir después de ediciones/cambio de banco y provocar patrones o modos visualmente incorrectos.
+
+## Corrección concreta (NO cambia los modos)
+
+1. En Bitmap Multicolor, el WASD usa **exactamente la fuente `TileSet.getData()` y el empaquetado de cuatro pares de 2 bits por byte de TEST282**, aplicando 00/01/10/11 y sin introducir conversiones HiRes/Character. Las exportaciones HiRes/Multicolor Character mantienen el código anterior sin modificaciones.
+2. Se calcula el bitmap de los primeros 40×25 a partir de esa tabla. Se invoca `RICO_TEST282_BITMAP.encode(editor)` (fuente independiente conocida) y se comparan **8.000 bytes gráficos**, **1.000 bytes de Screen** y **1.000 bytes de Color RAM**. Si falta la referencia, faltan tiles o difiere siquiera un byte, se cancela la exportación y aparece un mensaje con la primera diferencia y cantidades. Nunca se exportan datos discrepantes a ciegas.
+3. El panel muestra `TEST325 Bitmap: 0 diferencias frente a TEST282` en los casos que pasan y guarda los contadores en `RICO_TEST325_BITMAP_PARITY` y `RICO_TEST304.getState().lastExport.referenceParity`.
+4. Con Bitmap verdadero sigue la ruta del motor de pantalla completa de 8 píxeles con WASD y diagonales, que conserva tres colores por celda; la reinterpretación Bitmap→Character **sigue eliminada**. La ruta original de mapa vertical TEST321/322 no cambia y todavía no funciona horizontalmente en mapas grandes.
+5. **Ningún módulo central se modifica:** solo `RICO_WASD_HARD_SCROLL_TEST304.js`, el index cache-bust y este README de TEST325. No hay nuevas pruebas residuales.
+
+## Comprobaciones internas (fixture sintético, NO VICE)
+
+- TileSet canónico diferente deliberadamente de `tileData` antiguo: `TEST282` y TEST325 coincidieron en los 8.000 bytes gráficos y 2.000 bytes de pantalla/colores, generando PRG de 36.721 bytes sobre mapa de 40×50.
+- Se alteró **un byte** de la referencia TEST282: el exportador bloqueó el PRG y mostró `bitmap=1, screen=0, color=0`.
+- Simulación de inicialización 6502 del generador TEST307 hasta el primer `poll`: 0 discrepancias entre bitmap inicial en **$6000**, Screen en **$5C00**, Color RAM en **$D800** y la fuente; VIC: `$D011=$3B, $D016=$18, $D018=$78, $DD00&3=2` (banco VIC $4000).
+- Estas pruebas no validan hardware al cambiar buffers, los ciclos raster ni que los datos del proyecto concreto sean correctos. Si VICE aún muestra mezcla, necesitamos comparar el archivo de proyecto y PRG defectuoso reales contra el Bitmap estático de referencia antes de retocar hardware.
+
+## Protocolo claro para VICE
+
+1. Abrir <https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/> y recargar Ctrl+F5.
+2. Con el proyecto original Bitmap Multicolor, en Rico's Manual Scroll seleccionar `Avance 8 px`, WASD marcado, No Music y exportar PRG.
+3. Verificar que el panel diga `0 diferencias frente a TEST282`; ejecutar PRG en VICE, probar primero imagen quieta y luego W/S/A/D y diagonales.
+4. Si aún se ve mal, exportar **el PRG estático TEST282** del mismo frame. Si ambos se ven mal, probablemente hay conflicto entre la fuente gráfica y modo Bitmap deseado; si solo se ve mal el PRG WASD, analizar el cambio de buffers y el mapa real de memoria. **No convertir automáticamente Bitmap a Character**.
+5. Para reproducir de forma concluyente, guardar y proporcionar el `JSON` del proyecto LVLLVL y el `PRG` defectuoso junto con la captura. No marcar TEST325 PASS sin comparar en VICE.
+
+**ZIP:** https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test325-bitmap-reference-pixel-parity.zip
+
+---
 # TEST324 — Restauración del Bitmap Multicolor real y WASD
 
 **Fecha: 26 OCT 2026 · Rama:** `release/test324-bitmap-fidelity-wasd-restore` · Base TEST323. **PENDIENTE VICE**.
