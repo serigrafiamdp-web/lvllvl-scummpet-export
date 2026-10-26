@@ -1,3 +1,43 @@
+# TEST316 — HiRes Character, copia rápida de pantalla sin SID
+
+**25 octubre de 2026** · Base: TEST315 PASS observado (~16,7 movimientos completos de 8px/segundo en VICE, sin SID). Rama aislada: `release/test316-batched-character-copy`. **Pendiente VICE real.**
+
+## Objetivo
+Acercar WASD a la referencia de Map Scroll tradicional HiRes (~50 pasos/s reportados por captura) sin reducir la cantidad de colores, modificar el mapa ni fingir más FPS. No se promete llegar a 50 aún.
+
+## Técnica aplicada al PRG Manual WASD *sin SID*
+
+1. HiRes 40×25, viewport completo desde (0,0): núcleo `deltaFastFullCopy316` de 6502 autocodificado en RAM; copia desde el buffer de screen anterior al nuevo, y su sombra de colores, usando cuatro bloques de 256 bytes (1024 bytes totales por plano). Para evitar cálculo de direcciones y comprobaciones por carácter, parchea únicamente los operandos origen/destino de las cuatro instrucciones absolutas indexadas por X. Trabaja con los dos buffers existentes y conserva el redibujado exacto de la fila/columna entrante.
+2. Viewports más pequeños o desplazados físicamente: rutinas TEST315 + unrolled cuatro celdas por iteración y tail de 0..3 celdas, sin cambiar el dibujo ni el uso del mapa.
+3. Bitmap Multicolor: **mismo código funcional** que TEST315, sin optimizar ni variar su ruta. El generador construye el mismo PRG Bitmap si el resto del proyecto es idéntico.
+4. HiRes + SID y Mixed Multicolor + SID: ruta `RICO_FULLMAP_SID_WASD_TEST311.js` **idéntica byte a byte a TEST315**. Se modificó solamente el generador sin música. Los scrolls automáticos originales TEST313 y checkbox de TEST312 tampoco se tocaron.
+
+## Simulación y contraste (no equiparar al rendimiento de VICE)
+
+- Se probaron W, S, A, D, W+A, W+D, S+A, S+D con un mapa 40×50, viewport 40×25, arranque en (39,49), desplazamientos sucesivos y wrapping. **8/8 con 0 errores de 1.000 códigos de caracteres y 1.000 colores** por imagen.
+- Pruebas previas de copiado por lotes para ventanas 40×25, 38×24, 37×23, 2×3 y 1×1, ocho direcciones: 40/40 verificaciones sin diferencia de contenido frente a TEST315. Para ventanas 1×N o N×1 rige el fallback TEST314.
+- Para pantalla completa HiRes, la simulación CPU 6502 encontró que la transferencia de operandos absolutos/X puede cruzar el umbral del raster en **horizontal A (3 → 2 cuadros)**, mientras W y diagonales siguen en tres cuadros. No extrapolar un valor absoluto para todas las direcciones.
+- Cifras para A: TEST315 ≈58.970 ciclos entre movimientos, TEST316 ≈39.314; modelo PAL ≈16,7 → 25 pasos de 8px/s. W y diagonales ≈58.970 ciclos en ambos. Otras direcciones dependen de datos, timing PAL, VIC DMA, y no se garantizan esos valores.
+- Fuente TEST316 incluye `deltaFastFullCopy316` solo cuando `cols=40,rows=25,physicalX=0,physicalY=0`: 1.750 bytes ASM. Ventana pequeña usa 1.797 bytes; ambos caben bajo el límite de 2.032 bytes de $0810–$0FFF.
+
+## Precaución de hardware
+
+- Copia 1.024 bytes dentro de cada reserva de 1KB: los últimos 24 bytes no corresponden al área visible de 1.000 celdas y se usan como padding; sprites se mantienen desactivados. El programa usa código modificable en RAM como forma de ahorrar ciclos.
+- La simulación 6502 no modela los ciclos robados por VIC ni reemplaza una prueba en VICE. Conectar SID no es objetivo del benchmark TEST316, ni se debe atribuir a esta prueba una mejora musical.
+- Aunque A se acerca a 25 pasos/s, **todavía no se alcanzaron 50**. El próximo cuello de botella es el commit completo de 1.000 bytes a Color RAM y el coste de bordes/direcciones verticales.
+
+## Prueba de VICE sugerida
+
+HiRes 40×25, mismo mapa de TEST315, `Rico's Manual Scroll`: seleccionar *Máxima · sin pausa* y marcar *Export with WASD Scroll Control*. Exportar PRG normal sin SID. Comparar A/D, W/S y dos diagonales mediante captura a 50 FPS. Comparar visualmente continuidad de Color RAM, wrap y velocidad sostenida, no solo ráfagas.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test316-batched-character-copy.zip
+
+**Conservar:** TEST315, TEST314, TEST313, TEST312, TEST311 y MASTER intactos. No marcar TEST316 PASS hasta VICE.
+
+---
+
 # TEST315 — HiRes Character: reutilizar buffer + pintar únicamente bordes
 
 **Fecha:** 25 OCT 2026. Base: `release/test314-character-row-index-speed`. Rama nueva: `release/test315-border-only-char-scroll`.
