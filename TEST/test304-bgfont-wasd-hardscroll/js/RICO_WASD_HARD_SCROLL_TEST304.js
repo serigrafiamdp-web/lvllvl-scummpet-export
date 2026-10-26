@@ -41,10 +41,31 @@ function capture(){
   glyphs=bank===2?settings.ricoCharsetBank2&&settings.ricoCharsetBank2.tileData:ts.tileData;
  if(!glyphs)throw Error('Charset BANK'+bank+' no encontrado.');
  var atlas=new Uint8Array(2048),ids=new Uint8Array(1000),fg=new Uint8Array(1000);
- for(var t=0;t<256;t++)for(var row=0;row<8;row++){
-  var p=glyphs[t]&&glyphs[t].data&&glyphs[t].data[0]||[],v=0;
-  for(var col=0;col<8;col++)if(p[row*8+col])v|=128>>col;
-  atlas[t*8+row]=v;
+ if(bm){
+  // This is byte-for-byte the pixel-pair algorithm from static TEST282.
+  // Do not use tileData snapshots that can lag behind ts.getData().
+  var canonical325=ts.getData&&ts.getData();
+  if(!canonical325||canonical325.length<256)
+   throw Error('TEST325: TileSet.getData no disponible para Bitmap; PRG cancelado.');
+  for(var c325=0;c325<256;c325++){
+   var tile325=canonical325[c325];
+   if(!tile325||tile325.length<64)
+    throw Error('TEST325: tile '+c325+' incompleto en el Bitmap; PRG cancelado.');
+   for(var y325=0;y325<8;y325++){
+    var v325=0;
+    for(var q325=0;q325<4;q325++){
+     var k325=y325*8+q325*2;
+     v325|=((tile325[k325]?2:0)|(tile325[k325+1]?1:0))<<(6-2*q325);
+    }
+    atlas[c325*8+y325]=v325;
+   }
+  }
+ }else{
+  for(var t=0;t<256;t++)for(var row=0;row<8;row++){
+   var pixels=glyphs[t]&&glyphs[t].data&&glyphs[t].data[0]||[],v=0;
+   for(var col=0;col<8;col++)if(pixels[row*8+col])v|=128>>col;
+   atlas[t*8+row]=v;
+  }
  }
  var ww=l.getGridWidth(),hh=l.getGridHeight();
  for(var y=0;y<25;y++)for(var x=0;x<40;x++){
@@ -83,7 +104,38 @@ function capture(){
   }catch(groupError){ /* MAP is independent of group exporter. */ }
   src.bitmap=bitmap;src.screen=screen;src.color=color;
  }
- // Mixed Character preserves per-cell Color RAM bit3 (0..7 HiRes, 8..15 Multicolor).
+ // TEST325: independent known-good TEST282 reference for the FIRST frame.
+ // Compare all 8000 raster bytes and all 2000 screen/color bytes.
+ // Never deliver a Bitmap WASD PRG if this comparison fails.
+ if(bm){
+  if(!w.RICO_TEST282_BITMAP||typeof w.RICO_TEST282_BITMAP.encode!=='function')
+   throw Error('TEST325: falta el encoder Bitmap TEST282. Recargá la página.');
+  var reference325=w.RICO_TEST282_BITMAP.encode(e),wrongPixel325=0,wrongScreen325=0,
+      wrongColor325=0,firstWrong325='';
+  for(var vv325=0;vv325<1000;vv325++){
+   if(screen[vv325]!==reference325.screen[vv325]){
+    wrongScreen325++;if(!firstWrong325)firstWrong325='screen #'+vv325;
+   }
+   if(color[vv325]!==reference325.color[vv325]){
+    wrongColor325++;if(!firstWrong325)firstWrong325='color #'+vv325;
+   }
+   for(var rr325=0;rr325<8;rr325++){
+    var k325=vv325*8+rr325;
+    if(bitmap[k325]!==reference325.bitmap[k325]){
+     wrongPixel325++;if(!firstWrong325)firstWrong325='bitmap byte #'+k325;
+    }
+   }
+  }
+  w.RICO_TEST325_BITMAP_PARITY={
+   pixelBytes:wrongPixel325,screenBytes:wrongScreen325,colorBytes:wrongColor325,
+   reference:'TEST282 static',size:ww+'×'+hh
+  };
+  if(wrongPixel325||wrongScreen325||wrongColor325)
+   throw Error('TEST325 diferencia frente a Bitmap estático TEST282: '+firstWrong325+
+    '; bitmap='+wrongPixel325+', screen='+wrongScreen325+', color='+wrongColor325+
+    '. No se exportó un PRG incorrecto.');
+ }
+ // Mixed Character uses Color RAM bit3 (0..7 HiRes, 8..15 MC).
 
  // TEST307: retain every configured map cell, not just the 40x25 viewport.
  // Packing keeps the full level in 16K of CPU RAM at $8000-$BFFF;
@@ -917,9 +969,12 @@ function installExportCheckbox(){
     var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
     name=name.replace(/\.prg$/i,'')+'_WASD.prg';
     download(built.bytes,name);
-    st.lastExport={engine:bitmap?'TEST324 TRUE BITMAP MULTICOLOR WASD':built.fullMap?'TEST307 FULL MAP + DIAGONAL WASD':'TEST306 LEGACY WASD',
+    st.lastExport={engine:bitmap?'TEST325 VERIFIED BITMAP MC + WASD':built.fullMap?'TEST307 FULL MAP + DIAGONAL WASD':'TEST306 LEGACY WASD',
       bitmapFidelity:!!bitmap,forcedFallback:!!bitmapNativeFallback324,
+      staticReference:bitmap?'TEST282':null,
+      referenceParity:bitmap?w.RICO_TEST325_BITMAP_PARITY:null,
       directions:'W/A/S/D y diagonales',bytes:built.bytes.length,filename:name};
+    if(bitmap)setStatus('TEST325 Bitmap: 0 diferencias frente a TEST282 (8.000 bytes gráficos + 2.000 colores/pantalla). Pendiente VICE.');
     return built;
    }catch(e){
     if(typeof w.alert==='function')w.alert('Rico\'s Manual Scroll: '+e.message);
@@ -960,5 +1015,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST324',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST325',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
