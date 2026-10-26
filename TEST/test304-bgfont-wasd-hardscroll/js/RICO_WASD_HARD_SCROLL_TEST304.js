@@ -832,6 +832,13 @@ function installExportCheckbox(){
   if(st.exportWithWASD){
    // TEST324: do not feed true Bitmap data to the Character VIC exporter.
    var bitmapNativeFallback324=bitmap&&st.scrollEngine319==='native';
+   if(bitmapNativeFallback324){
+    // A user must see the real engine selected for this export.
+    st.scrollEngine319='character';
+    var engineSelect324=doc.getElementById('rico304engine319');
+    if(engineSelect324)engineSelect324.value='character';
+    setStatus('Bitmap: motor de 8 px fiel, WASD en ocho direcciones. Más lento que Character VIC-II.');
+   }
    // No SID selected: manual WASD PRG is independent from the musical player.
    var type=doc.getElementById('exportPRGType');
    if(type&&type.value==='d64'){
