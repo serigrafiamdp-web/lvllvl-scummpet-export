@@ -159,6 +159,12 @@ function collect(self,args){
   var cfg=wasd321?{type:'up',ticksPerStep:clamp(args.ricoWASD321Speed,1,255,1),pixelsPerStep:8}:getCfg(ed,0),type=(cfg&&cfg.type)||'';
   if(type!=='up'&&type!=='down')throw new Error('Para este movimiento falta una rutina de mapa grande. Se preservo el mapa original y el MASTER.');
   var win=getWindowCfg(ed,0),area=wasd321?{x:0,y:0,width:40,height:s.height}:getScrollAreaCfg(ed,0);
+  if(wasd321){
+    // TEST168's VIC always uses a 40-column source; an editor viewport 38x24
+    // is projected onto the native 40x24 hardware window for vertical scroll.
+    win={x:0,y:clamp(win&&win.y,0,s.height-25,0),
+         width:40,height:win&&Number(win.height)===24?24:25};
+  }
   win={x:clamp(win.x,0,s.width-1,0),y:clamp(win.y,0,s.height-1,0),width:clamp(win.width,1,s.width,40),height:clamp(win.height,1,s.height,25)};
   area={x:clamp(area.x,0,s.width-1,0),y:clamp(area.y,0,s.height-1,0),width:clamp(area.width,1,s.width,40),height:clamp(area.height,1,s.height,25)};
   if(win.x!==0||win.width!==40||(win.height!==24&&win.height!==25))throw new Error("Para TEST84 usa Window X=0, ancho 40 y alto 24 o 25.");
