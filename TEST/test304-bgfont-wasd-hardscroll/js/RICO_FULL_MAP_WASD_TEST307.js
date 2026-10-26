@@ -8,7 +8,7 @@
 'use strict';
 var BASE=0x0810,MAP=0x8000,TABLE_ROW_LO=0x1000,TABLE_ROW_HI=0x1100,
     TABLE_COL_LO=0x1200,TABLE_COL_HI=0x1300,TABLE_TILE_LO=0x1400,TABLE_TILE_HI=0x1500;
-function assemble(){
+function assemble(codeLimit){
  var bytes=[],labels={},fix=[],sequence=0;
  function b(v){bytes.push(v&255);}
  function I(op,value){b(op);b(value);}
@@ -23,7 +23,7 @@ function assemble(){
    if(f.relative){var delta=dest-(BASE+f.at+1);if(delta< -128||delta>127)throw Error('Relative branch too far '+f.label+': '+delta);bytes[f.at]=delta&255;}
    else{bytes[f.at]=dest&255;bytes[f.at+1]=dest>>8;}
   }
-  if(BASE+bytes.length>0x1000)throw Error('TEST307 ASM de '+bytes.length+' bytes sobrepasa $1000.');
+  if(BASE+bytes.length>(codeLimit||0x1000))throw Error('TEST317 ASM de '+bytes.length+' bytes sobrepasa $'+(codeLimit||0x1000).toString(16)+'.');
   return{code:new Uint8Array(bytes),labels};
  }
  return{b,I,A,L,J,R,fresh,finish};
@@ -49,7 +49,6 @@ function build(source,scrollSpeed,autoScroll){
  if(!mc&&!hi&&!mixed)throw Error('TEST315 admite HiRes, Multicolor Character mixto y Bitmap Multicolor.');
  var m=source.fullMap,a=m.area,cols=m.viewWidth,rows=m.viewHeight,count=m.width*m.height,sz=mc?3:2;
  var fastChar315=!mc&&cols>1&&rows>1;
- var fastFull316=fastChar315&&cols===40&&rows===25&&m.physicalX===0&&m.physicalY===0;
  if(m.width>255||m.height>255||a.width>255||a.height>255||sz*count>16384)
   throw Error('TEST307: el mapa excede la RAM disponible (16KB) o 255 celdas/eje.');
  if(!cols||!rows||cols>40||rows>25||a.width<cols||a.height<rows)
@@ -58,7 +57,19 @@ function build(source,scrollSpeed,autoScroll){
      color1=mc?0x3800:0x2800,color2=mc?0x3c00:0x2c00,
      bitmap1=0x6000,bitmap2=0xe000,atlasBase=mc?0x4000:0x5000,
      phys=(m.physicalY*40+m.physicalX)|0,skip=40-cols;
- var c=assemble(),b=c.b,I=c.I,A=c.A,L=c.L,J=c.J,R=c.R,uid=c.fresh;
+ // Only exact 40x25 HiRes (no SID) uses in-place Color RAM shift.
+  // Relocate all lookup tables above the extended 6502 code; keep
+  // original addresses and binary unmodified for Bitmap/other viewports.
+  var fastColor317=hi&&cols===40&&rows===25&&m.physicalX===0&&m.physicalY===0;
+  // Local table-address shadowing: building a HiRes PRG must never change
+  // the lookup addresses of a later Bitmap export in the same browser.
+  var TABLE_ROW_LO=fastColor317?0x3000:0x1000,
+      TABLE_ROW_HI=fastColor317?0x3100:0x1100,
+      TABLE_COL_LO=fastColor317?0x3200:0x1200,
+      TABLE_COL_HI=fastColor317?0x3300:0x1300,
+      TABLE_TILE_LO=fastColor317?0x3400:0x1400,
+      TABLE_TILE_HI=fastColor317?0x3500:0x1500;
+  var c=assemble(fastColor317?0x2000:0x1000),b=c.b,I=c.I,A=c.A,L=c.L,J=c.J,R=c.R,uid=c.fresh;
  // ZP E0/E1 map pointer, E2/E3 destination screen, E4/E5 color,
  // E6/E7 destination bitmap, E8/E9 atlas char,
  // EF tile id, F0 input movement, F1 displayed buffer,
@@ -145,11 +156,11 @@ function build(source,scrollSpeed,autoScroll){
  // F1=1: renderWindow just populated first (low) display bank.
  if(mc){A(0xad,0xdd00);I(0x29,252);I(0x09,2);A(0x8d,0xdd00);}
  I(0xa9,mc?0x78:0x14);A(0x8d,0xd018);
- I(0xa9,0);I(0x85,0xf1);copyColor('copyColorOne');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
+ I(0xa9,0);I(0x85,0xf1);if(fastColor317)J(0x20,'colorShift317');else copyColor('copyColorOne');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
  L('swapSecond');
  if(mc){A(0xad,0xdd00);I(0x29,252);A(0x8d,0xdd00);}
  I(0xa9,mc?0x18:0x24);A(0x8d,0xd018);
- I(0xa9,1);I(0x85,0xf1);copyColor('copyColorTwo');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
+ I(0xa9,1);I(0x85,0xf1);if(fastColor317)J(0x20,'colorShift317');else copyColor('copyColorTwo');if(extraFrames>0)J(0x20,'extraDelayFrames');J(0x4c,'poll');
  camInc(0xf9,a.height,'incCameraY');camDec(0xf9,a.height,'decCameraY');
  camInc(0xf6,a.width,'incCameraX');camDec(0xf6,a.width,'decCameraX');
  L('waitRaster252');L('rasterLoop');A(0xad,0xd012);I(0xc9,252);R(0x90,'rasterLoop');b(0x60);
@@ -264,31 +275,15 @@ function build(source,scrollSpeed,autoScroll){
   L('deltaYNegDone315');
   I(0xa9,cols);I(0x85,0xf2);I(0xa5,0xef);R(0xf0,'deltaKeepWidth315');I(0xc6,0xf2);L('deltaKeepWidth315');
   I(0xa9,rows);I(0x85,0xf4);I(0xa5,0xee);R(0xf0,'deltaKeepHeight315');I(0xc6,0xf4);L('deltaKeepHeight315');
-  if(fastFull316){J(0x20,'deltaFastFullCopy316');}
-  else{
   L('deltaRow315');
-  // TEST316: batch 4 source/destination cells per branch. Carry 0..3
-  // tail cells explicitly, including view widths 1..40 and diagonals.
-  I(0xa9,0xfc);I(0x25,0xf2);I(0x85,0xec); // bulkWidth = F2 & 0xFC
   I(0xa0,0);
-  I(0xa5,0xec);R(0xf0,'deltaTail316');
-  L('deltaBatch316');
-  for(var q316=0;q316<4;q316++){
-   I(0xb1,0xe0);I(0x91,0xe2);
-   I(0xb1,0xe4);I(0x91,0xe6);
-   b(0xc8);
-  }
-  I(0xc4,0xec);R(0xd0,'deltaBatch316');
-  L('deltaTail316');
-  I(0xc4,0xf2);R(0xf0,'deltaRowAdvance316');
-  L('deltaTailCell316');
+  L('deltaCopyCell315');
   I(0xb1,0xe0);I(0x91,0xe2);
-  I(0xb1,0xe4);I(0x91,0xe6);
-  b(0xc8);I(0xc4,0xf2);R(0xd0,'deltaTailCell316');
-  L('deltaRowAdvance316');
-  addPtr(0xe0,40);addPtr(0xe2,40);addPtr(0xe4,40);addPtr(0xe6,40);
+  if(!fastColor317){I(0xb1,0xe4);I(0x91,0xe6);}
+  b(0xc8);I(0xc4,0xf2);R(0xd0,'deltaCopyCell315');
+  addPtr(0xe0,40);addPtr(0xe2,40);
+  if(!fastColor317){addPtr(0xe4,40);addPtr(0xe6,40);}
   I(0xc6,0xf4);R(0xd0,'deltaRow315');
-  }
   I(0xa5,0xee);R(0xf0,'deltaNoRow315');J(0x20,'deltaEdgeRow315');
   L('deltaNoRow315');
   I(0xa5,0xef);R(0xf0,'deltaNoCol315');J(0x20,'deltaEdgeCol315');
@@ -336,33 +331,140 @@ function build(source,scrollSpeed,autoScroll){
   incrementWrapped315(0xf5,a.height,'deltaColYNoWrap315');
   I(0xc6,0xf4);R(0xd0,'deltaDrawCol315');
   b(0x60);
-  if(fastFull316){
-   // C64 screen: 1,000 visible bytes, 1,024 bytes per bank allocated.
-   // Dynamic absolute,X source/destination operands are patched at runtime.
-   // Four page transfers include the 24 sprite-pointer/spare bytes;
-   // sprites stay off, and the true edge row/column is redrawn afterward.
-   L('deltaFastFullCopy316');
-   var patches316=[
-    ['delta316srcScreen',0xe0],['delta316dstScreen',0xe2],
-    ['delta316srcColor',0xe4],['delta316dstColor',0xe6]
-   ];
-   for(var p316 of patches316){
-    I(0xa5,p316[1]);J(0x8d,p316[0]+'Lo');
-    I(0xa5,p316[1]+1);J(0x8d,p316[0]+'Hi');
+ }
+ // TEST317: direct in-place Color RAM scroll for full-screen HiRes only.
+ // Preserves per-cell colors (0-15) without copying Color RAM shadows.
+ // All screen codes still use tested TEST315 double-buffer renderer.
+ if(fastColor317){
+  L('colorShift317');
+  I(0xa5,0xee);I(0xc9,1);R(0xf0,'colorDyPos317');
+  I(0xc9,255);R(0xf0,'colorDyNeg317');
+  L('colorDyZero317');
+  I(0xa5,0xef);I(0xc9,1);R(0xf0,'colorDxOnlyPos317');
+  J(0x4c,'colorMove_m1');
+  L('colorDxOnlyPos317');J(0x4c,'colorMove_p1');
+  L('colorDyPos317');
+  I(0xa5,0xef);I(0xc9,1);R(0xf0,'colorYposXpos317');
+  I(0xc9,255);R(0xf0,'colorYposXneg317');
+  J(0x4c,'colorMove_p40');
+  L('colorYposXpos317');J(0x4c,'colorMove_p41');
+  L('colorYposXneg317');J(0x4c,'colorMove_p39');
+  L('colorDyNeg317');
+  I(0xa5,0xef);I(0xc9,1);R(0xf0,'colorYnegXpos317');
+  I(0xc9,255);R(0xf0,'colorYnegXneg317');
+  J(0x4c,'colorMove_m40');
+  L('colorYnegXpos317');J(0x4c,'colorMove_m39');
+  L('colorYnegXneg317');J(0x4c,'colorMove_m41');
+  // Each movement has an overlap-safe forward or backward copy; linear
+  // 40x25 indexing may cross row borders but those edge cells are repainted.
+  for(var shift317 of [1,-1,40,-40,39,41,-39,-41]){
+   var id317=(shift317>0?'p':'m')+Math.abs(shift317),
+       count317=1000-Math.abs(shift317),pages317=Math.floor(count317/256),
+       tail317=count317%256;
+   L('colorMove_'+id317);
+   if(shift317>0){
+    for(var page317=0;page317<pages317;page317++){
+     I(0xa2,0);var loop317='c317'+id317+'p'+page317;L(loop317);
+     for(var k317=0;k317<8;k317++){
+      A(0xbd,0xd800+shift317+page317*256+k317*1);
+      A(0x9d,0xd800+page317*256+k317*1);
+     }
+     b(0x8a);b(0x18);I(0x69,8);b(0xaa);R(0xd0,loop317);
+    }
+    if(tail317){
+     var bulk317=tail317&~7,rem317=tail317-bulk317;
+     if(bulk317){
+      I(0xa2,0);var tailLabel317='c317'+id317+'tail';L(tailLabel317);
+      for(var k317=0;k317<8;k317++){
+       A(0xbd,0xd800+shift317+pages317*256+k317);
+       A(0x9d,0xd800+pages317*256+k317);
+      }
+      b(0x8a);b(0x18);I(0x69,8);b(0xaa);I(0xe0,bulk317);R(0xd0,tailLabel317);
+     }
+     for(var k317=bulk317;k317<tail317;k317++){
+      A(0xad,0xd800+shift317+pages317*256+k317);
+      A(0x8d,0xd800+pages317*256+k317);
+     }
+    }
+   }else{
+    var absShift317=-shift317;
+    for(var page317=0;page317<pages317;page317++){
+     var dstFirst317=999-page317*256-255;
+     I(0xa2,255);var loop317='c317'+id317+'p'+page317;L(loop317);
+     for(var k317=0;k317<8;k317++){
+      A(0xbd,0xd800+dstFirst317-absShift317-k317);
+      A(0x9d,0xd800+dstFirst317-k317);
+     }
+     b(0x8a);b(0x38);I(0xe9,8);b(0xaa);I(0xe0,255);R(0xd0,loop317);
+    }
+    if(tail317){
+     var dstStart317=999-pages317*256-(tail317-1),
+         bulk317=tail317&~7,rem317=tail317-bulk317;
+     if(bulk317){
+      I(0xa2,tail317-1);var tailLabel317='c317'+id317+'tail';L(tailLabel317);
+      for(var k317=0;k317<8;k317++){
+       A(0xbd,0xd800+dstStart317-absShift317-k317);
+       A(0x9d,0xd800+dstStart317-k317);
+      }
+      b(0x8a);b(0x38);I(0xe9,8);b(0xaa);I(0xe0,rem317-1);R(0xd0,tailLabel317);
+     }
+     for(var k317=rem317-1;k317>=0;k317--){
+      A(0xad,0xd800+dstStart317-absShift317+k317);
+      A(0x8d,0xd800+dstStart317+k317);
+     }
+    }
    }
-   I(0xa0,4); // four 256-byte pages
-   L('deltaCopyPage316');
-   I(0xa2,0);
-   L('deltaFastByte316');
-   for(var pair316 of [['delta316srcScreen','delta316dstScreen'],
-                       ['delta316srcColor','delta316dstColor']]){
-    b(0xbd);L(pair316[0]+'Lo');b(0);L(pair316[0]+'Hi');b(0);
-    b(0x9d);L(pair316[1]+'Lo');b(0);L(pair316[1]+'Hi');b(0);
+   J(0x4c,'colorBorders317');
+  }
+  // The destination shadow bank contains exact values for the new border
+  // cells written by deltaEdgeRow315 / deltaEdgeCol315 before VIC swap.
+  L('colorBorders317');
+  // $F1=0 means the first bank is now visible.
+  I(0xa5,0xf1);R(0xf0,'colorBankOne317');
+  I(0xa9,1);I(0x85,0xed);J(0x4c,'colorEdgeDispatch317');
+  L('colorBankOne317');I(0xa9,0);I(0x85,0xed);
+  L('colorEdgeDispatch317');
+  I(0xa5,0xee);R(0xf0,'colorNoRow317');
+  I(0xc9,1);R(0xf0,'colorBottom317');
+  I(0xa5,0xed);R(0xf0,'colorRowTopOne317');
+  J(0x20,'colorRowTopTwo317');J(0x4c,'colorNoRow317');
+  L('colorRowTopOne317');J(0x20,'colorRowTopOneBody317');J(0x4c,'colorNoRow317');
+  L('colorBottom317');
+  I(0xa5,0xed);R(0xf0,'colorRowBottomOne317');
+  J(0x20,'colorRowBottomTwo317');J(0x4c,'colorNoRow317');
+  L('colorRowBottomOne317');J(0x20,'colorRowBottomOneBody317');
+  L('colorNoRow317');
+  I(0xa5,0xef);R(0xf0,'colorDone317');
+  I(0xc9,1);R(0xf0,'colorRight317');
+  I(0xa5,0xed);R(0xf0,'colorColLeftOne317');
+  J(0x20,'colorColLeftTwo317');J(0x4c,'colorDone317');
+  L('colorColLeftOne317');J(0x20,'colorColLeftOneBody317');J(0x4c,'colorDone317');
+  L('colorRight317');
+  I(0xa5,0xed);R(0xf0,'colorColRightOne317');
+  J(0x20,'colorColRightTwo317');J(0x4c,'colorDone317');
+  L('colorColRightOne317');J(0x20,'colorColRightOneBody317');
+  L('colorDone317');b(0x60);
+  for(var bank317=0;bank317<=1;bank317++){
+   var source317=bank317?color2:color1,suffix317=bank317?'Two317':'OneBody317';
+   for(var atBottom317 of [false,true]){
+    var rowName317='colorRow'+(atBottom317?'Bottom':'Top')+suffix317;
+    L(rowName317);
+    I(0xa2,0);
+    L(rowName317+'Loop');
+    var rowBase317=atBottom317?960:0;
+    A(0xbd,source317+rowBase317);
+    A(0x9d,0xd800+rowBase317);
+    b(0xe8);I(0xe0,40);R(0xd0,rowName317+'Loop');b(0x60);
    }
-   b(0xe8);R(0xd0,'deltaFastByte316');
-   for(var p316 of patches316)J(0xee,p316[0]+'Hi');
-   b(0x88);R(0xd0,'deltaCopyPage316');
-   b(0x60);
+   for(var atRight317 of [false,true]){
+    var colName317='colorCol'+(atRight317?'Right':'Left')+suffix317;L(colName317);
+    for(var row317=0;row317<25;row317++){
+     var colOffset317=row317*40+(atRight317?39:0);
+     A(0xad,source317+colOffset317);
+     A(0x8d,0xd800+colOffset317);
+    }
+    b(0x60);
+   }
   }
  }
  // Bulk clear used only during startup, when the display is disabled.
@@ -415,7 +517,7 @@ function build(source,scrollSpeed,autoScroll){
    physicalX:m.physicalX,physicalY:m.physicalY},
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'Full configured LVLLVL source, cyclic over Scroll Area instead of 40x25 window',
-  rendererOptimization:mc?'unchanged bitmap':fastFull316?'TEST316 absolute-X 4-page fast full-screen copy':fastChar315?'TEST316 4-wide batched copy + border-only redraw':'TEST314 narrow viewport fallback',
+  rendererOptimization:mc?'unchanged bitmap':fastColor317?'TEST317 Color RAM in-place shifting + edge-only recolor':fastChar315?'TEST315 shifted double-buffer + border-only redraw':'TEST314 narrow viewport fallback',
   scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed,autoMapScroll:auto?{...auto,actualStepPixels:8}:null};
 }
 w.RICO_TEST307_FULLMAP={version:'TEST307',makePRG:build};
