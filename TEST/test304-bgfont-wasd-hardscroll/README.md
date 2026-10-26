@@ -1,3 +1,37 @@
+# TEST322 — Corrección de dimensiones reales del Screen (26 OCT 2026)
+
+**Motivo:** En la WEB TEST321 el panel bloqueaba todo proyecto salvo exactamente Screen 40×25 o Screen 40×50 y un único frame, incluso al seleccionar *Export Frames: 1 To 1*. Un usuario trabajando en Multicolor Character recibió esa alerta al exportar.
+
+**Nueva rama:** `release/test322-native-vic-dynamic-map-geometry`. Base TEST321. TEST321/TEST320/TEST319 y MASTER intactos.
+
+## Cambio concreto
+
+- El panel identifica dimensiones **reales de Screen**, independientes de Rico's Window: 40×25 mantiene motor W/A/S/D TEST319/320. Todo mapa con **ancho ≥40 y alto 26..255** usa el motor original de mapas grandes TEST168 adaptado TEST321, **solo W/S**. Se elimina el bloqueo por 40×50 exacto.
+- Se permiten documentos con varios frames SI la exportación pide **1 To 1**. El motor experimental usa únicamente frame 1 y no modifica los demás. No soporta transición multiframe ni exportación de otros rangos.
+- Para Screen más ancho que 40, usa una **proyección temporal 40-columnas** empezando en el X de Rico's Window (limitado a los bordes del Screen). Eso deja intacto el documento, conserva **todas las filas**, pero no habilita todavía scroll horizontal sobre el ancho total del Screen.
+- Multicolor Character conserva el módulo TEST264: VIC $D016 bit4 y $D022/$D023, colores de celda 0..15 mixtos HiRes/MC. Bitmap Multicolor sigue fuera de esta ruta nativa.
+- La alerta de dimensiones ahora incluye **Screen W×H y cantidad real de frames** detectados. Si el Screen tiene menos de 40 columnas o 25 filas, se informa el requisito concreto y no se genera un falso PRG.
+- Sin SID, sin diagonales en mapa grande. No modificar los motores originales compartidos TEST168/TEST77, ni las otras rutinas ya validadas. El editor conserva por defecto el motor de 8 píxeles TEST318; el VIC experimental es una selección explícita.
+
+## Validación interna (no equivale a VICE PASS)
+
+Simulando el flujo de exportación con el encoder ASM interceptado, pasaron:
+- Multicolor Character Screen 40×50, Window 38×24, frame 1.
+- Multicolor Character 40×63.
+- Multicolor Character 48×50, Window X=5, proyecta 40 columnas desde X=5 y retiene las 50 filas.
+- Multicolor Character 40×100 con 2 frames, Export Frames 1 To 1; solo se utiliza el primero.
+- Multicolor Character 40×25 continúa la ruta anterior.
+- Screen 39×50 y 40×24 reciben una alerta explícita con medidas reales, no generan PRG.
+- Fuente ASM contiene `poll_wasd321`, datos de mapa 40×N y parche MC activo; no se modifican los datos originales.
+
+**Pendiente:** ensamblador real en navegador, ejecución VICE, fidelidad de colores y velocidad en W/S. No marcar PASS antes de la prueba del usuario. Si la WEB informa medidas imprevistas, copiarlas: ahora conocemos cuál de las dimensiones produce el rechazo, sin especular.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test322-native-vic-dynamic-map-geometry.zip
+
+---
+
 # TEST321 — WASD VIC-II con Screen 40×50: primera fase vertical
 
 **Fecha:** 26 OCT 2026. Base TEST320. Rama aislada `release/test321-native-vic-40x50-vertical-wasd`. TEST320, TEST319, TEST318 y MASTER no se modificaron. **No es PASS de VICE.**
