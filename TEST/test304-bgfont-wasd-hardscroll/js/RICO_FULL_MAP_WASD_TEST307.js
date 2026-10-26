@@ -264,11 +264,25 @@ function build(source,scrollSpeed,autoScroll){
   I(0xa9,cols);I(0x85,0xf2);I(0xa5,0xef);R(0xf0,'deltaKeepWidth315');I(0xc6,0xf2);L('deltaKeepWidth315');
   I(0xa9,rows);I(0x85,0xf4);I(0xa5,0xee);R(0xf0,'deltaKeepHeight315');I(0xc6,0xf4);L('deltaKeepHeight315');
   L('deltaRow315');
+  // TEST316: batch 4 source/destination cells per branch. Carry 0..3
+  // tail cells explicitly, including view widths 1..40 and diagonals.
+  I(0xa9,0xfc);I(0x25,0xf2);I(0x85,0xec); // bulkWidth = F2 & 0xFC
   I(0xa0,0);
-  L('deltaCopyCell315');
+  I(0xa5,0xec);R(0xf0,'deltaTail316');
+  L('deltaBatch316');
+  for(var q316=0;q316<4;q316++){
+   I(0xb1,0xe0);I(0x91,0xe2);
+   I(0xb1,0xe4);I(0x91,0xe6);
+   b(0xc8);
+  }
+  I(0xc4,0xec);R(0xd0,'deltaBatch316');
+  L('deltaTail316');
+  I(0xc4,0xf2);R(0xf0,'deltaRowAdvance316');
+  L('deltaTailCell316');
   I(0xb1,0xe0);I(0x91,0xe2);
   I(0xb1,0xe4);I(0x91,0xe6);
-  b(0xc8);I(0xc4,0xf2);R(0xd0,'deltaCopyCell315');
+  b(0xc8);I(0xc4,0xf2);R(0xd0,'deltaTailCell316');
+  L('deltaRowAdvance316');
   addPtr(0xe0,40);addPtr(0xe2,40);addPtr(0xe4,40);addPtr(0xe6,40);
   I(0xc6,0xf4);R(0xd0,'deltaRow315');
   I(0xa5,0xee);R(0xf0,'deltaNoRow315');J(0x20,'deltaEdgeRow315');
@@ -369,7 +383,7 @@ function build(source,scrollSpeed,autoScroll){
    physicalX:m.physicalX,physicalY:m.physicalY},
   input:'Simultaneous held WASD; diagonal updates are atomic in one render',
   mapType:'Full configured LVLLVL source, cyclic over Scroll Area instead of 40x25 window',
-  rendererOptimization:mc?'unchanged bitmap':fastChar315?'TEST315 shifted double-buffer + border-only redraw':'TEST314 narrow viewport fallback',
+  rendererOptimization:mc?'unchanged bitmap':fastChar315?'TEST316 4-wide batched copy + border-only redraw':'TEST314 narrow viewport fallback',
   scrollSpeedFrames:extraFrames,scrollSpeedLevel:speed,autoMapScroll:auto?{...auto,actualStepPixels:8}:null};
 }
 w.RICO_TEST307_FULLMAP={version:'TEST307',makePRG:build};
