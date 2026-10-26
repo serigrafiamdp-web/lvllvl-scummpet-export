@@ -902,7 +902,7 @@ function installExportCheckbox(){
      if(large321&&(!w.RICO_TEST168_PRG_LARGE_MAP||!w.RICO_TEST168_PRG_LARGE_MAP.wasd321))
       throw Error('TEST322: no cargó el motor vertical para '+gridW+'×'+gridH+'. Ctrl+F5 para actualizar.');
      var generated319=advanced319.createPRG(large321?
-      {download:true,filename:name319.replace('TEST319','TEST322'),
+      {download:true,filename:name319.replace('TEST319','TEST323'),
        ricoWASD321:true,ricoWASD321Speed:st.scrollSpeed,gridWidth:gridW,gridHeight:gridH}:
       {download:true,filename:name319,ricoWASD319:true,
        ricoWASD319Speed:st.scrollSpeed,gridWidth:40,gridHeight:25}
@@ -911,7 +911,7 @@ function installExportCheckbox(){
       throw Error('El ensamblador del motor VIC-II no produjo PRG válido. Para 40×50 se utiliza el motor vertical TEST168.');
      st.lastExport={engine:large321?'TEST323 ORIGINAL VIC-II LARGE MAP VERTICAL WASD':isCharMC320?'TEST320 VIC-II MULTICOLOR CHARACTER + WASD':'TEST319 ORIGINAL VIC-II FINE SCROLL + WASD',
       speed:st.scrollSpeed,bytes:generated319.length,
-      filename:large321?name319.replace('TEST319','TEST321'):name319,
+      filename:large321?name319.replace('TEST319','TEST323'):name319,
       mode:isCharMC320?'Multicolor Character':'HiRes Character',
       sid:false,diagonal:false,map:gridW+'×'+gridH,
       directions:large321?'W/S solamente':'W/S/A/D',
