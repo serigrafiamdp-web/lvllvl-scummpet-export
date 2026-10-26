@@ -1,3 +1,49 @@
+# TEST319 — WASD sobre el motor original de Map Scroll VIC-II
+
+**Fecha:** 25/10/2026. Rama aislada: `release/test319-native-vic-wasd-cardinal`. Base: TEST318. **Estado: experimento para VICE, no PASS ni MASTER.**
+
+## Objetivo
+
+Reutilizar el motor ASM de Map Scroll tradicional (TEST77: fine-scroll de $D011/$D016, `step_up/step_down/step_left/step_right`, doble buffer, preparación anticipada, colores dispersos), agregando el movimiento manual mediante WASD, en vez de seguir reconstruyendo toda la pantalla con el motor de avance de 8 píxeles de TEST318.
+
+**Alcance de esta primera prueba**: **HiRes Character; Screen 40×25; un solo frame; sin SID; direcciones W/S/A/D individualmente; 8 píxeles por tick elegido**. No se ha implementado todavía desplazamiento diagonal simultáneo, mapa grande 40×50 ni coexistencia musical en este nuevo motor. Son las próximas fases si el sistema original responde correctamente.
+
+## Cómo utilizarlo
+
+1. Abrir la WEB TEST319.
+2. Cargar un proyecto HiRes Character de **40×25**, con **1 frame**. No Bitmap Multicolor ni mapa de 40×50 en esta primera prueba.
+3. Desde **Interfaz → Rico's Manual Scroll...**, marcar `Export with WASD Scroll Control`.
+4. En el selector **Motor PRG**, elegir `VIC-II original · TEST319`. La opción `Avance 8 px · TEST318` sigue siendo el valor predeterminado, para preservar los PASS previos.
+5. Mantener velocidad **Máxima** para comenzar. Exportar PRG normal, sin seleccionar SID.
+6. Ejecutar el PRG en VICE PAL y mantener W / S / A / D. Observar el fine-scroll del VIC-II, la inversión de dirección y los colores. Comparar contra TEST318 usando la misma imagen y el mismo formato 40×25.
+
+El selector de velocidad usa **ticks por paso** para el motor original (Máxima=1, 2/4/8/12 = ticks por paso), mientras que en el motor TEST318 utiliza las pausas adicionales previamente implementadas. No se deben comparar las etiquetas como si fuesen equivalentes en tiempo real.
+
+## Cambios técnicos
+
+- El código original compartido `js/RICO_PRG_MAP_SCROLL_SINGLE_FRAME_TEST77.js` permanece **idéntico a TEST318**. TEST319 agrega un solo fork experimental dentro del directorio de la prueba:
+  `TEST/test304-bgfont-wasd-hardscroll/js/RICO_PRG_MAP_SCROLL_NATIVE_TEST319.js`
+- `index.html` de esta WEB utiliza dicho fork en lugar de cargar el módulo original compartido. Sus cambios se activan **únicamente** cuando la exportación lleva `ricoWASD319:true`. El resto de los modos sigue el camino original del antiguo TEST77/TEST168.
+- `RICO_WASD_HARD_SCROLL_TEST304.js` agrega selector de motor al panel ya existente y envía la exportación con bandera experimental al `ToPRGAdv.createPRG` original, sin pasar por el generador de pantallas completas TEST307/318.
+- En la rutina original C64, al comenzar se deja `scroll_type=0`. En cada IRQ, `poll_wasd319` consulta CIA1 `$DC00/$DC01`, detecta W/S/A/D y asigna dinámicamente `scroll_type=1/2/3/4`. Sin teclas, `scroll_type=0`, por lo que no avanza. Si hay preparación de pantalla, colores pendientes o bloqueo del motor, aplaza el cambio para respetar sus operaciones ya iniciadas.
+- A diferencia de TEST318, el movimiento usa la **rutina de fine-scroll original y su preparación de colores**, no la copia completa del bitmap ni `colorShift317`.
+- Una dirección se acepta por IRQ (prioridad W, S, A, D si se sostienen varias teclas). **No hay diagonales simultáneas en TEST319** y el cambio rápido de eje necesita validación real. No declarar que soporta diagonales en esta primera fase.
+- Cuando la opción original está elegida en un proyecto distinto de HiRes 40×25 y 1 frame, aparece un error explícito y **no se exporta falsamente una pantalla fija**. Para proyectos grandes, elegir el motor TEST318.
+
+## Verificaciones internas
+
+- El generador JavaScript original más su bandera TEST319 crea el ASM de teclado + las cuatro rutinas de Map Scroll original: PASS de estructura.
+- No se detectaron etiquetas ASM duplicadas en el fuente de 2.508 líneas generado para 40×25, y todas las referencias esperadas están presentes.
+- Con un ensamblador simulado se comprobó que la ruta `ToPRGAdv` recibe correctamente la bandera, y una exportación normal sin bandera retorna a su exportador original, sin mutaciones.
+- Prueba del formulario: exportación TEST319 HiRes 40×25 llama a `ToPRGAdv`; casos 40×50 y Multicolor se detienen con mensajes explícitos.
+- **Pendiente:** ensamblado real con el ensamblador LVLLVL en navegador y ejecución VICE; timing PAL, calidad visual, inversión W↔S y A↔D, cambios de eje y respuesta en reposo. Si falla, registrar error y no marcar PASS.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test319-native-vic-wasd-cardinal.zip
+
+---
+
 # TEST318 — Corrección de borde derecho en scroll visual hacia izquierda
 
 **Fecha:** 25 OCT 2026. Nueva rama aislada: `release/test318-left-border-raster-colors`, basada en TEST317. TEST317 queda intacto como referencia de velocidad. Estado: PASS simulación CPU 6502, **pendiente prueba VICE**.
