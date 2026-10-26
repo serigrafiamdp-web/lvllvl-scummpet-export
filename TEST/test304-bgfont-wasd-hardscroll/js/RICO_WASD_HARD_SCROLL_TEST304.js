@@ -870,10 +870,12 @@ function installExportCheckbox(){
      var input319=doc.getElementById('exportPRGAs'),
       name319=(input319&&input319.value&&input319.value.trim()||'RICO').replace(/[.]prg$/i,'')+'_VIC_WASD_TEST319.prg';
      var large321=gridH>25;
+     // The source may have more frames, but this native WASD experiment
+     // intentionally exports the first frame only (1 To 1), no mutation.
      if(large321&&(!w.RICO_TEST168_PRG_LARGE_MAP||!w.RICO_TEST168_PRG_LARGE_MAP.wasd321))
       throw Error('TEST322: no cargó el motor vertical para '+gridW+'×'+gridH+'. Ctrl+F5 para actualizar.');
      var generated319=advanced319.createPRG(large321?
-      {download:true,filename:name319.replace('TEST319','TEST321'),
+      {download:true,filename:name319.replace('TEST319','TEST322'),
        ricoWASD321:true,ricoWASD321Speed:st.scrollSpeed,gridWidth:gridW,gridHeight:gridH}:
       {download:true,filename:name319,ricoWASD319:true,
        ricoWASD319Speed:st.scrollSpeed,gridWidth:40,gridHeight:25}
