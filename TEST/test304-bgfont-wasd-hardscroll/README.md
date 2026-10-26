@@ -1,3 +1,51 @@
+# TEST321 — WASD VIC-II con Screen 40×50: primera fase vertical
+
+**Fecha:** 26 OCT 2026. Base TEST320. Rama aislada `release/test321-native-vic-40x50-vertical-wasd`. TEST320, TEST319, TEST318 y MASTER no se modificaron. **No es PASS de VICE.**
+
+## Fallo observado y diagnóstico
+
+El usuario trabaja en **Multicolour Character Mode** con un mapa Screen **40×50** y un solo frame. En TEST320 el selector `VIC-II original` rechazaba explícitamente `gridHeight!==25` con el mensaje `TEST319 original: por ahora solo mapa 40×25...`. Eso no es una deficiencia de Multicolor ni del registro VIC, sino una restricción de tamaño de los núcleos del experimento TEST319/320.
+
+En el repositorio el motor original de Map Scroll de mapas grandes, **TEST168** (`RICO_PRG_LARGE_MAP_UNLOCK_TEST168.js`), trabaja sobre **40×N**, con origen de mapa completo, dos screen buffers, control fino de $D011, gestión de Color RAM y rutinas ASM de avance **vertical Up/Down**. Su scroll horizontal para pantallas >25 filas usa un recorte estático de Window a 25 filas y NO permite recorrer todo 40×50 en ambos ejes simultáneamente.
+
+## Implementación
+
+1. Nuevo fork **aislado** `TEST/test304-bgfont-wasd-hardscroll/js/RICO_PRG_LARGE_MAP_WASD_TEST321.js`, copia adaptada de TEST168. El archivo compartido original permanece inalterado.
+2. Para **40×50, un frame, HiRes Character o Multicolor Character, sin SID**, el selector `VIC-II original · TEST321` manda un argumento `ricoWASD321:true` al exportador avanzado, que usa el motor de mapa 40×50 y un lector CIA1 de teclas:
+   - **W:** motor rápido vertical Up
+   - **S:** motor rápido vertical Down
+   - **A/D:** **aún no disponibles en el motor nativo de mapa grande**. No se simula una falsa ruta lateral. Para desplazamiento A/D en 40×50 elegir **Avance 8 px · TEST318**.
+3. `prep_request` inicialmente 0 para que la pantalla quede quieta sin teclas; `poll_wasd321` solo en estado sin preparación pendiente, para mantener la coherencia de buffers/colores. En el IRQ se programa W/S; main_loop prepara el siguiente buffer en RAM, `commit_fast8` intercambia screen y aplica colores; al finalizar se consulta nuevamente el teclado. Se conserva la rutina original, sin sustituirla con copia manual TEST317.
+4. Para vista 38×24 en el editor, durante exportación se usa una **vista hardware de 40×24** sobre el mapa 40×50 (sin editar coordenadas ni recortar el origen del mapa). Si el usuario tenía 40×25 se usa 40×25. La gestión de Scroll Area vertical usa la altura real de 50 filas.
+5. El módulo **TEST264 Multicolor** continúa adaptando todas las escrituras de $D016 (bit4), $D022/$D023 y conservando Color RAM por celda: HiRes 0..7, Multicolor 8..15. **Bitmap Multicolor queda bloqueado**. No declarar compatibilidad Bitmap.
+6. Para **40×25** sigue la ruta TEST319/320 con cuatro direcciones WASD. Para otro tamaño, uso del motor 8px anterior o mensaje claro. Todos los elementos de datos del proyecto se leen para exportar sin mutar el original.
+
+## Pruebas internas
+
+- Exportación simulada de flujo completo ToPRGAdv+TEST264+TEST321+panel: **40×50 Multicolor Character, Window 38×24**, genera ruta grande, detecta lector W/S, Map Screen=40×50, VIC Multicolor habilitado, colores compartidos y proyecto sin cambio de altura.
+- 40×50 HiRes con vista 40×25 genera el mismo motor grande sin activar Multicolor.
+- 40×25 Multicolor conserva ruta TEST320, sin truncamiento.
+- 40×50 Bitmap MC no pasa al motor de caracteres.
+- El test emplea un **ensamblador simulado**, no prueba el ensamblado real ni la ejecución de VICE. No afirmar que W/S sea PASS antes de validarlo.
+- **Limitación:** aún no hay desplazamiento horizontal nativo 40×50 ni diagonales. No se promete superar la velocidad del Map Scroll tradicional. TEST168 dispone de modos de color adaptativos: un mapa denso en colores distintos puede costar más CPU que uno uniforme.
+
+## Prueba sugerida
+
+Abrir WEB TEST321, cargar **el mismo proyecto Multicolor Character de 40×50**, un frame, **sin SID**. En `Rico's Manual Scroll`:
+- `Export with WASD Scroll Control`: marcado.
+- `Motor PRG`: `VIC-II original · TEST321 (HiRes / Char MC)`.
+- `Velocidad`: **Máxima · sin pausa**.
+- Exportar **PRG**. Ejecutar en VICE PAL y mantener **W**, luego **S**, invertir W/S y observar que use todas las 50 filas y conserve colores.
+- Para A/D por ahora cambiar a `Avance 8 px · TEST318`.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test321-native-vic-40x50-vertical-wasd.zip
+
+**Estado:** fuente y ruta de exportación comprobadas; VICE pendiente. Las rutinas horizontales originales 40×25 y el MASTER están intactos.
+
+---
+
 # TEST320 — WASD del motor original VIC-II en Multicolor Character
 
 **Fecha:** 26 OCT 2026. **Rama experimental:** `release/test320-native-vic-character-multicolor`. Base TEST319, TEST318/MASTER no modificados.
