@@ -8,7 +8,7 @@
 'use strict';
 var PRE='rico304',W=40,H=25,SZ=1000;
 var colors=['#000000','#ffffff','#813338','#75cec8','#8e3c97','#56ac4d','#2e2c9b','#edf171','#8e5029','#553800','#c46c71','#4a4a4a','#7b7b7b','#a9ff9f','#706deb','#b2b2b2'];
-var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null,scrollSpeed:1};
+var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null,scrollSpeed:1,scrollEngine319:'native'};
 function mod(n,k){return(n%k+k)%k;}
 function equal(a,b){return a.length===b.length&&a.every(function(v,i){return v===b[i];});}
 function clone(s){return{kind:s.kind,tiles:s.tiles.slice(),fg:s.fg.slice(),atlas:s.atlas.slice(),bg:s.bg,
@@ -494,6 +494,12 @@ function closeManual(){
    '<option value="1">Máxima · sin pausa</option><option value="2">Rápida · +8 cuadros</option>'+
    '<option value="4">Media · +16 cuadros</option><option value="8">Lenta · +32 cuadros</option>'+
    '<option value="12">Muy lenta · +64 cuadros</option></select></label>'+
+   '<label style="display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px">'+
+   '<span>Motor PRG</span><select id="rico304engine319" style="background:#3b3e45;color:#fff;'+
+   'border:1px solid #666;padding:4px;border-radius:3px;max-width:190px">'+
+   '<option value="native">VIC-II original · TEST319</option>'+
+   '<option value="character">Avance 8 px · TEST318</option></select></label>'+
+   '<div style="font-size:10px;opacity:.70;margin-top:5px">Original: HiRes 40×25, 1 frame, sin SID; 4 direcciones (experimental)</div>'+
    '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">Editor: solo flechas · 1 celda por clic</div></div>';
   doc.body.appendChild(dlg);
   st.dialog=dlg;st.dialogOpen=true;st.keyboard=false;
@@ -504,6 +510,8 @@ function closeManual(){
   check.onchange=function(){setExportWASD(check.checked);};
   var speed=doc.getElementById('rico304speed');
   if(speed){speed.value=String(st.scrollSpeed);speed.onchange=function(){setScrollSpeed(speed.value);};}
+  var engine319=doc.getElementById('rico304engine319');
+  if(engine319){engine319.value=st.scrollEngine319;engine319.onchange=function(){st.scrollEngine319=engine319.value;};}
   var buttons=dlg.querySelectorAll('.rico304arrow');
   for(var i=0;i<buttons.length;i++){
    var btn=buttons[i];
@@ -822,6 +830,40 @@ function installExportCheckbox(){
     return oldExport.apply(this,arguments);
    }
    try{
+    if(st.scrollEngine319==='native'){
+     // TEST319 bypasses the rebuilt 8px character blitter and invokes
+     // the ACTUAL original ToPRGAdv TEST77 VIC-II fine-scroller.
+     // Its wide map / diagonal / SID variants are not validated.
+     if(!ed||!ed.graphic||!ed.layers)throw Error('Falta el editor activo.');
+     var gridW=ed.graphic.getGridWidth?ed.graphic.getGridWidth():0,
+      gridH=ed.graphic.getGridHeight?ed.graphic.getGridHeight():0,
+      frameCount=ed.graphic.getFrameCount?ed.graphic.getFrameCount():(ed.graphic.frames||[]).length,
+      layer319=ed.layers.getSelectedLayerObject();
+     if(gridW!==40||gridH!==25||frameCount!==1)
+      throw Error('TEST319 original: por ahora solo mapa 40×25, un frame. Para 40×50 seleccioná "Avance 8 px · TEST318".');
+     if(!layer319||!layer319.getType||layer319.getType()!=='grid'||
+        (layer319.doc&&layer319.doc.ricoBitmapV1Enabled))
+      throw Error('TEST319 original: solo HiRes Character, Layer Grid; Bitmap no admitido.');
+     var mode319=layer319.getScreenMode&&layer319.getScreenMode();
+     if(mode319==='c64multicolor')
+      throw Error('TEST319 inicial: HiRes Character únicamente.');
+     var advanced319=sidAdvancedInstance(ed,true);
+     if(!advanced319||typeof advanced319.createPRG!=='function')
+      throw Error('No se encontró el motor ToPRGAdv original.');
+     var input319=doc.getElementById('exportPRGAs'),
+      name319=(input319&&input319.value&&input319.value.trim()||'RICO').replace(/[.]prg$/i,'')+'_VIC_WASD_TEST319.prg';
+     var generated319=advanced319.createPRG({
+      download:true,filename:name319,ricoWASD319:true,ricoWASD319Speed:st.scrollSpeed,
+      gridWidth:40,gridHeight:25
+     });
+     if(generated319===false||!generated319||!generated319.length)
+      throw Error('El ensamblador del motor tradicional no produjo PRG válido.');
+     st.lastExport={engine:'TEST319 ORIGINAL VIC-II FINE SCROLL + WASD',
+      speed:st.scrollSpeed,bytes:generated319.length,filename:name319,
+      sid:false,diagonal:false,map:'40×25'};
+     w.RICO_TEST319_LAST_EXPORT=st.lastExport;
+     return generated319;
+    }
     var snapshot=capture(),built=makePRG(snapshot.source,st.scrollSpeed);
     var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
     name=name.replace(/\.prg$/i,'')+'_WASD.prg';
@@ -867,5 +909,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST313',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST319',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
