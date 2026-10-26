@@ -1,40 +1,49 @@
-# TEST316 — HiRes Character, copia rápida de pantalla sin SID
+# TEST317 — HiRes, Color RAM in-place y actualización de bordes (25/10/2026)
 
-**25 octubre de 2026** · Base: TEST315 PASS observado (~16,7 movimientos completos de 8px/segundo en VICE, sin SID). Rama aislada: `release/test316-batched-character-copy`. **Pendiente VICE real.**
+**Base preservada:** TEST315, referencia empírica VICE ~16,7 pasos/segundo. Branch `release/test317-color-ram-inplace-scroll`. No se modifican TEST315, TEST316, TEST314, TEST313, TEST311 ni MASTER.
 
-## Objetivo
-Acercar WASD a la referencia de Map Scroll tradicional HiRes (~50 pasos/s reportados por captura) sin reducir la cantidad de colores, modificar el mapa ni fingir más FPS. No se promete llegar a 50 aún.
+## Hipótesis y alcance
 
-## Técnica aplicada al PRG Manual WASD *sin SID*
+TEST315 copia la pantalla + otra sombra de 1.000 colores a un segundo buffer, hace el intercambio de pantalla y después reescribe 1.000 bytes de Color RAM. TEST316 aceleró algunos accesos pero no logró mejorar la cadencia sostenida observada. TEST317 reemplaza esa secuencia para **HiRes Character de ventana completa 40×25 sin SID**, conservando los colores originales por celda.
 
-1. HiRes 40×25, viewport completo desde (0,0): núcleo `deltaFastFullCopy316` de 6502 autocodificado en RAM; copia desde el buffer de screen anterior al nuevo, y su sombra de colores, usando cuatro bloques de 256 bytes (1024 bytes totales por plano). Para evitar cálculo de direcciones y comprobaciones por carácter, parchea únicamente los operandos origen/destino de las cuatro instrucciones absolutas indexadas por X. Trabaja con los dos buffers existentes y conserva el redibujado exacto de la fila/columna entrante.
-2. Viewports más pequeños o desplazados físicamente: rutinas TEST315 + unrolled cuatro celdas por iteración y tail de 0..3 celdas, sin cambiar el dibujo ni el uso del mapa.
-3. Bitmap Multicolor: **mismo código funcional** que TEST315, sin optimizar ni variar su ruta. El generador construye el mismo PRG Bitmap si el resto del proyecto es idéntico.
-4. HiRes + SID y Mixed Multicolor + SID: ruta `RICO_FULLMAP_SID_WASD_TEST311.js` **idéntica byte a byte a TEST315**. Se modificó solamente el generador sin música. Los scrolls automáticos originales TEST313 y checkbox de TEST312 tampoco se tocaron.
+**Cambios concretos:**
 
-## Simulación y contraste (no equiparar al rendimiento de VICE)
+1. `renderDelta315` sigue reconstruyendo el offscreen *screen matrix* 40×25 y dibuja solamente los bordes entrantes, pero **evita copiar los colores de 960-975 celdas de un shadow al otro**; solo pinta en la sombra destino los colores de filas/columnas nuevas.
+2. Al cambiar de screen bank durante el raster ~252, `colorShift317` **desplaza directamente los colores ya existentes en Color RAM $D800-$DBE7**, con 8 rutinas especializadas para W/S/A/D y las cuatro diagonales. Para no pisar los bytes que aún debe leer, el sentido de copia es creciente con desplazamientos +1/+39/+40/+41 y decreciente con desplazamientos -1/-39/-40/-41.
+3. Las transferencias de Color RAM procesan **8 bytes por iteración**, con resto generado directamente; los bordes nuevos (40 para una fila, 25 para una columna) se rellenan desde las sombras de colores a las que el renderer escribió los códigos correctos al dibujar el borde.
+4. Para disponer de ~4,6 KB de ASM especializado, las tablas de direcciones ROW/COL del **modo HiRes de pantalla completa únicamente** se ubican en $3000-$35FF. El núcleo empieza en $0810 y termina antes de $2000. Bitmap MC y otros tamaños conservan tablas $1000-$15FF y ejecutable idéntico a TEST315.
+5. El SID no se modifica ni participa: `RICO_FULLMAP_SID_WASD_TEST311.js` se conserva **byte por byte** de TEST315. Los menús, el checkbox WASD, el selector de velocidades y el Map Scroll tradicional tampoco se modifican.
 
-- Se probaron W, S, A, D, W+A, W+D, S+A, S+D con un mapa 40×50, viewport 40×25, arranque en (39,49), desplazamientos sucesivos y wrapping. **8/8 con 0 errores de 1.000 códigos de caracteres y 1.000 colores** por imagen.
-- Pruebas previas de copiado por lotes para ventanas 40×25, 38×24, 37×23, 2×3 y 1×1, ocho direcciones: 40/40 verificaciones sin diferencia de contenido frente a TEST315. Para ventanas 1×N o N×1 rige el fallback TEST314.
-- Para pantalla completa HiRes, la simulación CPU 6502 encontró que la transferencia de operandos absolutos/X puede cruzar el umbral del raster en **horizontal A (3 → 2 cuadros)**, mientras W y diagonales siguen en tres cuadros. No extrapolar un valor absoluto para todas las direcciones.
-- Cifras para A: TEST315 ≈58.970 ciclos entre movimientos, TEST316 ≈39.314; modelo PAL ≈16,7 → 25 pasos de 8px/s. W y diagonales ≈58.970 ciclos en ambos. Otras direcciones dependen de datos, timing PAL, VIC DMA, y no se garantizan esos valores.
-- Fuente TEST316 incluye `deltaFastFullCopy316` solo cuando `cols=40,rows=25,physicalX=0,physicalY=0`: 1.750 bytes ASM. Ventana pequeña usa 1.797 bytes; ambos caben bajo el límite de 2.032 bytes de $0810–$0FFF.
+**Importante:** sigue copiando la pantalla de caracteres al buffer secundario; lo que se evita es copiar la sombra completa de colores además del commit completo. No se promete 1 frame PAL ni compatibilidad con todas las restricciones de raster y Color RAM sin prueba VICE.
 
-## Precaución de hardware
+## Mediciones de simulador 6502 (sin VIC DMA / no son VICE)
 
-- Copia 1.024 bytes dentro de cada reserva de 1KB: los últimos 24 bytes no corresponden al área visible de 1.000 celdas y se usan como padding; sprites se mantienen desactivados. El programa usa código modificable en RAM como forma de ahorrar ciclos.
-- La simulación 6502 no modela los ciclos robados por VIC ni reemplaza una prueba en VICE. Conectar SID no es objetivo del benchmark TEST316, ni se debe atribuir a esta prueba una mejora musical.
-- Aunque A se acerca a 25 pasos/s, **todavía no se alcanzaron 50**. El próximo cuello de botella es el commit completo de 1.000 bytes a Color RAM y el coste de bordes/direcciones verticales.
+Mapa 40×50, viewport 40×25, inicio cámara (39,49), 4 capturas de pantalla por dirección, con valores de carácter y color distintos por celda:
 
-## Prueba de VICE sugerida
+| Dirección | TEST315 | TEST317 | Resultado simulado |
+|---|---:|---:|---|
+| W | ~58.966 ciclos | ~39.318 ciclos | 3 a 2 frames |
+| S | ~58.971 ciclos | ~39.311 ciclos | 3 a 2 frames |
+| A | ~58.970 ciclos | ~39.319 ciclos | 3 a 2 frames |
+| D | ~58.971 ciclos | ~39.312 ciclos | 3 a 2 frames |
+| W+A | ~58.976 ciclos | ~58.972 ciclos | 3 frames, pendiente |
+| W+D | ~58.968 ciclos | ~39.321 ciclos | 3 a 2 frames |
+| S+A | ~58.967 ciclos | ~39.413 ciclos | 3 a 2 frames |
+| S+D | ~58.968 ciclos | ~39.317 ciclos | 3 a 2 frames |
 
-HiRes 40×25, mismo mapa de TEST315, `Rico's Manual Scroll`: seleccionar *Máxima · sin pausa* y marcar *Export with WASD Scroll Control*. Exportar PRG normal sin SID. Comparar A/D, W/S y dos diagonales mediante captura a 50 FPS. Comparar visualmente continuidad de Color RAM, wrap y velocidad sostenida, no solo ráfagas.
+PASS interno 8/8: **cero discrepancias en 1.000 caracteres de pantalla y 1.000 colores en cada captura** tras desplazamientos repetidos y wrapping. W+A no mejora en número entero de frames con este modelo; seguir investigando ajuste de cadencia y coste del border renderer.
+
+- Comparación binaria de los PRG entre TEST315 y TEST317: **Bitmap Multicolor, Mixed Character y HiRes con ventana 38×24 son idénticos byte por byte**. Solo cambia el binario HiRes 40×25 de viewport completo.
+- El programa HiRes optimizado mide 4.591 bytes de ASM ($0810-$19FE), con Lookup Tables por encima en $3000-$35FF.
+- La simulación no modela el bus ocupado por VIC-II ni la apariencia real del commit de colores. Los writes directos a Color RAM pueden mostrar tearing si no se coordinan con el barrido; **evaluar visualmente en VICE antes de aceptar PASS**.
+
+**Objetivo de prueba de usuario:** Mismo proyecto HiRes 40×50, vista 40×25, WASD activado, `Máxima · sin pausa`, SID NO cargado. Capturar A/D, W/S y W+A durante movimiento continuo a 50 FPS y comparar con TEST315. Confirmar fidelidad de colores y ausencia de líneas/colores parpadeantes.
 
 WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
 
-ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test316-batched-character-copy.zip
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test317-color-ram-inplace-scroll.zip
 
-**Conservar:** TEST315, TEST314, TEST313, TEST312, TEST311 y MASTER intactos. No marcar TEST316 PASS hasta VICE.
+**Estado:** simulación CPU PASS; **VICE pendiente**, no incorporar al MASTER.
 
 ---
 
