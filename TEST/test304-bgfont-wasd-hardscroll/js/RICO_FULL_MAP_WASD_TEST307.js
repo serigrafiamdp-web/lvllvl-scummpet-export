@@ -60,7 +60,7 @@ function build(source,scrollSpeed,autoScroll){
  // Only exact 40x25 HiRes (no SID) uses in-place Color RAM shift.
   // Relocate all lookup tables above the extended 6502 code; keep
   // original addresses and binary unmodified for Bitmap/other viewports.
-  var fastColor317=!mc&&cols===40&&rows===25&&m.physicalX===0&&m.physicalY===0;
+  var fastColor317=hi&&cols===40&&rows===25&&m.physicalX===0&&m.physicalY===0;
   // Local table-address shadowing: building a HiRes PRG must never change
   // the lookup addresses of a later Bitmap export in the same browser.
   var TABLE_ROW_LO=fastColor317?0x3000:0x1000,
