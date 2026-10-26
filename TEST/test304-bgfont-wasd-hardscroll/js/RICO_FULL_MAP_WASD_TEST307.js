@@ -61,11 +61,14 @@ function build(source,scrollSpeed,autoScroll){
   // Relocate all lookup tables above the extended 6502 code; keep
   // original addresses and binary unmodified for Bitmap/other viewports.
   var fastColor317=!mc&&cols===40&&rows===25&&m.physicalX===0&&m.physicalY===0;
-  if(fastColor317){
-   TABLE_ROW_LO=0x3000;TABLE_ROW_HI=0x3100;
-   TABLE_COL_LO=0x3200;TABLE_COL_HI=0x3300;
-   TABLE_TILE_LO=0x3400;TABLE_TILE_HI=0x3500;
-  }
+  // Local table-address shadowing: building a HiRes PRG must never change
+  // the lookup addresses of a later Bitmap export in the same browser.
+  var TABLE_ROW_LO=fastColor317?0x3000:0x1000,
+      TABLE_ROW_HI=fastColor317?0x3100:0x1100,
+      TABLE_COL_LO=fastColor317?0x3200:0x1200,
+      TABLE_COL_HI=fastColor317?0x3300:0x1300,
+      TABLE_TILE_LO=fastColor317?0x3400:0x1400,
+      TABLE_TILE_HI=fastColor317?0x3500:0x1500;
   var c=assemble(fastColor317?0x2000:0x1000),b=c.b,I=c.I,A=c.A,L=c.L,J=c.J,R=c.R,uid=c.fresh;
  // ZP E0/E1 map pointer, E2/E3 destination screen, E4/E5 color,
  // E6/E7 destination bitmap, E8/E9 atlas char,
