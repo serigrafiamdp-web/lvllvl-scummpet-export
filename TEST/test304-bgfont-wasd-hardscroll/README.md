@@ -1,3 +1,40 @@
+# TEST318 — Corrección de borde derecho en scroll visual hacia izquierda
+
+**Fecha:** 25 OCT 2026. Nueva rama aislada: `release/test318-left-border-raster-colors`, basada en TEST317. TEST317 queda intacto como referencia de velocidad. Estado: PASS simulación CPU 6502, **pendiente prueba VICE**.
+
+## Motivo
+
+El usuario observa una pequeña anomalía transitoria de color en el borde opuesto al scroll de la imagen hacia izquierda (tecla A en el PRG HiRes, cámara +X). TEST317 terminaba con Color RAM correcta en el simulador, pero ejecutaba `STA $D018` para activar la pantalla nueva ANTES de copiar toda Color RAM y repintar el borde derecho. El VIC podía dibujar filas de la pantalla nueva con colores viejos mientras el CPU actualizaba $D800–$DBE7; es tearing de Color RAM temporal, no necesariamente un fallo de indexación.
+
+## Solución acotada de TEST318
+
+Solo para **HiRes Character 40×25 sin SID**, movimiento **A (visual izquierda, sin diagonal)**:
+
+- Conserva `renderDelta315` con doble buffer y actualización del borde entrante.
+- **No cambia a la pantalla nueva inmediatamente.** Emplea `colorShiftLeftRaster318`: 25 pequeños bloques ASM, uno por fila, sincronizados con el raster PAL `58+8*fila` (58, 66, …, 250). Cada bloque actualiza la Color RAM de su fila DESPUÉS de que el VIC terminó de mostrar esa fila de la imagen antigua.
+- Cada bloque mueve 39 colores a izquierda, en orden creciente (seguro ante solapamiento), y **escribe explícitamente el último color de la columna derecha** desde la sombra destino `$2800` o `$2C00`, usando el banco real de destino. No depende del dato previamente arrastrado ni permite que ese borde quede pendiente al avanzar a la siguiente fila.
+- Solo después de actualizar las 25 filas se ejecuta el cambio de Screen RAM ($D018). Se omite la copia de color de TEST317 para ese movimiento, porque ya quedó completada antes del flip.
+- El programa HiRes de pantalla completa ahora usa $0810–$263B para ASM y tablas ROW/COL en $3000–$35FF. Color shadows $2800 y $2C00 y video banks $4400/$4800 permanecen en sus direcciones anteriores sin superposición.
+- **Todas las demás direcciones (D, W, S y diagonales) usan exactamente el núcleo de Color RAM de TEST317**. Próximas optimizaciones deben tratarse independientemente; no afirmar que se eliminaron todos los posibles efectos de tearing.
+- Bitmap Multicolor, Multicolor Character, HiRes viewport 38×24, ruta SID, Map Scroll tradicional y exportador manual/checkbox/velocidad quedan idénticos byte a byte a TEST317.
+
+## Verificaciones internas
+
+- Compilación JS + encoder PRG: PASS, 7.724 bytes de ASM; termina en $263C antes de los buffers de color que empiezan en $2800.
+- Simulación CPU 6502 con raster temporal simulado, mapa 40×50, arranque cerca de wrap (39,49), cuatro posiciones de cámara en las ocho direcciones: **8/8** con cero diferencias de Screen RAM y Color RAM. En movimiento A se observó el avance por filas y la escritura del borde derecho antes del flip.
+- Comparación binaria contra TEST317: seis variantes (Bitmap 40×25/38×24, Char MC 40×25/38×24, HiRes 38×24) permanecen **idénticas byte por byte**. Solamente cambia HiRes 40×25 sin SID.
+- Esta simulación NO modela el robo de ciclos VIC en badlines ni sustituye un video real VICE. Las rutinas por raster PAL deben validarse visualmente con movimiento sostenido. No marcar como PASS final ni MASTER sin prueba VICE.
+
+## Cómo probar
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test318-left-border-raster-colors.zip
+
+En modo HiRes 40×25 con el proyecto de caras, **sin SID**, abrir Rico's Manual Scroll, marcar Export with WASD Scroll Control, Máxima / sin pausa, exportar PRG. Sostener A (imagen hacia izquierda), observar **columna derecha** y comparar con TEST317: evaluar si desaparece la franja / residuo de color y registrar velocidad. Probar W+A después, pero esa diagonal usa todavía el motor TEST317.
+
+---
+
 # TEST317 — HiRes, Color RAM in-place y actualización de bordes (25/10/2026)
 
 **Base preservada:** TEST315, referencia empírica VICE ~16,7 pasos/segundo. Branch `release/test317-color-ram-inplace-scroll`. No se modifican TEST315, TEST316, TEST314, TEST313, TEST311 ni MASTER.
