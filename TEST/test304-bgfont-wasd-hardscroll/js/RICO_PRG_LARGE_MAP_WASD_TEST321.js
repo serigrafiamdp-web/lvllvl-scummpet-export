@@ -149,11 +149,30 @@ function collectAnimations175(ts,data){
 
 function collect(self,args){
   var wasd321=!!(args&&args.ricoWASD321);
-  var ed=self.editor,s=gridSize(ed),fc=frameCount(ed);
-  if(s.width!==40)throw new Error('TEST84 grande vertical requiere Screen de 40 columnas.');
-  if(s.height<=25||s.height>MAX_MAP_HEIGHT)throw new Error('El formato del mapa de esta ruta utiliza indices de fila de 8 bits (hasta 255).');
-  if(fc!==1)throw new Error('Esta ruta de mapas grandes requiere transiciones multiframe implementadas antes de exportar.');
+  var ed=self.editor,s=gridSize(ed),fc=frameCount(ed),
+      realSourceWidth322=s.width,sourceX322=0;
+  if(wasd321&&s.width>=40){
+    // Only vertical scrolling in a *40-column hardware viewport* is
+    // implemented. An editor Screen wider than 40 is projected into an
+    // immutable virtual 40-column view, retaining all rows.
+    var viewport322=getWindowCfg(ed,0);
+    sourceX322=clamp(viewport322&&viewport322.x,0,s.width-40,0);
+    s={width:40,height:s.height};
+  }
+  if(s.width!==40)throw new Error('TEST322 vertical requiere al menos 40 columnas de Screen.');
+  if(s.height<=25||s.height>MAX_MAP_HEIGHT)
+    throw new Error('TEST322 vertical necesita entre 26 y '+MAX_MAP_HEIGHT+' filas de Screen.');
+  if(fc!==1&&!wasd321)throw new Error('Esta ruta original de mapas grandes requiere un solo frame.');
+  if(fc<1)throw new Error('El proyecto no contiene frames.');
   var layer=ed.layers&&ed.layers.getSelectedLayerObject?ed.layers.getSelectedLayerObject():null;
+  if(wasd321&&realSourceWidth322>40&&layer){
+    var originalLayer322=layer,proxyLayer322=Object.create(originalLayer322);
+    proxyLayer322.getCell=function(p){
+      return originalLayer322.getCell.call(originalLayer322,
+        Object.assign({},p,{x:(p.x|0)+sourceX322}));
+    };
+    layer=proxyLayer322;
+  }
   if(!layer||!layer.getType||layer.getType()!=='grid')throw new Error('Selecciona una capa Grid.');
   var ts=getTileSet(ed);if(!ts||ts.getTileWidth()!=8||ts.getTileHeight()!=8)throw new Error('TEST84 requiere charset 8x8.');
   var cfg=wasd321?{type:'up',ticksPerStep:clamp(args.ricoWASD321Speed,1,255,1),pixelsPerStep:8}:getCfg(ed,0),type=(cfg&&cfg.type)||'';
@@ -179,7 +198,7 @@ function collect(self,args){
   var data=mapData(layer,0,s.width,s.height),colors=mapColorData(layer,0,s.width,s.height);
   if(MAP_DATA_BASE+data.length>=COLOR_DATA_BASE)throw new Error('Mapa demasiado grande: invade el banco de color de TEST84.');
   if(COLOR_DATA_BASE+colors.length>=0xd000)throw new Error('Mapa de colores demasiado grande para el banco RAM seguro de TEST84.');
-  return{editor:ed,width:s.width,height:s.height,type:type,typeCode:type==='up'?1:2,ticks:clamp(cfg&&cfg.ticksPerStep,1,255,6),pixels:clamp(cfg&&cfg.pixelsPerStep,1,8,1),duration:duration,bg:bg,border:border,bank:bank,window:win,area:area,initialRow:initialRow,bank1:bank1,bank2:bank2,map:data,colors:colors,anim175:wasd321?null:collectAnimations175(ts,data),wasd321:wasd321};
+  return{editor:ed,width:s.width,height:s.height,type:type,typeCode:type==='up'?1:2,ticks:clamp(cfg&&cfg.ticksPerStep,1,255,6),pixels:clamp(cfg&&cfg.pixelsPerStep,1,8,1),duration:duration,bg:bg,border:border,bank:bank,window:win,area:area,initialRow:initialRow,bank1:bank1,bank2:bank2,map:data,colors:colors,anim175:wasd321?null:collectAnimations175(ts,data),wasd321:wasd321,realSourceWidth322:realSourceWidth322,sourceX322:sourceX322,sourceFrames322:fc};
 }
 
 
@@ -1280,7 +1299,7 @@ ToPRGAdv.prototype.createPRG=function(args){
     // For vertical motion the original Window selects a non-destructive
     // 40-column source; for horizontal motion a full-width scroller is needed.
     var originalSize=gridSize(this.editor);
-    if(originalSize.width!==40){
+    if(originalSize.width!==40&&!args.ricoWASD321){
       if(isHorizontalProject(this))throw new Error('Map Scroll horizontal sobre un Screen de '+originalSize.width+' columnas necesita un motor de ancho variable. TEST181 no recorta el mapa ni genera un PRG sin scroll.');
       return exportWideVerticalWindow(this,args);
     }
