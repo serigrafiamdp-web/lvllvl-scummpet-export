@@ -8,7 +8,7 @@
 'use strict';
 var PRE='rico304',W=40,H=25,SZ=1000;
 var colors=['#000000','#ffffff','#813338','#75cec8','#8e3c97','#56ac4d','#2e2c9b','#edf171','#8e5029','#553800','#c46c71','#4a4a4a','#7b7b7b','#a9ff9f','#706deb','#b2b2b2'];
-var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null,scrollSpeed:1,scrollEngine319:'character',charProjection323:false};
+var st={source:null,current:null,model:null,kind:'map',dx:0,dy:0,steps:0,keyboard:false,dialogOpen:false,dialog:null,exportWithWASD:false,report:null,holdButton:null,holdDelayTimer:null,holdTimer:null,scrollSpeed:1,scrollEngine319:'character'};
 function mod(n,k){return(n%k+k)%k;}
 function equal(a,b){return a.length===b.length&&a.every(function(v,i){return v===b[i];});}
 function clone(s){return{kind:s.kind,tiles:s.tiles.slice(),fg:s.fg.slice(),atlas:s.atlas.slice(),bg:s.bg,
@@ -497,13 +497,10 @@ function closeManual(){
    '<label style="display:flex;justify-content:center;align-items:center;gap:7px;margin-top:10px">'+
    '<span>Motor PRG</span><select id="rico304engine319" style="background:#3b3e45;color:#fff;'+
    'border:1px solid #666;padding:4px;border-radius:3px;max-width:190px">'+
-   '<option value="native">VIC-II original · TEST323 (HiRes / Char MC)</option>'+
+   '<option value="native">VIC-II original · experimental (Character)</option>'+
    '<option value="character">Avance 8 px · TEST318</option></select></label>'+
    '<div style="font-size:10px;opacity:.70;margin-top:5px">Motor nativo: Screen 40×25 W/A/S/D · Screen alto W/S · frame 1</div>'+
-    '<label style="display:flex;align-items:flex-start;text-align:left;gap:7px;margin-top:8px;font-size:11px">'+
-    '<input type="checkbox" id="rico304charProjection323" style="margin-top:2px">'+
-    '<span>Interpretar Bitmap como Multicolor Character (solo PRG)</span></label>'+
-    '<div style="font-size:10px;opacity:.80;text-align:left;margin-top:2px">No modifica tu arte. Conserva caracteres, NO los tres colores locales Bitmap.</div>'+
+    '<div style="font-size:10px;opacity:.80;text-align:left;margin-top:6px">Bitmap Multicolor: conserva los colores locales y permite WASD en ocho direcciones con el motor de 8 px.</div>'+
    '<div id="rico304status" style="font-size:11px;margin-top:9px;opacity:.8">Editor: solo flechas · 1 celda por clic</div></div>';
   doc.body.appendChild(dlg);
   st.dialog=dlg;st.dialogOpen=true;st.keyboard=false;
@@ -516,9 +513,7 @@ function closeManual(){
   if(speed){speed.value=String(st.scrollSpeed);speed.onchange=function(){setScrollSpeed(speed.value);};}
   var engine319=doc.getElementById('rico304engine319');
   if(engine319){engine319.value=st.scrollEngine319;engine319.onchange=function(){st.scrollEngine319=engine319.value;};}
-  var projection323=doc.getElementById('rico304charProjection323');
-  if(projection323){projection323.checked=st.charProjection323;
-   projection323.onchange=function(){st.charProjection323=!!projection323.checked;};}
+
   var buttons=dlg.querySelectorAll('.rico304arrow');
   for(var i=0;i<buttons.length;i++){
    var btn=buttons[i];
@@ -835,6 +830,15 @@ function installExportCheckbox(){
    return oldExport.apply(this,arguments);
   }
   if(st.exportWithWASD){
+   // TEST324: do not feed true Bitmap data to the Character VIC exporter.
+   var bitmapNativeFallback324=bitmap&&st.scrollEngine319==='native';
+   if(bitmapNativeFallback324){
+    // A user must see the real engine selected for this export.
+    st.scrollEngine319='character';
+    var engineSelect324=doc.getElementById('rico304engine319');
+    if(engineSelect324)engineSelect324.value='character';
+    setStatus('Bitmap: motor de 8 px fiel, WASD en ocho direcciones. Más lento que Character VIC-II.');
+   }
    // No SID selected: manual WASD PRG is independent from the musical player.
    var type=doc.getElementById('exportPRGType');
    if(type&&type.value==='d64'){
@@ -844,7 +848,7 @@ function installExportCheckbox(){
     return oldExport.apply(this,arguments);
    }
    try{
-    if(st.scrollEngine319==='native'){
+    if(st.scrollEngine319==='native'&&!bitmap){
      // TEST319 bypasses the rebuilt 8px character blitter and invokes
      // the ACTUAL original ToPRGAdv TEST77 VIC-II fine-scroller.
      // Its wide map / diagonal / SID variants are not validated.
@@ -870,19 +874,8 @@ function installExportCheckbox(){
      if(!layer319||!layer319.getType||layer319.getType()!=='grid')
       throw Error('TEST323: seleccioná una capa Grid de caracteres.');
      var mode319=layer319.getScreenMode&&layer319.getScreenMode(),
-      bitmapActive323=!!(layer319.doc&&layer319.doc.ricoBitmapV1Enabled&&
-       mode319==='c64multicolor'),
       isCharMC320=mode319==='c64multicolor';
-     // The Bitmap editor TEST279 uses 'c64multicolor' internally;
-     // the export dialog's "Multicolour Character" radio is not proof.
-     // For the explicit opt-in, generate a char interpretation directly
-     // from its native tile IDs and FC fields, NEVER mutate project data.
-     if(bitmapActive323&&!st.charProjection323)
-      throw Error('TEST323 detectó Bitmap Multicolor experimental ACTIVO en la capa. '+
-       'La ventana Export muestra Multicolour Character porque ambos comparten el modo interno. '+
-       'Para probar el VIC-II rápido, activá la casilla "Interpretar Bitmap como Multicolor Character" '+
-       'en Rico\'s Manual Scroll. No modifica el proyecto, pero cambia los colores '+
-       'respecto a Bitmap. Para conservar los tres colores locales, usá Avance 8 px.');
+     // True Bitmap can never enter this Character export.
      if(mode319!=='c64multicolor'&&mode319!=='textmode'&&mode319!=='c64standard')
       throw Error('TEST323: modo de capa no compatible: '+mode319);
      // Native TEST77 uses a character matrix. Mixed per-cell MC needs
@@ -914,17 +907,19 @@ function installExportCheckbox(){
       filename:large321?name319.replace('TEST319','TEST323'):name319,
       mode:isCharMC320?'Multicolor Character':'HiRes Character',
       sid:false,diagonal:false,map:gridW+'×'+gridH,
-      directions:large321?'W/S solamente':'W/S/A/D',
-      characterProjection:bitmapActive323&&st.charProjection323,
-      bitmapOriginalPreserved:bitmapActive323};
+      directions:large321?'W/S solamente':'W/S/A/D',characterModeOnly:true};
      w.RICO_TEST319_LAST_EXPORT=st.lastExport;
      return generated319;
     }
     var snapshot=capture(),built=makePRG(snapshot.source,st.scrollSpeed);
+    if(bitmap&&snapshot.source.kind!=='bitmap-mc')
+     throw Error('TEST324: Bitmap activo, pero el motor perdió el modo Bitmap. Exportación cancelada.');
     var input=doc.getElementById('exportPRGAs'),name=input&&input.value&&input.value.trim()||'RICO';
     name=name.replace(/\.prg$/i,'')+'_WASD.prg';
     download(built.bytes,name);
-    st.lastExport={engine:built.fullMap?'TEST307 FULL MAP + DIAGONAL WASD':'TEST306 LEGACY WASD',bytes:built.bytes.length,filename:name};
+    st.lastExport={engine:bitmap?'TEST324 TRUE BITMAP MULTICOLOR WASD':built.fullMap?'TEST307 FULL MAP + DIAGONAL WASD':'TEST306 LEGACY WASD',
+      bitmapFidelity:!!bitmap,forcedFallback:!!bitmapNativeFallback324,
+      directions:'W/A/S/D y diagonales',bytes:built.bytes.length,filename:name};
     return built;
    }catch(e){
     if(typeof w.alert==='function')w.alert('Rico\'s Manual Scroll: '+e.message);
@@ -965,5 +960,5 @@ function installMenuAction(){
 installPanelMenus();
 installExportCheckbox();
 installMenuAction();
-w.RICO_TEST304={version:'TEST323',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
+w.RICO_TEST304={version:'TEST324',name:'Rico\'s Manual Scroll',entry:'Interfaz > Rico\'s Manual Scroll... (also Screen menu)',capture,mapMove,groupMove,makePRG,selfTest,moveArtwork,setExportWASD,setScrollSpeed,traditionalMapConfig,closeManual,getState:()=>st,open,toggleManual};
 })(window,document);
