@@ -1,3 +1,42 @@
+# TEST320 — WASD del motor original VIC-II en Multicolor Character
+
+**Fecha:** 26 OCT 2026. **Rama experimental:** `release/test320-native-vic-character-multicolor`. Base TEST319, TEST318/MASTER no modificados.
+
+## Problema
+
+El usuario confirmó una mejora notable de TEST319 HiRes, pero indicó que Multicolor seguía mucho más lento. El motivo verificado en el programa es que TEST319 bloqueaba explícitamente `layer.getScreenMode()==='c64multicolor'` y, al seleccionar el motor anterior, la exportación se realizaba por rutinas de reconstrucción de pantalla, no por los núcleos rápidos de `step_left/right/up/down`.
+
+## Solución delimitada
+
+- El selector de Rico's Manual Scroll ahora muestra `VIC-II original · TEST320 (HiRes / Char MC)`.
+- **Multicolor Character (no Bitmap)** puede seguir la misma ruta rápida de Map Scroll VIC-II que HiRes, reutilizando el motor ASM experimental TEST319.
+- **Se conserva el módulo TEST264 ya probado para activar el bit4 del registro $D016** en todos sus puntos de escritura, sin perder los bits de scroll fino / CSEL. Las paletas compartidas MC1/MC2 van a **$D022/$D023**. Color RAM conserva el valor exacto `0..15` de cada celda (bit3 selecciona HiRes/Multicolor por carácter). No convertir los códigos de color ni forzar un modo global sobre las celdas HiRes.
+- Se sigue sin aceptar **Bitmap Multicolor**, marcado en el proyecto con `layer.doc.ricoBitmapV1Enabled`, porque requiere copiar 8.000 bytes bitmap y no se puede manejar con un kernel de pantalla de 1.000 caracteres. Esa modalidad sigue utilizando el motor anterior cuando el usuario lo selecciona. Para Bitmap se necesita un motor de fine-scroll y raster específico, que NO se entrega aquí.
+- Continúan las restricciones del motor VIC experimental: **1 frame, 40×25, sin SID, cardinal W/S/A/D individualmente; no diagonales; no mapa 40×50 todavía**.
+- `js/RICO_PRG_MAP_SCROLL_SINGLE_FRAME_TEST77.js` ORIGINAL compartido permanece sin modificaciones: se usa el fork aislado `TEST/test304-bgfont-wasd-hardscroll/js/RICO_PRG_MAP_SCROLL_NATIVE_TEST319.js`. TEST264 original permanece sin modificaciones. Solo se amplía la elegibilidad de Multicolor Character dentro del panel.
+- La opción `Avance 8 px · TEST318` sigue elegida por defecto, para conservar exportaciones anteriores.
+
+## Pruebas internas
+
+- Simulación de flujo real de exportación con el wrapper TEST264 + fork TEST319: HiRes exporta sin parches MC; Multicolor Character exporta con cuatro escrituras de $D016 parcheadas (`ORA #$10`) y configura $D022=6, $D023=11 para el fixture de prueba; el usuario puede elegir otros colores según el proyecto.
+- El mock conserva el tipo `TEST320 VIC-II MULTICOLOR CHARACTER + WASD`, devuelve bytes PRG y usa el encoder ASM original. El mismo proyecto Bitmap MC se rechaza explícitamente; sin TEST264 se rechaza la exportación para evitar un modo HiRes falso.
+- El test utiliza un ensamblador simulado; **NO es PASS de ensamblador real ni de VICE**. La corrección de ritmo, colors, mixed-cell bit3 y latencia todavía requiere grabación de VICE.
+
+## Cómo validar en VICE
+
+1. Cargar un proyecto **Multicolor Character** de 40×25 con un frame. Si se trata de **Bitmap Multicolor**, no es esta prueba.
+2. Abrir **Rico's Manual Scroll**, activar el checkbox WASD y seleccionar `VIC-II original · TEST320 (HiRes / Char MC)`, velocidad Máxima, sin SID.
+3. Exportar PRG y ejecutarlo en VICE PAL. Mover W/S/A/D. Confirmar desplazamiento, ausencia de arte estático, multiceldas con color 8–15 y celdas HiRes de color 0–7, sin parpadeos ni deformaciones.
+4. Comparar con la ejecución HiRes TEST319 y registrar velocidad sobre el mismo mapa.
+
+WEB: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test304-bgfont-wasd-hardscroll/
+
+ZIP: https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/archive/refs/heads/release/test320-native-vic-character-multicolor.zip
+
+**Estado:** pruebas internas de ruteo y parches MC correctas; VICE PENDIENTE. **No reemplazar TEST319, TEST318 ni MASTER.**
+
+---
+
 # TEST319 — WASD sobre el motor original de Map Scroll VIC-II
 
 **Fecha:** 25/10/2026. Rama aislada: `release/test319-native-vic-wasd-cardinal`. Base: TEST318. **Estado: experimento para VICE, no PASS ni MASTER.**
