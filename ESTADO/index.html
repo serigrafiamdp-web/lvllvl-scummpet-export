@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10151e">
+<title>Estado LVLLVL RICO · Checkpoints y pruebas</title>
+<meta name="description" content="Estado verificado de MASTER, PASS en VICE, ramas experimentales y acceso a los editores LVLLVL RICO. Actualizado el 2 de noviembre de 2026.">
+<style>
+:root{color-scheme:dark;--bg:#10151e;--panel:#1a2230;--line:#2d394c;--fg:#e9eef6;--muted:#aebbd0;--teal:#73dbc8;--yellow:#e6c37a}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--teal);text-underline-offset:3px}a:focus-visible{outline:2px solid var(--teal);outline-offset:3px;border-radius:2px}
+header,main,footer{max-width:1040px;margin:auto;padding:0 24px}header{padding-top:54px;padding-bottom:32px}
+.eyebrow{text-transform:uppercase;letter-spacing:.13em;color:var(--teal);font-size:12px;font-weight:700}
+h1{font-size:clamp(29px,4.5vw,48px);letter-spacing:-.035em;line-height:1.12;margin:12px 0 18px}
+h2{font-size:24px;margin:40px 0 16px;letter-spacing:-.015em}h3{font-size:17px;margin:0 0 8px}
+.lede{font-size:18px;color:var(--muted);max-width:850px}nav{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.button{display:inline-flex;align-items:center;padding:10px 15px;border:1px solid #456476;background:#223b45;border-radius:10px;color:#dffcf4;text-decoration:none;font-size:14px;font-weight:650}
+.button.alt{background:transparent;border-color:var(--line);color:var(--fg)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+.tile p{color:var(--muted);font-size:14px;margin:8px 0 14px}
+.tag{display:inline-block;color:var(--teal);font-size:12px;font-weight:700;letter-spacing:.05em;margin-bottom:9px}
+.tag.provisional{color:var(--yellow)}.tag.exp{color:#c2b3f7}
+.tile a{font-weight:650}
+.note{border-left:3px solid var(--yellow);padding:12px 18px;background:#24222b;color:#f3e3c6;border-radius:0 8px 8px 0}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:650px}
+th,td{padding:13px 16px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th{font-size:13px;color:#c7d4e6;background:#202b3a}td{font-size:14px}tbody tr:last-child td{border-bottom:0}
+small,footer{color:var(--muted)}footer{border-top:1px solid var(--line);padding-top:28px;padding-bottom:40px;margin-top:45px;font-size:13px}
+@media(max-width:680px){.grid{grid-template-columns:1fr}header{padding-top:30px}.tile{padding:18px}}
+</style>
+</head>
+<body>
+<header>
+<div class="eyebrow">C64 · LVLLVL RICO / SCUMM PET</div>
+<h1>Estado del proyecto y versiones</h1>
+<p class="lede">Resumen verificado el <strong>2 de noviembre de 2026</strong>. Separados los PASS en VICE, los MASTER congelados y los experimentos que todavía necesitan comprobación.</p>
+<nav aria-label="Enlaces principales">
+<a class="button" href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export">Repositorio GitHub</a>
+<a class="button alt" href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/">Editor web actual</a>
+<a class="button alt" href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/ESTADO_PROYECTO_2026-11-02.md">Informe técnico</a>
+</nav>
+</header>
+<main>
+<section aria-labelledby="checkpoint"><h2 id="checkpoint">Checkpoints para recuperar</h2>
+<div class="grid">
+<article class="tile"><div class="tag">ÚLTIMO PASS EN VICE DOCUMENTADO EN GITHUB</div><h3>TEST297 · Bitmap Multicolor</h3><p>Optimización de copia distribuida (distributed speedcode), PASS reportado el 24/10. Está en su propia rama, <strong>no</strong> fusionada con todos los motores posteriores.</p><a href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test297-bitmap-distributed-speedcode/">Abrir TEST297</a> · <a href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test297-pass-2026-10-24">Rama PASS</a></article>
+<article class="tile"><div class="tag">MASTER CONGELADO · 24 OCT</div><h3>TEST264 · PRG Multicolor básico</h3><p>PASS de exportación MC simple con <strong>un frame, sin Map Scroll ni SID</strong>. Las combinaciones complejas no se consideran validadas.</p><a href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test264-native-multicolor-export/">Abrir TEST264</a> · <a href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_24_OCTUBRE_2026">MASTER 24/10</a></article>
+<article class="tile"><div class="tag provisional">PASS PROVISIONAL · SCROLL DIAGONAL</div><h3>TEST257 · VIC-II estable</h3><p>Mejora mínima sobre TEST254 para scroll diagonal de 8 píxeles. PASS provisional del usuario. El MASTER rápido del 23/10 conserva TEST254 como base congelada.</p><a href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test257/">Abrir TEST257</a> · <a href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/MASTER_LVLLVL_RICO_23_OCTUBRE_2026">MASTER 23/10</a></article>
+<article class="tile"><div class="tag exp">EXPERIMENTAL · SIN PASS VICE</div><h3>TEST260 · Map + Group + individual</h3><p>Integra animaciones de glifos individuales con Group Animate y Map Scroll, sincronizadas mediante ASM. Hay validaciones estáticas y contadores, pero falta el PRG comprobado en VICE.</p><a href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test260/">Abrir TEST260</a> · <a href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test260-diagonal-map-group-individual">Rama experimental</a></article>
+</div></section>
+<section aria-labelledby="avances"><h2 id="avances">Desarrollo más reciente y limitaciones</h2>
+<div class="table-wrap"><table><thead><tr><th>Referencia</th><th>Qué existe</th><th>Qué falta</th></tr></thead><tbody>
+<tr><td><strong>TEST258–259</strong></td><td>VIC estable en ocho direcciones y scroll fino con motor ASM rápido en diagonales Up</td><td>PASS visual de las combinaciones nuevas</td></tr>
+<tr><td><strong>TEST297</strong></td><td>Bitmap MC distribuido, PASS registrado</td><td>Extender la validación a otros modos y cruces con otros motores</td></tr>
+<tr><td><strong>TEST304 / revisiones llamadas TEST325</strong></td><td>Prototipo de control manual/WASD, cambios registrados hasta el 26/10 en la carpeta de TEST304</td><td>Confirmación de VICE; el número de commit no crea automáticamente un editor TEST325 independiente</td></tr>
+<tr><td><strong>Rama TEST321</strong></td><td>Ruta experimental C64 VIC 40×N vertical (W/S)</td><td>A/D de mapa grande completo y PASS de integración</td></tr>
+</tbody></table></div>
+<p><small>La web principal del repositorio sigue montando un editor cuya página raíz se identifica como TEST232. Esta página de estado no reemplaza ese motor.</small></p></section>
+<section aria-labelledby="proximo"><h2 id="proximo">Dónde retomamos</h2>
+<p>La siguiente prueba funcional pendiente en la línea de ASM de caracteres es <strong>TEST260</strong>: Map Scroll + Group Animate + animación individual funcionando simultáneamente en VICE. Para diagonal u horizontal, con animación individual activa, el monitor permite leer <code>m cfe0 cfe4</code> (firma <code>60 01</code>; turnos de IRQ, individual y grupo).</p>
+<div class="note"><strong>Sin fusiones automáticas:</strong> <code>main</code> es una línea histórica divergente; <code>gh-pages</code> aloja la web. Los MASTER del 23 y 24 de octubre y los tests anteriores se preservan. Una compilación sin errores no equivale a PASS en VICE.</div>
+</section>
+</main>
+<footer>LVLLVL RICO — Hoja de estado · 02/11/2026 · <a href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/ESTADO_PROYECTO_2026-11-02.md">Detalles y enlaces de recuperación en GitHub</a></footer>
+</body>
+</html>
