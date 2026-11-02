@@ -1,3 +1,13 @@
+# LVLLVL RICO — ESTADO ACTUAL · 2 NOVIEMBRE 2026
+
+**Guía de recuperación actualizada:** [Estado en GitHub](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/main/ESTADO_PROYECTO_2026-11-02.md) · [Página web de estado](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/ESTADO/) · [Editor principal](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)
+
+**Último PASS en VICE documentado en GitHub: TEST297**, con copia Bitmap MC distribuida (rama `release/test297-pass-2026-10-24`). **MASTER Multicolor conservado:** TEST264 / 24 OCT, validado solo en 1 frame básico. **Último PASS provisional de scroll diagonal de esta línea:** TEST257, con MASTER23 TEST254 intacto. **TEST260 (Map+Group+Individual)** y los prototipos posteriores TEST304/321 se mantienen experimentales hasta VICE.
+
+La rama `main` es legado divergente; el editor alojado está en `gh-pages`, cuya portada sigue siendo TEST232. Esta actualización **no mezcla branches ni altera rutinas, PASS o MASTER**; publica únicamente documentación y una página independiente de estado.
+
+---
+
 # LVLLVL RICO — MASTER VIERNES 23 DE OCTUBRE DE 2026
 
 **Nuevo MASTER de referencia: TEST254 · ~47,2 avances/s en VICE, rendimiento validado.** Se eligió TEST254 en lugar de TEST255 para priorizar la calidad visual sobre acercarse a 50/s; queda una revisión fina de sincronización y costuras para continuar. **La web principal no cambia de motor en este checkpoint.**
