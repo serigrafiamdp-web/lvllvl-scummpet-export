@@ -2,9 +2,9 @@
 
 **Guía de recuperación actualizada:** [Estado en GitHub](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/main/ESTADO_PROYECTO_2026-11-02.md) · [Página web de estado](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/ESTADO/) · [Editor principal](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)
 
-**Último PASS en VICE documentado en GitHub: TEST297**, con copia Bitmap MC distribuida (rama `release/test297-pass-2026-10-24`). **MASTER Multicolor conservado:** TEST264 / 24 OCT, validado solo en 1 frame básico. **Último PASS provisional de scroll diagonal de esta línea:** TEST257, con MASTER23 TEST254 intacto. **TEST260 (Map+Group+Individual)** y los prototipos posteriores TEST304/321 se mantienen experimentales hasta VICE.
+**EDITOR PRINCIPAL EN GITHUB PAGES: TEST297 (publicado 2/11/2026).** **Último PASS en VICE documentado en GitHub: TEST297**, con copia Bitmap MC distribuida (rama `release/test297-pass-2026-10-24`). **MASTER Multicolor conservado:** TEST264 / 24 OCT, validado solo en 1 frame básico. **Último PASS provisional de scroll diagonal de esta línea:** TEST257, con MASTER23 TEST254 intacto. **TEST260 (Map+Group+Individual)** y los prototipos posteriores TEST304/321 se mantienen experimentales hasta VICE.
 
-La rama `main` es legado divergente; el editor alojado está en `gh-pages`, cuya portada sigue siendo TEST232. Esta actualización **no mezcla branches ni altera rutinas, PASS o MASTER**; publica únicamente documentación y una página independiente de estado.
+La rama `main` es legado divergente. **La portada de `gh-pages` fue actualizada a TEST297 el 2/11/2026**, usando el `index.html` exacto de la rama PASS (único cambio funcional: retirar el `<base href="../../">` necesario para alojar TEST297 en `/TEST/`). El antiguo editor TEST232 está guardado en `backup/gh-pages-before-test297-2026-11-02`. No se mezclaron motores ni se alteraron los MASTER; los TEST siguen independientes.
 
 ---
 

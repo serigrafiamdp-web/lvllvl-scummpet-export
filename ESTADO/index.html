@@ -35,10 +35,10 @@ small,footer{color:var(--muted)}footer{border-top:1px solid var(--line);padding-
 <header>
 <div class="eyebrow">C64 · LVLLVL RICO / SCUMM PET</div>
 <h1>Estado del proyecto y versiones</h1>
-<p class="lede">Resumen verificado el <strong>2 de noviembre de 2026</strong>. Separados los PASS en VICE, los MASTER congelados y los experimentos que todavía necesitan comprobación.</p>
+<p class="lede">Actualizado el <strong>2 de noviembre de 2026</strong>. El <strong>editor principal ahora carga TEST297</strong>, respaldado por PASS en VICE del scroll grupal Bitmap MC. Se preservan los MASTER y las versiones experimentales por separado.</p>
 <nav aria-label="Enlaces principales">
 <a class="button" href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export">Repositorio GitHub</a>
-<a class="button alt" href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/">Editor web actual</a>
+<a class="button alt" href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/">Editor principal TEST297</a>
 <a class="button alt" href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/ESTADO_PROYECTO_2026-11-02.md">Informe técnico</a>
 </nav>
 </header>
@@ -57,7 +57,7 @@ small,footer{color:var(--muted)}footer{border-top:1px solid var(--line);padding-
 <tr><td><strong>TEST304 / revisiones llamadas TEST325</strong></td><td>Prototipo de control manual/WASD, cambios registrados hasta el 26/10 en la carpeta de TEST304</td><td>Confirmación de VICE; el número de commit no crea automáticamente un editor TEST325 independiente</td></tr>
 <tr><td><strong>Rama TEST321</strong></td><td>Ruta experimental C64 VIC 40×N vertical (W/S)</td><td>A/D de mapa grande completo y PASS de integración</td></tr>
 </tbody></table></div>
-<p><small>La web principal del repositorio sigue montando un editor cuya página raíz se identifica como TEST232. Esta página de estado no reemplaza ese motor.</small></p></section>
+<p><small>La web principal publica TEST297 desde el 2/11/2026. La anterior portada TEST232 está conservada en la rama backup/gh-pages-before-test297-2026-11-02; esta página de estado es independiente del editor.</small></p></section>
 <section aria-labelledby="proximo"><h2 id="proximo">Dónde retomamos</h2>
 <p>La siguiente prueba funcional pendiente en la línea de ASM de caracteres es <strong>TEST260</strong>: Map Scroll + Group Animate + animación individual funcionando simultáneamente en VICE. Para diagonal u horizontal, con animación individual activa, el monitor permite leer <code>m cfe0 cfe4</code> (firma <code>60 01</code>; turnos de IRQ, individual y grupo).</p>
 <div class="note"><strong>Sin fusiones automáticas:</strong> <code>main</code> es una línea histórica divergente; <code>gh-pages</code> aloja la web. Los MASTER del 23 y 24 de octubre y los tests anteriores se preservan. Una compilación sin errores no equivale a PASS en VICE.</div>
