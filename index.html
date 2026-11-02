@@ -22,6 +22,11 @@
     <script src="https://apis.google.com/js/api.js"></script>
     
     <link rel="stylesheet" href="css/style.css?v=0.495"/>
+    <!-- Suppress old TEST246/247 export diagnostics in the published editor only.
+         Engine, export, warning dialogs and console diagnostics are unchanged. -->
+    <style id="ricoHideLegacyGroupExportNotice">
+      #rico246ExportEngineStatus { display: none !important; }
+    </style>
 
     <script src="js/libs.js?v=0.495"></script>
     <script src="js/html/htmlcache.js?v=0.495"></script>
