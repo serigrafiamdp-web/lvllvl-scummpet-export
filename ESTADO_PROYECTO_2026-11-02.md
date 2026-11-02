@@ -1,6 +1,8 @@
 # Estado del proyecto LVLLVL RICO / SCUMM PET — 2 de noviembre de 2026
 
 > Documento de navegación, **no es una fusión de código ni un nuevo MASTER**. Actualizado tras revisar las ramas, los checkpoints, README y los commits de GitHub.
+>
+> **Publicación 2/11:** la URL principal ahora abre el editor TEST297; el anterior TEST232 está en `backup/gh-pages-before-test297-2026-11-02`. La publicación no constituye un PASS adicional.
 
 ## Qué versión usar
 
@@ -17,7 +19,7 @@
 ## Estado de GitHub y GitHub Pages
 
 - `main` es la línea **legada divergente**: su README se mantiene como punto de entrada, pero **no** se fusiona con `gh-pages` ni con los MASTER.
-- `gh-pages` aloja la web. La **raíz del editor** todavía carga un `index.html` identificado TEST232; **no** fue sustituido automáticamente por TEST297/TEST321/TEST325. Conservarlo evita alterar las herramientas actuales sin un PASS de integración.
+- `gh-pages` aloja la web. **El 2/11/2026 la raíz fue actualizada intencionalmente a TEST297**, a partir del mismo `index.html` de la rama `release/test297-pass-2026-10-24`, sin el `<base href="../../">` que requiere la página anidada. **TEST232 fue respaldado** en `backup/gh-pages-before-test297-2026-11-02`. TEST321, TEST325 y otros prototipos no se integraron.
 - Los editor(es) independientes de prueba siguen accesibles en `/TEST/...`.
 - **Página de estado actual (sin modificar motores):** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/ESTADO/
 
