@@ -1,5 +1,8 @@
 # Índice de documentación
 
+**Estado 04/11/2026:** [TEST328 — PASS usuario](../TEST/test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md) · [Progreso actualizado](ESTADO_PROYECTO_2026-11-04.md) · [Features corregidas TEST326–328](FEATURES_EXPORT_PRG_ECM_TEST326_328.md). Página principal TEST297 preservada.
+
+
 **MASTER vigente:** [README raíz](../README.md) · [estado 22 octubre](ESTADO_MASTER_22_OCTUBRE_2026.md) · [arquitectura](ARQUITECTURA_MOTOR_Y_EXPORT.md).
 
 **Para retomar en otro chat:** [GUÍA PARA NUEVO CHAT IA](GUIA_PARA_NUEVO_CHAT_IA.md) (leer primero), [cronología TEST214–228](CRONOLOGIA_TEST214_228.md).
