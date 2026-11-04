@@ -1,5 +1,8 @@
 # Índice de documentación
 
+**Nuevo TEST329 (integración experimental en la portada):** [PARED y recuperación de scroll Left ECM](TEST329_PARED_LEFT_EXPORT.md). No es todavía un PASS en VICE. El Bitmap TEST297 está conservado en la base y la portada antigua en backup; TEST328 aislado mantiene su PASS propio.
+
+
 **Estado 04/11/2026:** [TEST328 — PASS usuario](../TEST/test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md) · [Progreso actualizado](ESTADO_PROYECTO_2026-11-04.md) · [Features corregidas TEST326–328](FEATURES_EXPORT_PRG_ECM_TEST326_328.md). Página principal TEST297 preservada.
 
 
