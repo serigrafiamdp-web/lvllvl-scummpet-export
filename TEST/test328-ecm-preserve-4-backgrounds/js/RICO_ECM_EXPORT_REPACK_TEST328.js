@@ -14,7 +14,7 @@ if(!H||typeof ToPRGAdv==='undefined'||!H.collect||!H.build){
 var previousCollect=H.collect,previousBuild=H.build;
 var previousCreate=ToPRGAdv.prototype.createPRG;
 var TYPES={left:0,right:1,up:2,down:3,blink:4};
-var state={version:328,active:null,last:null,lastError:null,exportCount:0};
+var state={version:328,active:null,exporter:null,horizontal:false,last:null,lastError:null,exportCount:0};
 function number(v){return Number(v);}
 function ensureColor(v,label){v=Number(v);if(!Number.isInteger(v)||v<0||v>15)throw new Error('ECM: '+label+' fuera de paleta C64 0–15 ('+v+').');return v;}
 function noBG(v,sentinel){return v===undefined||v===null||v===false||v===sentinel||v===-1;}
@@ -146,6 +146,11 @@ H.collect=function(self){
   return pack(self,d,state.active);
 };
 H.build=function(d){
+  // TEST327's actual PRG path calls the lexical TEST186 collect(self), not
+  // window.RICO_TEST186_HORIZONTAL.collect(self). Recollect through the public
+  // TEST327 hook while the real export is active, otherwise individual
+  // animations and ECM remaps silently disappear from downloaded PRGs.
+  if(state.horizontal&&state.exporter)d=H.collect(state.exporter);
   var asm=previousBuild(d);
   if(!d.ecm328)return asm;
   // $d011 bit 6 selects Extended Background Color Mode, whereas TEST327
@@ -166,14 +171,16 @@ ToPRGAdv.prototype.createPRG=function(args){
     mode=layer&&layer.getScreenMode&&layer.getScreenMode(),cfg=editor&&editor.graphic&&editor.graphic.frames&&editor.graphic.frames[0]&&editor.graphic.frames[0].ricoMapScrollV1||{},
     width=editor&&editor.graphic&&editor.graphic.getGridWidth&&editor.graphic.getGridWidth(),
     isECM=mode==='c64ecm'||(typeof TextModeEditor!=='undefined'&&mode===TextModeEditor.Mode.C64ECM);
-  var applies=!!(width>40&&(cfg.type==='left'||cfg.type==='right')&&((args&&args.mode==='extended')||isECM));
-  var before=state.active;
+  var horizontal=!!(width>40&&(cfg.type==='left'||cfg.type==='right'));
+  var applies=!!(horizontal&&((args&&args.mode==='extended')||isECM));
+  var before=state.active,previousExporter=state.exporter,previousHorizontal=state.horizontal;
+  if(horizontal){state.horizontal=true;state.exporter=this;}
   if(applies){state.active=args||{mode:'extended'};state.lastError=null;}
   try{return previousCreate.apply(this,arguments);}
   catch(e){
     if(applies){state.lastError=e.message;console.error('[TEST328 ECM]',e);}
     throw e;
-  }finally{state.active=before;}
+  }finally{state.active=before;state.exporter=previousExporter;state.horizontal=previousHorizontal;}
 };
 window.RICO_TEST328_ECM_EXPORT=state;
 console.log('[TEST328 ECM] Non-destructive 64-glyph remap and 4-background PRG support installed for horizontal map.');
