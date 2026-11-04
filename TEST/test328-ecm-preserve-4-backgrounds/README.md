@@ -1,5 +1,5 @@
 # TEST328 — Export ECM horizontal con compactación no destructiva
-Basado en TEST327 y publicado en ruta aislada. **Sin PASS de VICE todavía**.
+Basado en TEST327 y publicado en ruta aislada. **PASS informado por el usuario el 04/11/2026 para su prueba ECM MEGASOFT 100×25**. Ver [registro](PASS_04_NOV_2026.md); no atribuir automáticamente PASS a Group Scroll o multiframe.
 
 ## Causa verificada
 El exportador horizontal generado por TEST327 fuerza `LDA #$1B / STA $D011` en el controlador, que **desactiva ECM**, y solo inicializa `$D021`. Por eso un PRG solicitado en Extended Background Color acaba mostrando un solo fondo.
@@ -21,7 +21,7 @@ Screen 100×25; Window 40×25; Scroll Area 100×25; scroll de mapa Left 1px/2 ti
 1. Abrir https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test328-ecm-preserve-4-backgrounds/ y recargar Ctrl+F5.
 2. Cargar directamente **MEGASOFT 100 filas.json**. No convertir el documento si no es necesario.
 3. Export PRG: seleccionar **Extended Background Color**.
-4. Ejecutar PRG en VICE PAL y comprobar (a) scroll 100 columnas (b) tres fondos de MEGASOFT, (c) las ocho animaciones individuales. **No afirmar PASS hasta la prueba real**.
+4. Ejecutar PRG en VICE PAL y comprobar (a) scroll 100 columnas (b) tres fondos de MEGASOFT, (c) las ocho animaciones individuales. **Usuario informó PASS para TEST328**; falta validación específica de otras combinaciones.
 5. Diagnóstico de consola: `window.RICO_TEST328_ECM_EXPORT.last`, `.lastError`, `.exportCount`.
 6. Añadir un Group Scroll de glifos distintos y repetir. Si un mismo glyph está en el grupo e individual, se mantiene el guard de integridad.
 
@@ -29,4 +29,4 @@ Screen 100×25; Window 40×25; Scroll Area 100×25; scroll de mapa Left 1px/2 ti
 - ECM permite 64 glifos físicos y 4 fondos simultáneos; no se pueden omitir glifos o fondos silenciosamente.
 - El motor horizontal de ancho variable funciona actualmente en la ventana **40×25 y un frame**.
 - Group Scroll y animación individual sobre el mismo carácter físico requieren un compositor, no están desbloqueados por este test.
-- No se ha validado el ensamblador real ni el comportamiento de VICE/hardware; TEST328 es un candidato experimental.
+- TEST328 **PASS comunicado por el usuario** para el caso MEGASOFT. Group Scroll real, multiframe, BANK2 y cuatro fondos simultáneos requieren prueba individual adicional.
