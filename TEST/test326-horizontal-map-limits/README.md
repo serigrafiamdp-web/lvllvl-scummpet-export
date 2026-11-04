@@ -1,6 +1,6 @@
 # TEST326 — Restricciones de exportación horizontal: auditoría de RAM
 
-**Experimental.** Basado en el editor TEST297 (VICE PASS de su ruta Bitmap). No modifica la página principal, ni los motores originales, ni el MASTER.
+**TEST326 se mantiene experimental, sin PASS independiente del rango completo.** Su corrección de 100 columnas fue incorporada a TEST328 (PASS del usuario 04/11). Los máximos 245/102 son valores calculados, no validados en VICE. [Registro TEST328](../test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md). Basado en el editor TEST297 (VICE PASS de su ruta Bitmap). No modifica la página principal, ni los motores originales, ni el MASTER.
 
 ## Límites artificiales retirados
 1. **TEST186/203, un frame:** se retira el máximo antiguo de 96 columnas de Scroll Area horizontal. El límite se calcula con las dos regiones RAM de 12.288 bytes (mapa $4000–$6FFF y colores $7000–$9FFF). Cada columna necesita 50 bytes: máximo **245 columnas**. Los límites de la cámara horizontal de 8 bits se preservan.
