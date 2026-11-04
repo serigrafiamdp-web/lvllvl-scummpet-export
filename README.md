@@ -1,10 +1,22 @@
-# LVLLVL RICO — ESTADO ACTUAL · 2 NOVIEMBRE 2026
+# LVLLVL RICO — ESTADO ACTUAL · 4 NOVIEMBRE 2026
 
-**Guía de recuperación actualizada:** [Estado en GitHub](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/main/ESTADO_PROYECTO_2026-11-02.md) · [Página web de estado](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/ESTADO/) · [Editor principal](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)
+**Guía de recuperación actualizada:** [Estado en GitHub](docs/ESTADO_PROYECTO_2026-11-04.md) · [Página web de estado](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/ESTADO/) · [Editor principal](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)
 
-**EDITOR PRINCIPAL EN GITHUB PAGES: TEST297 (publicado 2/11/2026).** **Último PASS en VICE documentado en GitHub: TEST297**, con copia Bitmap MC distribuida (rama `release/test297-pass-2026-10-24`). **MASTER Multicolor conservado:** TEST264 / 24 OCT, validado solo en 1 frame básico. **Último PASS provisional de scroll diagonal de esta línea:** TEST257, con MASTER23 TEST254 intacto. **TEST260 (Map+Group+Individual)** y los prototipos posteriores TEST304/321 se mantienen experimentales hasta VICE.
+**EDITOR PRINCIPAL EN GITHUB PAGES: TEST297 (sin cambiar).** **Último PASS comunicado por el usuario: TEST328, 04/11/2026**, para exportación ECM horizontal 100×25 (caso MEGASOFT). TEST297 conserva su PASS independiente de Bitmap MC (`release/test297-pass-2026-10-24`). **MASTER Multicolor conservado:** TEST264 / 24 OCT, validado solo en 1 frame básico. **Último PASS provisional de scroll diagonal de esta línea:** TEST257, con MASTER23 TEST254 intacto. **TEST260 (Map+Group+Individual)** y los prototipos posteriores TEST304/321 se mantienen experimentales hasta VICE.
 
 La rama `main` es legado divergente. **La portada de `gh-pages` fue actualizada a TEST297 el 2/11/2026**, usando el `index.html` exacto de la rama PASS (único cambio funcional: retirar el `<base href="../../">` necesario para alojar TEST297 en `/TEST/`). El antiguo editor TEST232 está guardado en `backup/gh-pages-before-test297-2026-11-02`. No se mezclaron motores ni se alteraron los MASTER; los TEST siguen independientes.
+
+---
+
+## Checkpoint TEST328 — PASS usuario 04/11/2026
+
+**[Abrir editor TEST328](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test328-ecm-preserve-4-backgrounds/)** · **[Rama congelada](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test328-ecm-horizontal-pass-2026-11-04)** · [Registro de PASS](TEST/test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md) · [Estado 04/11](docs/ESTADO_PROYECTO_2026-11-04.md) · [Funciones corregidas](docs/FEATURES_EXPORT_PRG_ECM_TEST326_328.md).
+
+El usuario confirmó **PASS** de TEST328 tras corregir ECM en exportación PRG. Archivo de prueba: **MEGASOFT 100×25**, **Window 40×25**, **1 frame**, Map Scroll **Left 1 px/2 ticks**, **22 glifos**, fondos **0/8/14** y **8 glifos con scroll individual Left** configurado. El archivo **no contenía Group Scroll**; la triple combinación sigue pendiente de PASS real.
+
+**Arreglos:** TEST326 elimina techos antiguos de 96 columnas con verificaciones de RAM (245 monoframe / 102 compacto: máximos calculados, no PASS completo); TEST327 integra el scheduler de caracteres; TEST328 conecta correctamente Export PRG, compacta los glyphs a los 64 físicos **sin alterar JSON**, activa ECM en `$D011=$5B` e inicializa `$D021–$D024` para preservar los cuatro fondos. No confundir pruebas ASM con VICE.
+
+**Conservación:** TEST297 sigue en la raíz; TEST328 es una versión PASS aislada, sin tocar MASTER antiguos.
 
 ---
 
