@@ -81,7 +81,7 @@ function pack(self,d,opts){
     while(bgRegs.length<4)bgRegs.push(bgRegs[bgRegs.length-1]);
   }
   var colorToSlot=Object.create(null);
-  if(!isECM)for(var k=0;k<4;k++)colorToSlot[bgRegs[k]]=k;
+  if(!isECM)for(var k=0;k<4;k++)if(colorToSlot[bgRegs[k]]===undefined)colorToSlot[bgRegs[k]]=k;
   var newBank1=new Uint8Array(2048),newBank2=new Uint8Array(2048);
   for(var i=0;i<IDs.length;i++){
     var id=IDs[i];
