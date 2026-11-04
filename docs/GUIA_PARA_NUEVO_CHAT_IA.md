@@ -1,5 +1,8 @@
 # GUIA DE CONTINUIDAD — LVLLVL RICO (para otro chat IA)
 
+**ACTUALIZACIÓN TEST329:** `gh-pages/index.html` ya no es copia idéntica de TEST297: carga los 4 scripts horizontales/ECM equivalentes a TEST328 para corregir export Left de PARED.json 100×25. Mantiene Bitmap TEST297, pero la integración necesita nuevo PASS de VICE. Backup: `backup/gh-pages-root-test297-before-test329-pared-2026-11-04`. [Informe TEST329](TEST329_PARED_LEFT_EXPORT.md). El TEST328 independiente es el PASS usuario anterior.
+
+
 **ACTUALIZACIÓN 04/11/2026:** último PASS comunicado por el usuario **TEST328** para Map Scroll horizontal 100×25 + ECM, tres fondos 0/8/14 y 22 glifos (MEGASOFT). [Estado 04/11](ESTADO_PROYECTO_2026-11-04.md) · [Features corregidas](FEATURES_EXPORT_PRG_ECM_TEST326_328.md) · [PASS](../TEST/test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md). Rama: `release/test328-ecm-horizontal-pass-2026-11-04`. Portada raíz TEST297 intacta. El resto de esta guía fue redactado para el MASTER de octubre y es referencia histórica.
 
 
