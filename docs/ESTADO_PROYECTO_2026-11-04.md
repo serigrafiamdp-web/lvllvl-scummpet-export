@@ -38,6 +38,14 @@ El 04/11/2026 respondió **pass** tras la publicación de TEST328 para corregir 
 
 Group Scroll **real y simultáneo con individuales**, un mismo glyph compartido por ambos motores, dos BANK con animación, modo Right, cuatro fondos distintos en VICE, multiframe, diagonal, SID sobre ECM, ventanas distintas de 40×25 y tamaños horizontales superiores a 100. Las pruebas sintéticas de construcción de ASM no sustituyen el PASS del usuario.
 
+## Actualización posterior: TEST329, integración para PARED.json (pendiente PASS)
+
+La portada raíz se actualizó para incorporar el exportador horizontal y ECM de TEST328, conservando las rutinas Bitmap de TEST297. **La integración TEST329 no tiene PASS independiente todavía.** Su código JavaScript no fue modificado, solo las referencias de carga en `index.html` y el orden se verificó idéntico a TEST328.
+
+`PARED.json`: 100×25, Window 40×25, Scroll Area 100×25, Left 1 px/tick, **4 caracteres usados (170, 171, 186, 187)**; todas sus celdas usan `bc=8` y los dos colores 1/2 son **foregrounds**. El editor principal antiguo contenía topes 96 columnas y un bloqueo por ocho caracteres configurados con animación que PARED no utiliza.
+
+**Respaldo para rollback:** `backup/gh-pages-root-test297-before-test329-pared-2026-11-04`. El TEST328 aislado y su rama PASS siguen disponibles. El ECM diagonal Up aún requiere una implementación separada. [Análisis y plan de prueba](TEST329_PARED_LEFT_EXPORT.md).
+
 ## Recuperación
 
 - [TEST328 PASS](../TEST/test328-ecm-preserve-4-backgrounds/)
