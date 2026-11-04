@@ -1,5 +1,18 @@
 # Arquitectura del motor LVLLVL RICO — MASTER 22/10/2026
 
+## Actualización — TEST326 a TEST328 (04/11/2026)
+
+**Último PASS usuario:** TEST328 en exportación ECM de MEGASOFT 100×25, Window 40×25, 1 frame, scroll Left 1px/2ticks, 22 glyphs, fondos 0/8/14 y 8 caracteres configurados para animación individual. La prueba no incluye Group Scroll real.
+
+- TEST326, `TEST/test326-horizontal-map-limits/js/`: retira 96 columnas como techo artificial; RAM permite calcular máximos 245 monoframe / 102 compacto (estos máximos no tienen PASS en VICE).
+- TEST327, `TEST/test327-horizontal-animated-map/js/`: planifica Map Scroll horizontal + caracteres individuales + Group Scroll para caracteres diferentes.
+- TEST328, `TEST/test328-ecm-preserve-4-backgrounds/js/RICO_ECM_EXPORT_REPACK_TEST328.js`: corrige la llamada del **exportador PRG real** a la recopilación de animadores; genera charset temporal con hasta 64 glyphs usados y reescribe códigos como `(slotBG<<6) | glyph0a63`, con punteros de grupo/individual remapeados, sin alterar JSON.
+- El PRG TEST328 activa ECM con `$D011=$5B` (en vez de `$1B`) e inicializa los **cuatro fondos `$D021–$D024`**. Si hay más de 64 glyphs o cuatro fondos se informa error sin descarte silencioso.
+
+La triple combinación real Group + individual + mapa, multiframe, diagonal, SID y los demás modos requieren PASS separado. Los MASTER y el TEST297 principal no fueron modificados. [Documento técnico actualizado](FEATURES_EXPORT_PRG_ECM_TEST326_328.md).
+
+---
+
 ## Reglas del sistema
 
 La web se compone desde `index.html`. Los módulos `js/RICO_*.js` suelen **envolver** `ToPRGAdv.prototype.createPRG` o un `buildSource/build` ya existente. El **orden real de los scripts en index.html es parte de la arquitectura**. No reemplazar un JS suelto sin inspeccionar sus wrappers posteriores.
