@@ -1,5 +1,8 @@
 # GUIA DE CONTINUIDAD — LVLLVL RICO (para otro chat IA)
 
+**ACTUALIZACIÓN 04/11/2026:** último PASS comunicado por el usuario **TEST328** para Map Scroll horizontal 100×25 + ECM, tres fondos 0/8/14 y 22 glifos (MEGASOFT). [Estado 04/11](ESTADO_PROYECTO_2026-11-04.md) · [Features corregidas](FEATURES_EXPORT_PRG_ECM_TEST326_328.md) · [PASS](../TEST/test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md). Rama: `release/test328-ecm-horizontal-pass-2026-11-04`. Portada raíz TEST297 intacta. El resto de esta guía fue redactado para el MASTER de octubre y es referencia histórica.
+
+
 **Fecha/base:** MASTER 22 OCTUBRE 2026; TEST228 PASS confirmado por el usuario en VICE.
 
 ## Lectura recomendada (5 minutos)
