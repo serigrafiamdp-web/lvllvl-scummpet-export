@@ -1,6 +1,6 @@
 # TEST327 — Map Scroll horizontal hasta 100 columnas + Character Scroll simultáneo
 
-**Estado: candidato experimental, no VICE PASS.** Se publica en una ruta aislada basada en TEST326. El editor principal TEST297, la fuente original de TEST168, sus PRG y todos los JSON permanecen intactos.
+**TEST327 aislado sigue sin PASS propio.** La integración corregida en TEST328 obtuvo **PASS usuario 04/11** para MEGASOFT 100×25 con ECM, pero el archivo no incluye Group Scroll real; esa triple combinación sigue pendiente. [Registro TEST328](../test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md). Se publica en una ruta aislada basada en TEST326. El editor principal TEST297, la fuente original de TEST168, sus PRG y todos los JSON permanecen intactos.
 
 ## Problema identificado en MEGASOFT 100 filas.json
 - El archivo real tiene **100 columnas × 25 filas**, 1 frame, modo **Text/HiRes**, Map Scroll **Left**, 1 px / 2 ticks, Rico's Window **40×25**, Scroll Area **100×25**.
