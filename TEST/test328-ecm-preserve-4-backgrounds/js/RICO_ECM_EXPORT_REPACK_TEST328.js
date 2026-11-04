@@ -77,7 +77,8 @@ function pack(self,d,opts){
   if(!isECM){
     var selected=Object.keys(backgrounds).map(Number).sort(function(a,b){return backgrounds[b]-backgrounds[a]||a-b;});
     if(selected.length>4)throw new Error('ECM: el mapa utiliza '+selected.length+' fondos efectivos y ECM admite 4. Colores usados: '+selected.join(', ')+'. No se alteró el diseño.');
-    bgRegs=[defaultBG].concat(selected.filter(function(c){return c!==defaultBG;})).slice(0,4);
+    bgRegs=selected.includes(defaultBG)?[defaultBG].concat(selected.filter(function(c){return c!==defaultBG;})):selected.slice();
+    if(!bgRegs.length)bgRegs=[defaultBG];
     while(bgRegs.length<4)bgRegs.push(bgRegs[bgRegs.length-1]);
   }
   var colorToSlot=Object.create(null);
