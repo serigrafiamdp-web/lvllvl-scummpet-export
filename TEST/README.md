@@ -1,5 +1,8 @@
 # TEST — Laboratorios aislados
 
+**Último PASS comunicado (04/11/2026): [TEST328 ECM + mapa horizontal 100 columnas](test328-ecm-preserve-4-backgrounds/)**. Incluye repack no destructivo a 64 glifos, recuperación de los cuatro registros de fondo ECM y ruta de animación individual al exportar. [Registro y alcance](test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md) · [Detalles](../docs/FEATURES_EXPORT_PRG_ECM_TEST326_328.md). El caso MEGASOFT no tiene Group Scroll; esa combinación aún requiere PASS separado. La raíz continúa en TEST297.
+
+
 El MASTER del 22/10/2026 agrupó las carpetas `test150` a `test165` aquí. Se preservaron **34 archivos** (cada `index.html` y sus scripts de prueba), sin alterar los JS originales. Los 16 HTML recibieron `<base href="../../">` y las referencias cruzadas ahora apuntan a `TEST/testN/`.
 
 ## Abrir las pruebas
