@@ -14,6 +14,6 @@
 
 **Página:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test328-ecm-preserve-4-backgrounds/
 
-**Commit funcional al anunciar el PASS:** `99f3e5983ca3aadcf1e8a879bcfc09a8ad01f9a3`. **Rama congelada:** `release/test328-ecm-horizontal-pass-2026-11-04` (se creará junto con la actualización documental). No se modifica el motor durante esta anotación.
+**Commit funcional al anunciar el PASS:** `99f3e5983ca3aadcf1e8a879bcfc09a8ad01f9a3`. **Rama congelada:** `release/test328-ecm-horizontal-pass-2026-11-04` (congelada después de actualizar la documentación). No se modifica el motor durante esta anotación.
 
 [Estado general](../../docs/ESTADO_PROYECTO_2026-11-04.md) · [Funciones reparadas](../../docs/FEATURES_EXPORT_PRG_ECM_TEST326_328.md)
