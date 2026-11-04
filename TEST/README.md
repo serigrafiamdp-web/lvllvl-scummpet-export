@@ -1,5 +1,8 @@
 # TEST — Laboratorios aislados
 
+**04/11, TEST329:** el editor principal `/` ahora integra los scripts del TEST328 PASS para mapas horizontales ECM de 100 columnas. Es una integración nueva pendiente de PASS. [Diagnóstico exacto de PARED.json](../docs/TEST329_PARED_LEFT_EXPORT.md). TEST297 Bitmap sigue siendo el checkpoint histórico de respaldo.
+
+
 **Último PASS comunicado (04/11/2026): [TEST328 ECM + mapa horizontal 100 columnas](test328-ecm-preserve-4-backgrounds/)**. Incluye repack no destructivo a 64 glifos, recuperación de los cuatro registros de fondo ECM y ruta de animación individual al exportar. [Registro y alcance](test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md) · [Detalles](../docs/FEATURES_EXPORT_PRG_ECM_TEST326_328.md). El caso MEGASOFT no tiene Group Scroll; esa combinación aún requiere PASS separado. La raíz continúa en TEST297.
 
 
