@@ -35,10 +35,10 @@ small,footer{color:var(--muted)}footer{border-top:1px solid var(--line);padding-
 <header>
 <div class="eyebrow">C64 · LVLLVL RICO / SCUMM PET</div>
 <h1>Estado del proyecto y versiones</h1>
-<p class="lede">Actualizado el <strong>4 de noviembre de 2026</strong>. El <strong>TEST328 recibió PASS comunicado por el usuario</strong> para PRG ECM de 100 columnas, con recuperación de fondos y compactación de glifos. El editor principal sigue cargando <strong>TEST297</strong>; los MASTER históricos permanecen intactos.</p>
+<p class="lede">Actualizado el <strong>4 de noviembre de 2026</strong>. El <strong>TEST328 recibió PASS comunicado por el usuario</strong> para PRG ECM de 100 columnas, con recuperación de fondos y compactación de glifos. El editor principal ahora carga el <strong>TEST329 (integración candidata)</strong> con el exportador horizontal ECM de TEST328 y el motor Bitmap TEST297 conservado. No hay PASS propio de la integración; los MASTER permanecen intactos.</p>
 <nav aria-label="Enlaces principales">
 <a class="button" href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export">Repositorio GitHub</a>
-<a class="button alt" href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/">Editor principal TEST297</a>
+<a class="button alt" href="https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/">Editor principal TEST329</a>
 <a class="button alt" href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/ESTADO_PROYECTO_2026-11-04.md">Informe técnico</a>
 </nav>
 </header>
@@ -54,12 +54,13 @@ small,footer{color:var(--muted)}footer{border-top:1px solid var(--line);padding-
 <section aria-labelledby="avances"><h2 id="avances">Desarrollo más reciente y limitaciones</h2>
 <div class="table-wrap"><table><thead><tr><th>Referencia</th><th>Qué existe</th><th>Qué falta</th></tr></thead><tbody>
 <tr><td><strong>TEST258–259</strong></td><td>VIC estable en ocho direcciones y scroll fino con motor ASM rápido en diagonales Up</td><td>PASS visual de las combinaciones nuevas</td></tr>
+<tr><td><strong>TEST329 — PARED</strong></td><td>La página principal sustituye los topes de 96 columnas y habilita la ruta Left ECM de TEST328 para PARED 100×25. Cuatro glifos, fondo 8 en las 2.500 celdas y colores 1/2 en foreground. Backup de la portada TEST297.</td><td>Export PRG real y VICE PAL pendientes; ECM diagonal Up todavía no reparado. <a href="https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/TEST329_PARED_LEFT_EXPORT.md">Diagnóstico PARED</a>.</td></tr>
 <tr><td><strong>TEST326–328</strong></td><td>Mapa horizontal de 100 columnas; eliminación del límite antiguo de 96, scheduler individual y group; corrección real de ECM: $D011=$5B, $D021–$D024 y repaque no destructivo de 64 glifos. <strong>TEST328 PASS usuario</strong> en MEGASOFT.</td><td>Group Scroll real simultáneo, multiframe, 4 fondos probados en VICE, Bank2 y tamaños mayores de 100 sin PASS separado. Máximos 245/102 son calculados.</td></tr>
 <tr><td><strong>TEST297</strong></td><td>Bitmap MC distribuido, PASS registrado</td><td>Extender la validación a otros modos y cruces con otros motores</td></tr>
 <tr><td><strong>TEST304 / revisiones llamadas TEST325</strong></td><td>Prototipo de control manual/WASD, cambios registrados hasta el 26/10 en la carpeta de TEST304</td><td>Confirmación de VICE; el número de commit no crea automáticamente un editor TEST325 independiente</td></tr>
 <tr><td><strong>Rama TEST321</strong></td><td>Ruta experimental C64 VIC 40×N vertical (W/S)</td><td>A/D de mapa grande completo y PASS de integración</td></tr>
 </tbody></table></div>
-<p><small>La web principal publica TEST297 desde el 2/11/2026; TEST328 es PASS de usuario en una URL experimental separada. La anterior portada TEST232 está conservada en la rama backup/gh-pages-before-test297-2026-11-02; esta página de estado es independiente del editor.</small></p></section>
+<p><small>La web principal conservó TEST297 hasta 04/11; ahora prueba la integración TEST329 con scripts ECM horizontales de TEST328, sin cambiar los módulos Bitmap TEST297. TEST329 está pendiente de nuevo PASS. La anterior portada TEST232 está conservada en la rama backup/gh-pages-before-test297-2026-11-02; esta página de estado es independiente del editor.</small></p></section>
 <section aria-labelledby="proximo"><h2 id="proximo">Dónde retomamos</h2>
 <p>Después del PASS de <strong>TEST328</strong>, la siguiente prueba funcional pendiente es <strong>Map Scroll horizontal ECM + Group Scroll real + animación individual</strong> coexistiendo en VICE. El archivo MEGASOFT usado no contiene Group Scroll. TEST260 sigue pendiente en la línea diagonal, independientemente del PASS horizontal. Para diagonal u horizontal, con animación individual activa, el monitor permite leer <code>m cfe0 cfe4</code> (firma <code>60 01</code>; turnos de IRQ, individual y grupo).</p>
 <div class="note"><strong>Sin fusiones automáticas:</strong> <code>main</code> es una línea histórica divergente; <code>gh-pages</code> aloja la web. Los MASTER del 23 y 24 de octubre y los tests anteriores se preservan. Una compilación sin errores no equivale a PASS en VICE.</div>
