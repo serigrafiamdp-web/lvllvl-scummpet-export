@@ -1,5 +1,7 @@
 # Estado del proyecto LVLLVL RICO / SCUMM PET — 2 de noviembre de 2026
 
+> **DOCUMENTO HISTÓRICO DEL 02/11.** Estado vigente: [04/11 — TEST328 PASS](ESTADO_PROYECTO_2026-11-04.md). Esta tabla describe el estado anterior y se conserva por trazabilidad.
+>
 > Documento de navegación, **no es una fusión de código ni un nuevo MASTER**. Actualizado tras revisar las ramas, los checkpoints, README y los commits de GitHub.
 >
 > **Publicación 2/11:** la URL principal ahora abre el editor TEST297; el anterior TEST232 está en la rama `backup/gh-pages-before-test297-2026-11-02`. La publicación no constituye un PASS adicional.
