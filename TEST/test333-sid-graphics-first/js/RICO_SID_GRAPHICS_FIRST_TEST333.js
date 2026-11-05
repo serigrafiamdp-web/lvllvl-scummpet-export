@@ -262,7 +262,7 @@ function makeSource207(source,sid,speed){
  if(hardware){
    source=replaceOnce(source,
      ' sta sid_cia_pending211\n beq sid_no_cia211\n jsr sid_play_protected211\nsid_no_cia211\n lda $d019\n and #$01\n bne sid_vic211\n jmp sid_audio_only211\nsid_vic211',
-     ' sta sid_cia_pending211\n lda $d019\n and #$01\n bne sid_vic211\n lda sid_cia_pending211\n beq sid_audio_only211\n jsr sid_play_protected211\n jmp sid_audio_only211\nsid_vic211');
+     ' sta sid_cia_pending211\n lda $d019\n and #$01\n bne sid_vic211\n lda sid_cia_pending211\n beq sid333_audio_only_skip\n jsr sid_play_protected211\nsid333_audio_only_skip\n jmp sid_audio_only211\nsid_vic211');
    source=replaceOnce(source,tail333,tail333+
      ' lda sid_cia_pending211\n beq sid333_no_cia_video\n jsr sid_play_protected211\nsid333_no_cia_video\n');
  }else{
