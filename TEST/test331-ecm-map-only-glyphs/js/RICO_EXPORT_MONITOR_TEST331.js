@@ -42,7 +42,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  try{
   var result=previous.apply(this,arguments);
   if(result===false||result===null){
-    var why=window.RICO_TEST326_HORIZONTAL_LAST_ERROR||
+    var why=(window.RICO_TEST331_ECM_DIAGONAL&&window.RICO_TEST331_ECM_DIAGONAL.error)||window.RICO_TEST326_HORIZONTAL_LAST_ERROR||
       window.RICO_TEST247_LAST_ERROR||
       window.RICO_TEST200_HORIZONTAL_LAST_ERROR||
       'El motor '+info.route+' no produjo PRG. Consultar errores de consola.';
