@@ -1,5 +1,8 @@
 # TEST333 — Diagnóstico de líneas horizontales al agregar un SID
 
+> **TEST333 FAIL funcional (05/11/2026):** el usuario volvió a observar basura gráfica con SID, incluso después de priorizar video en la IRQ. No atribuir PASS a esta prueba. La investigación continúa en [TEST334, aislamiento de Zero Page](../test334-sid-zp-sandbox/). Sin SID la imagen funciona.
+
+
 **Estado: EXPERIMENTAL. NO PASS en VICE.** La imagen sin SID está bien, pero al agregar SID aparecen franjas horizontales tanto con **Map Scroll Left/Right** como en **las diagonales**. El problema es común a la rutina musical y no específico de una dirección.
 
 ## Hipótesis principal
