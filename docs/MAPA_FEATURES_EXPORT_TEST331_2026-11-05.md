@@ -61,6 +61,16 @@ Se ejecutó la cadena de envoltorios de `ToPRGAdv.prototype.createPRG` con el mi
 
 **Arreglo de diagnóstico:** TEST331 diagonal ahora conserva la causa técnica en `window.RICO_TEST331_ECM_DIAGONAL.error` y la entrega al monitor de Export PRG. Switch Bank diagonal no integrado, varios grupos y efectos grupales desconocidos se rechazan explícitamente; antes podían omitirse por el recopilador TEST196.
 
+## TEST332 — Mapa de 120×120 sin techos distintos de prueba
+
+[**Editor TEST332 experimental**](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test332-unified-120x120/) · [Diseño técnico, límites reales y pruebas](../TEST/test332-unified-120x120/README.md).
+
+El **Screen editable 120×120** es la meta común. La **Window C64 sigue siendo 40×25** por hardware. La ruta horizontal recorre la franja 120×25 elegida por Window Y; la vertical recorre 40×120 desde Window X. La diagonal necesita las dos dimensiones completas y superaba los 12 KiB anteriores.
+
+**Nuevo motor diagonal aislado:** map 120×120 = 14.400 bytes en $4000–$7FFF y 16 colores de primer plano empaquetados en 7.200 bytes a $8000–$9FFF. Un lector en 6502 desempaqueta un nibble por celda. Admite ancho impar y conserva el asignador ECM de TEST331, Group/Ondas e Individual en glifos distintos. El límite de 64 patrones físicos ECM sigue siendo hardware y hay que implementar streaming por cámara para excederlo.
+
+**Validación:** generación ASM sintética de 4 diagonales 120×120, 119×120, 120×119; regresión 60×30 con Window válida en Up-Left y Down-Right pasó sin activar el motor compacto. **No hay PASS de compilación 6502/VICE**, y ECM multiframe, multigrupo y compositor de glyph solapado siguen pendientes. No se agregaron advertencias de tamaño al editar.
+
 ## Puntos desconectados y trabajos pendientes
 
 1. **Límite real ECM 64 simultáneos:** si existen 65 patrones distintos repartidos a lo largo de un mapa grande, implementar un compositor de charset **por ventana/posición de cámara** para superar el límite global sin cambiar el modo C64.
