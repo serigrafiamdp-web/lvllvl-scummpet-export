@@ -54,7 +54,12 @@ function transform(d,self){
   if(d.fastRows){activeCodes.push.apply(activeCodes,charRow);activeBG.push.apply(activeBG,bgRow);}
  }
  if(activeCodes.length!==d.map.length)throw Error('ECM diagonal: los datos del mapa no coinciden con la geometría duplicada de TEST196.');
- var store=ts.getDocRecord().data||{},bs=[ts.tileData,store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData],
+ var store=ts.getDocRecord().data||{},groupsCfg=store.ricoGroupAnimationsV1||{},configured=[];
+ for(var gb=1;gb<=2;gb++)(groupsCfg['bank'+gb]||[]).forEach(function(cfg){if(cfg&&cfg.type)configured.push(cfg.type);});
+ if(configured.includes('switch-bank'))throw Error('ECM diagonal: Switch Bank sin integración diagonal; no se omite el efecto.');
+ if(configured.length>1)throw Error('ECM diagonal: varios grupos requieren planificador multigrupo; no se elimina ninguno.');
+ if(configured.length&&!d.group)throw Error('ECM diagonal: efecto grupal '+configured[0]+' no reconocido en esta ruta.');
+ var bs=[ts.tileData,store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData],
   groups=Object.create(null),anim=Object.create(null);
  if(d.group&&d.group.codes)Object.keys(d.group.codes).forEach(function(c){var id=Number(c);groups[already?id&63:id]=true;});
  var used=Object.keys(counts);
@@ -111,6 +116,7 @@ function transform(d,self){
 }
 D.build=function(d){
  if(!state.active||!state.exporter)return oldBuild(d);
+ try{
  var data=transform(d,state.exporter),asm=oldBuild(data);
  var from=' lda fine_y\n and #$07\n ora #'+(data.edgeMask?'$10':'$18')+'\n sta $d011';
  var to=' lda fine_y\n and #$07\n ora #'+(data.edgeMask?'$50':'$58')+'\n sta $d011';
@@ -135,6 +141,8 @@ D.build=function(d){
    'kernel nativo TEST175');
  }
  state.builds++;return asm;
+ }catch(err){state.error=String(err&&err.message||err);
+  console.error('[TEST331 DIAGONAL ECM] '+state.error);throw err;}
 };
 ToPRGAdv.prototype.createPRG=function(args){
  var e=this.editor,g=e&&e.graphic,fs=g&&g.frames||[],layer=e&&e.layers&&e.layers.getSelectedLayerObject&&e.layers.getSelectedLayerObject(),
