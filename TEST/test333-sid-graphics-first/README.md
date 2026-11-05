@@ -27,3 +27,16 @@ Enlace: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test333-
 **TEST332 original:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test332-unified-120x120/
 
 No se modifica la raíz TEST329 ni el archivo del motor SID original.
+
+## Prueba integrada Export PRG
+
+Además de las ocho pruebas sintéticas del fragmento de IRQ, se ejecutó la cadena real de envoltorios JS con el botón `createPRG` y un **SID PSID de prueba artificial** (INIT/PLAY válidos pero música vacía) usando un ensamblador simulado:
+
+| Ruta | Sin SID | Con SID | ECM | 4 fondos VIC | PLAY en salida IRQ posterior al grupo |
+| --- | --- | --- | --- | --- | --- |
+| Horizontal Left 100×25 | ASM generado | ASM generado | Sí | Sí | Sí |
+| Diagonal Up-Left 120×120 | ASM generado | ASM generado | Sí | Sí | Sí |
+
+En diagonal se verificó que permanece la sección de Color RAM compactada en `$8000`. En ambos motores el PRG con SID contiene `SID_ORIGINAL_LVLLVL_TEST211` y `RICO_TEST333_LAST_PATCH.mode='raster video-first'`. Se corrigió también un salto CIA puro que podía exceder el alcance relativo del 6502: ahora usa una rama local y un salto absoluto a la salida de audio.
+
+**Limitaciones:** este test NO simuló los tiempos de una canción auténtica ni compiló 6502 ejecutable; la causa del defecto sigue siendo una hipótesis hasta probar en VICE con el SID que produce las franjas. Si persisten, prioridad a analizar ZP y escrituras VIC del SID real.
