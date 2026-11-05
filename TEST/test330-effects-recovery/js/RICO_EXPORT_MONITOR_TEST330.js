@@ -34,8 +34,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  // Suppress fake success: these exporters do not yet initialize ECM registers.
  if(ecm&&(diag||vertical||(horizontal&&info.frames>1))&&info.width>40)
   return fail('ECM '+info.route+' de '+info.frames+' frame(s) necesita portar el pack de 64 glyphs y los cuatro fondos. No se exporta un Text Mode distinto del solicitado.');
- if(ecm&&!active.length&&info.groups.length)
-  return fail('ECM con Group Scroll solamente requiere el exportador grupal ECM; no se reemplaza silenciosamente por Text Mode.');
+ // Group-only ECM is now handled by the group exporter, preserving 4 background registers.
  if(diag&&info.groups.length>1)
   return fail('La ruta diagonal actual solo usa un grupo. Hay '+info.groups.length+' y faltaría el resto. Necesita scheduler multigrupo.');
  var oldAlert=typeof window.alert==='function'?window.alert:null,said=false;

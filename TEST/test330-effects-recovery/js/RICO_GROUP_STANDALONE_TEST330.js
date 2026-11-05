@@ -108,11 +108,87 @@ function readGroup(ts,holder){
   }
   return {bank:bank,w:w,h:h,ticks:ticks,pixels:pixels,type:g.type,cells:cells,tiles:tiles,columns:cols,addresses:addresses,protection:protectedVals,codes:ids,sourceEffect:waveSource330,ondasProgressive:/^ondas-/.test(waveSource330)};
 }
-function build(self){
+
+function packGroupECM331(self,layer,ts,group,map,b1,b2,wx,wy){
+  var ed=self.editor,sm=layer.getScreenMode&&layer.getScreenMode(),
+      already=sm==='c64ecm'||(typeof TextModeEditor!=='undefined'&&sm===TextModeEditor.Mode.C64ECM),
+      noColor=ed.colorPaletteManager&&ed.colorPaletteManager.noColor,
+      main=Number(layer.getBackgroundColor(0)),frame=layer.frames&&layer.frames[0]||{};
+  function c(v){v=Number(v);if(!Number.isInteger(v)||v<0||v>15)throw Error('ECM Group: color fuera de paleta C64: '+v);return v;}
+  function absent(v){return v===undefined||v===null||v===-1||v===false||v===noColor;}
+  main=c(main);
+  var used=Object.create(null),bgs=Object.create(null),glyphs=[],colors=[],regs=[];
+  if(already)for(var n=0;n<4;n++){
+    var color=layer.getC64ECMColor?layer.getC64ECMColor(n,0):
+        (n?frame['c64ECMColor'+n]:main);
+    regs.push(c(absent(color)?main:color));
+  }
+  for(var y=0;y<25;y++)for(var x=0;x<40;x++){
+    var v=layer.getCell({x:wx+x,y:wy+y,frame:0})||{},id=Number(v.t);
+    if(!Number.isInteger(id)||id<0||id>255)throw Error('ECM Group: tile fuera de 0–255 en '+x+','+y);
+    var g=already?id&63:id,b=already?(absent(v.bc)?id>>6:Number(v.bc)):
+        (absent(v.bc)?main:c(v.bc));
+    if(already&&(!Number.isInteger(b)||b<0||b>3))
+        throw Error('ECM Group: selector de fondo fuera de 0–3 en '+x+','+y);
+    glyphs.push(g);colors.push(b);used[g]=(used[g]||0)+1;
+    if(!already)bgs[b]=(bgs[b]||0)+1;
+  }
+  for(var col=0;col<group.w;col++)for(var row=0;row<group.h;row++){
+    var tile=group.cells[col][row],g=already?tile&63:tile;
+    if(!Number.isInteger(g)||g<0||g>255)throw Error('ECM Group: tile grupal inválido.');
+    if(used[g]===undefined)used[g]=0;
+  }
+  var ids=Object.keys(used).map(Number).sort(function(a,b){return used[b]-used[a]||a-b});
+  if(ids.length>64)throw Error('ECM Group: '+ids.length+' glifos utilizados; el VIC-II admite 64. No se modificó el proyecto.');
+  var convert=Object.create(null);ids.forEach(function(id,i){convert[id]=i});
+  if(!already){
+    var sorted=Object.keys(bgs).map(Number).sort(function(a,b){return bgs[b]-bgs[a]||a-b});
+    if(sorted.length>4)throw Error('ECM Group: '+sorted.length+' fondos efectivos y ECM admite cuatro. No se modificó el proyecto.');
+    regs=sorted.includes(main)?[main].concat(sorted.filter(function(v){return v!==main})):sorted.slice();
+    if(!regs.length)regs=[main];
+    while(regs.length<4)regs.push(regs[regs.length-1]);
+  }
+  var colorToSlot=Object.create(null);
+  if(!already)for(var i=0;i<4;i++)if(colorToSlot[regs[i]]===undefined)colorToSlot[regs[i]]=i;
+  var packed=[];
+  for(var i=0;i<1000;i++){
+    var g=convert[glyphs[i]],slot=already?colors[i]:colorToSlot[colors[i]];
+    if(!Number.isInteger(g)||g>=64||!Number.isInteger(slot)||slot<0||slot>3)
+       throw Error('ECM Group: error al codificar mapa/colores.');
+    packed.push(g|(slot<<6));
+  }
+  var new1=new Uint8Array(2048),new2=new Uint8Array(2048);
+  for(var i=0;i<ids.length;i++)for(var k=0;k<8;k++){
+    new1[i*8+k]=b1[ids[i]*8+k];new2[i*8+k]=b2[ids[i]*8+k];
+  }
+  var originalBank=group.bank===2?b2:b1, columns=[],cells=[],addresses=[],protection=[],codes=Object.create(null),
+      guard=ts.getDocRecord().data.ricoGroupAnimationsV1||{},
+      protect=guard.animateEmptyCharacters!==true;
+  for(var x=0;x<group.w;x++){
+    var column=[],newCol=[];
+    for(var y=0;y<group.h;y++){
+      var tile=group.cells[x][y],original=already?tile&63:tile,target=convert[original],blank=true;
+      newCol.push(target);codes[target]=true;
+      addresses.push((group.bank===2?0x3800:0x3000)+target*8);
+      for(var z=0;z<8;z++){var byte=originalBank[original*8+z];column.push(byte);if(byte)blank=false;}
+      protection.push(protect&&blank?1:0);
+    }
+    cells.push(newCol);columns.push(column.concat(column));
+  }
+  window.RICO_TEST330_GROUP_ECM_LAST={usedGlyphs:ids.length,backgrounds:regs.slice(),
+    groupType:group.sourceEffect||group.type,groupTiles:group.w*group.h,nonDestructive:true};
+  return {bank1:new1,bank2:new2,map:packed,bg:regs[0],backgrounds:regs,
+    group:Object.assign({},group,{cells:cells,addresses:addresses,codes:codes,columns:columns,protection:protection})};
+}
+
+function build(self,args){
   var ed=self.editor,graphic=ed.graphic,frames=graphic.frames,layer=getLayer(ed),ts=getTS(ed);
   if(frames.length!==1)throw new Error('TEST246: para exportar el grupo sin Map Scroll, todavía falta integrar la transición entre varios frames.');
   if(ts.getTileWidth()!==8||ts.getTileHeight()!==8)throw new Error('TEST246: Charset C64 requiere caracteres de 8x8.');
   var state=groupsFrom(ts),group=readGroup(ts,state),windowCfg=getWindow(ed);
+  var screenMode=layer.getScreenMode&&layer.getScreenMode();
+  var wantECM=(args&&args.mode==='extended')||screenMode==='c64ecm'||
+    (typeof TextModeEditor!=='undefined'&&screenMode===TextModeEditor.Mode.C64ECM);
   var perfect=/^pingpong-/.test(state.groups[0].g.type);
   var sw=Number(graphic.getGridWidth()),sh=Number(graphic.getGridHeight());
   var wx=Number(windowCfg.x)||0,wy=Number(windowCfg.y)||0;
@@ -128,11 +204,14 @@ function build(self){
     map.push((Number(cell.t)||0)&255);
     colors.push((Number(cell.fc)||0)&15);
   }
-  var bg=Number(layer.getBackgroundColor(0))&15,border=Number(layer.getBorderColor(0))&15;
+  var bg=Number(layer.getBackgroundColor(0))&15,border=Number(layer.getBorderColor(0))&15,groupECM=null;
+  if(wantECM){groupECM=packGroupECM331(self,layer,ts,group,map,bank1,bank2,wx,wy);
+    map=groupECM.map;bank1=groupECM.bank1;bank2=groupECM.bank2;
+    group=groupECM.group;bg=groupECM.bg;}
   var originalGroupType=state.groups[0].g.type;
   var scroll247=/^(left|right|up|down)$/.test(originalGroupType);
   var pp247=/^pingpong-(left|right|up|down)$/.test(originalGroupType)&&group.pixels!==8;
-  if((scroll247||pp247)&&window.RICO_TEST247_SCROLL_REMAP){
+  if(!wantECM&&(scroll247||pp247)&&window.RICO_TEST247_SCROLL_REMAP){
     var next=window.RICO_TEST247_SCROLL_REMAP.compile({
       group:group,map:map,colors:colors,bg:bg,border:border,
       bank1:bank1,bank2:bank2,activeBank:activeBank
@@ -150,7 +229,7 @@ function build(self){
   }
   // TEST246 screen remap: prefer the four pre-shifted fonts and change only
   // screen references; no per-tick glyph-buffer copy for eligible groups.
-  if(perfect&&group.pixels===8&&window.RICO_TEST246_SCREEN_REMAP){
+  if(!wantECM&&perfect&&group.pixels===8&&window.RICO_TEST246_SCREEN_REMAP){
     var remapped=window.RICO_TEST246_SCREEN_REMAP.compile({
       group:group,map:map,colors:colors,bg:bg,border:border,
       bank1:bank1,bank2:bank2,activeBank:activeBank
@@ -172,9 +251,10 @@ function build(self){
     'start',' sei',' lda #$35',' sta $01',' lda #$7f',' sta $dc0d',' sta $dd0d',
     ' lda $dc0d',' lda $dd0d',
     ' lda $dd00',' and #$fc',' ora #$03',' sta $dd00',
-    ' lda #$00',' sta $d015',' lda #$1b',' sta $d011',' lda #$08',' sta $d016',
+    ' lda #$00',' sta $d015',' lda #'+(wantECM?'$5b':'$1b'),' sta $d011',' lda #$08',' sta $d016',
     ' lda #'+hex(activeBank===2?0x1e:0x1c),' sta $d018',
     ' lda #'+hex(bg),' sta $d021',
+    ...(wantECM?[' lda #'+hex(groupECM.backgrounds[1]),' sta $d022',' lda #'+hex(groupECM.backgrounds[2]),' sta $d023',' lda #'+hex(groupECM.backgrounds[3]),' sta $d024']:[]),
     ' lda #'+hex(border),' sta $d020',
     ' ldx #$00','draw240',
     ' lda $4000,x',' sta $0400,x',
@@ -231,7 +311,7 @@ function build(self){
   out.push('*=$4400','color240');bytes(out,colors);
   if(!window.RICO_TEST186_HORIZONTAL||typeof window.RICO_TEST186_HORIZONTAL.groupASM!=='function')
     throw new Error('TEST246: groupASM no disponible.');
-  var demo245=perfect&&group.pixels===8&&window.RICO_TEST245_DEMO_SPEED
+  var demo245=!wantECM&&perfect&&group.pixels===8&&window.RICO_TEST245_DEMO_SPEED
     ?window.RICO_TEST245_DEMO_SPEED.compile(group):null;
   var accelerated245=!!(demo245&&demo245.source);
   var groupASM=accelerated245?demo245.source:
@@ -242,7 +322,7 @@ function build(self){
       '~'+demo245.estimatedCopyCycles+' CPU cycles per phase');
   }else if(demo245)console.log('[TEST245 FALLBACK]',demo245.reason,
     'Using proven TEST244 ASM.');
-  if(!accelerated245&&perfect&&group.pixels===8&&window.RICO_TEST243_FAST8){
+  if(!wantECM&&!accelerated245&&perfect&&group.pixels===8&&window.RICO_TEST243_FAST8){
     var fast=window.RICO_TEST243_FAST8.transform(groupASM,group);
     groupASM=fast.source;
     if(window.RICO_TEST244_SPEED){
@@ -298,7 +378,7 @@ ToPRGAdv.prototype.createPRG=function(args){
     args=args||{};
     window.RICO_TEST246_LAST_PLAN=null;
     window.RICO_TEST247_LAST_PLAN=null;
-    var src=build(this),prg=assemble(this,src);this.prg=prg;
+    var src=build(this,args),prg=assemble(this,src);this.prg=prg;
     // TEST330: only show errors in UI; engine choices remain in console.
     console.log('[TEST330 GROUP EXPORT]',window.RICO_TEST247_LAST_PLAN||window.RICO_TEST246_LAST_PLAN||'legacy ondas');
     if(args.download===false)return prg;

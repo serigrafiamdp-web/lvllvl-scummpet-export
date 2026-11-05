@@ -34,3 +34,8 @@ URL: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test330-eff
 ## Auditoría transversal
 
 [Ver inventario de rutas, restricciones y pruebas del 05/11/2026](../../docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md). El rango 120×25 ya genera ASM con Ondas y dos individuales; solo se declara PASS después de VICE.
+
+
+## Corrección de la regresión ECM Group-only — 05/11/2026
+
+El usuario observó que **la misma imagen** quedó bloqueada por el diálogo artificial de TEST330 `ECM con Group Scroll solamente ...`. Se retiró ese veto y se implementó **repack ECM directamente en la exportación grupal**: hasta 64 glyphs físicos sumando los usados en la Window 40×25 y el grupo, selección de cuatro registros `$D021–$D024`, `$D011=$5B`, reasignación de índices físicos y direcciones de animación sin alterar el JSON. Ondas y Ping Pong usan su scheduler histórico; en ECM no se aplican los aceleradores de Screen Remap incompatibles hasta validarlos. Un quinto fondo y más de 64 glifos generan error real sin truncar datos. **Pruebas ASM sintéticas PASS, pendiente VICE PAL**. Diagnóstico: `window.RICO_TEST330_GROUP_ECM_LAST`.
