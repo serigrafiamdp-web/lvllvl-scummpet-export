@@ -36,3 +36,8 @@ Si después de fusionar dibujos idénticos y reservar destinos animados quedan m
 ## Vertical Up/Down en TEST331 (ruta experimental)
 
 Se incorporó adaptador ECM para **Map Scroll vertical 40×N** (Window 40×24/25, un frame) basado en TEST168. Utiliza el mismo asignador de glifos usados en el mapa, remapea caracteres individuales/grupales, y mantiene el bit ECM de `$D011` durante el Fine Scroll vertical. Genera `$D021–$D024` y espeja los 64 glifos en las cuatro regiones para la detección de glifos vacíos del motor de Color RAM. **Sin PASS de VICE; probar el PRG en PAL**. Los modos diagonales y multiframe aún requieren su propio motor ECM.
+
+
+## Diagonal ECM — nuevo adaptador experimental
+
+Se agregó el asignador compartido a **Diagonal Up/Down Left/Right** de un frame, con Window 40×25. Conserva los cuatro fondos en `$D011/$D021–$D024`, remapea Group Scroll a glifos usados por el área y utiliza el kernel individual TEST175 para combinarlo con Map Scroll. El mapa de TEST196 puede duplicar cada fila para optimizar el scroll; el repaque respeta esa representación. **Generación ASM y VICE aún pendientes de validación de este adaptador**; no afirmar PASS. El modo diagonal multiframe sigue pendiente.

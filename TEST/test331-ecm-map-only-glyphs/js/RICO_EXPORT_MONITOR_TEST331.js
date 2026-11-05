@@ -32,7 +32,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  ecm=info.requestedMode==='extended'||info.screenMode==='c64ecm';
  info.route=diag?'diagonal':vertical?'vertical':horizontal?'horizontal':'standalone';
  // Suppress fake success: these exporters do not yet initialize ECM registers.
- if(ecm&&(diag||(horizontal&&info.frames>1))&&info.width>40)
+ if(ecm&&horizontal&&info.frames>1&&info.width>40)
   return fail('ECM '+info.route+' de '+info.frames+' frame(s) necesita portar el pack de 64 glyphs y los cuatro fondos. No se exporta un Text Mode distinto del solicitado.');
  // Group-only ECM is now handled by the group exporter, preserving 4 background registers.
  if(diag&&info.groups.length>1)
