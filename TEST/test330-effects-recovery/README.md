@@ -16,7 +16,7 @@
 - Grupo e Individual que escriben los mismos 8 bytes del mismo glifo necesitan compositor combinado. **Ahora se conservan ambos efectos en el JSON**, pero esa combinación todavía da un error de exportación.
 - Múltiples grupos simultáneos con mapa necesitan un scheduler multigrupo real; no basta con quitar un `if`.
 - Los motores de vertical, diagonal, multiframe, Group-only y Bitmap tienen pipelines separados. La falta de ECM en esas rutas requiere port específico.
-- Los 245 glifos *columnas* monoframe horizontales y 102 multiframe compactas son límites por buffer calculados; el ancho 120 ya pasa generación ASM, no VICE PASS general.
+- Los 245 *columnas* monoframe horizontales y 102 multiframe compactas son límites por buffer calculados; el ancho 120 ya pasa generación ASM, no VICE PASS general.
 
 ## Modos que conviene probar mañana
 
@@ -29,3 +29,8 @@
 Diagnóstico para consola: `window.RICO_TEST330_EXPORT_MONITOR.last` y `.lastError`.
 
 URL: https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test330-effects-recovery/
+
+
+## Auditoría transversal
+
+[Ver inventario de rutas, restricciones y pruebas del 05/11/2026](../../docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md). El rango 120×25 ya genera ASM con Ondas y dos individuales; solo se declara PASS después de VICE.

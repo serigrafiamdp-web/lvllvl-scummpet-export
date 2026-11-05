@@ -10,6 +10,13 @@ La rama `main` es legado divergente. **La portada de `gh-pages` fue actualizada 
 
 ---
 
+## TEST330 (05/11) — Ondas y animaciones independientes, auditoría general
+
+[**Abrir TEST330 experimental**](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test330-effects-recovery/) · [Auditoría de 104 módulos y matriz de modos](docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md) · [Documentación del test](TEST/test330-effects-recovery/README.md).
+
+**Cambios aislados:** conservar Group + Individual en el proyecto, restablecer Ondas progresivas frente al Ping Pong atómico standalone, eliminar avisos de exportación no erróneos, e impedir fallbacks silenciosos que perdían ECM. **Sin PASS en VICE**; TEST329 raíz y checkpoint TEST328 PASS se mantienen sin cambios funcionales. La conversión manual del editor a ECM todavía puede afectar propiedades de animación: usar exportación no destructiva para preservar datos.
+
+
 ## Checkpoint TEST328 — PASS usuario 04/11/2026
 
 **[Abrir editor TEST328](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test328-ecm-preserve-4-backgrounds/)** · **[Rama congelada](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test328-ecm-horizontal-pass-2026-11-04)** · [Registro de PASS](TEST/test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md) · [Estado 04/11](docs/ESTADO_PROYECTO_2026-11-04.md) · [Funciones corregidas](docs/FEATURES_EXPORT_PRG_ECM_TEST326_328.md).

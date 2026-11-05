@@ -1,5 +1,8 @@
 # TEST — Laboratorios aislados
 
+**TEST330 en pruebas:** [Ondas y animación individual+grupal sin borrar configuraciones](test330-effects-recovery/). [Auditoría integral](../docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md). No modifica los PASS históricos.
+
+
 **04/11, TEST329:** el editor principal `/` ahora integra los scripts del TEST328 PASS para mapas horizontales ECM de 100 columnas. Es una integración nueva pendiente de PASS. [Diagnóstico exacto de PARED.json](../docs/TEST329_PARED_LEFT_EXPORT.md). TEST297 Bitmap sigue siendo el checkpoint histórico de respaldo.
 
 

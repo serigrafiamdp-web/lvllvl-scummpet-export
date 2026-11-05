@@ -1,5 +1,8 @@
 # Índice de documentación
 
+**Auditoría 05/11:** [Revisión integral de modos/exportadores, Ondas y restricciones TEST330](AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md). [Prueba TEST330](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test330-effects-recovery/). Sin PASS VICE para TEST330.
+
+
 **Nuevo TEST329 (integración experimental en la portada):** [PARED y recuperación de scroll Left ECM](TEST329_PARED_LEFT_EXPORT.md). No es todavía un PASS en VICE. El Bitmap TEST297 está conservado en la base y la portada antigua en backup; TEST328 aislado mantiene su PASS propio.
 
 
