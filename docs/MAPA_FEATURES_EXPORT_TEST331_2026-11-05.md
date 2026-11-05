@@ -46,6 +46,21 @@ Corregir las restricciones heredadas de los tests sin confundirlas con límites 
 
 **Todo esto son pruebas de JavaScript/generación de ASM con ensamblador simulado**. No valida resolución de etiquetas, tamaño real de código 6502 ni ejecución/velocidad PAL en VICE.
 
+## Verificación adicional del botón Export PRG (05/11)
+
+Se ejecutó la cadena de envoltorios de `ToPRGAdv.prototype.createPRG` con el mismo editor sintético y **ECM + Ondas + dos animaciones individuales** para comprobar que el asignador compartido llega a la ruta realmente seleccionada:
+
+| Motor | Screen | ASM generado | Registros de fondo ECM | Grupo + Individual | Glifos |
+| --- | --- | --- | --- | --- | --- |
+| Horizontal Left | 120×25 | Sí | $D021–$D024 | Sí | 22 |
+| Vertical Up | 40×60 | Sí | $D021–$D024 | Sí | 22 |
+| Diagonal Up-Left | 60×30 | Sí | $D021–$D024 | Sí | 22 |
+| Group-only Ondas | 40×25 | Sí | $D021–$D024 | Sí | 22 |
+
+**Limitación:** se usó un ensamblador simulado; no se ejecutó un binario 6502 en VICE. No etiquetar estas rutas como PASS funcional hasta la prueba del usuario.
+
+**Arreglo de diagnóstico:** TEST331 diagonal ahora conserva la causa técnica en `window.RICO_TEST331_ECM_DIAGONAL.error` y la entrega al monitor de Export PRG. Switch Bank diagonal no integrado, varios grupos y efectos grupales desconocidos se rechazan explícitamente; antes podían omitirse por el recopilador TEST196.
+
 ## Puntos desconectados y trabajos pendientes
 
 1. **Límite real ECM 64 simultáneos:** si existen 65 patrones distintos repartidos a lo largo de un mapa grande, implementar un compositor de charset **por ventana/posición de cámara** para superar el límite global sin cambiar el modo C64.
