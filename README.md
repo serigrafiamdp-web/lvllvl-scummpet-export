@@ -10,6 +10,16 @@ La rama `main` es legado divergente. **La portada de `gh-pages` fue actualizada 
 
 ---
 
+## TEST331 — Mapa de capacidades y ECM sin topes artificiales (05/11/2026)
+
+**[Abrir TEST331 experimental](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test331-ecm-map-only-glyphs/)** · [Mapa de exportadores, restricciones y desconexiones](docs/MAPA_FEATURES_EXPORT_TEST331_2026-11-05.md) · [Registro técnico](TEST/test331-ecm-map-only-glyphs/README.md).
+
+El asignador ECM compartido cuenta **solo los códigos pintados en el mapa exportado** y fusiona dibujos idénticos, conservando destinos de animación distintos y fuentes invisibles de Group Scroll. La misma regla ya está conectada por prueba a los motores **horizontal, vertical Up/Down, diagonal y Group-only**, además de Ondas + Individual standalone en glifos distintos.
+
+**Sin PASS en VICE** para TEST331. Multiframe, múltiples grupos, solapamientos en un glifo, Ping Pong atómico + Individual, Ondas originales vertical/diagonal y conversión ECM destructiva dentro del editor siguen pendientes. No se alteró el principal TEST329 ni TEST328 PASS.
+
+---
+
 ## TEST330 (05/11) — Ondas y animaciones independientes, auditoría general
 
 [**Abrir TEST330 experimental**](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test330-effects-recovery/) · [Auditoría de 104 módulos y matriz de modos](docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md) · [Documentación del test](TEST/test330-effects-recovery/README.md).

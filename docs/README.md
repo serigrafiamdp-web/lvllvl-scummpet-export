@@ -1,5 +1,8 @@
 # Índice de documentación
 
+**TEST331 (05/11):** [Mapa de todos los exportadores y funciones conectadas/desconectadas](MAPA_FEATURES_EXPORT_TEST331_2026-11-05.md) · [Página experimental TEST331](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test331-ecm-map-only-glyphs/). Generación ASM comprobada en horizontal, vertical, diagonal y Group-only; **VICE pendiente**. TEST329 principal y TEST328 PASS conservados.
+
+
 **Auditoría 05/11:** [Revisión integral de modos/exportadores, Ondas y restricciones TEST330](AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md). [Prueba TEST330](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test330-effects-recovery/). Sin PASS VICE para TEST330.
 
 

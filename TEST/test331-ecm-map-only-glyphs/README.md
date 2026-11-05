@@ -41,3 +41,10 @@ Se incorporó adaptador ECM para **Map Scroll vertical 40×N** (Window 40×24/25
 ## Diagonal ECM — nuevo adaptador experimental
 
 Se agregó el asignador compartido a **Diagonal Up/Down Left/Right** de un frame, con Window 40×25. Conserva los cuatro fondos en `$D011/$D021–$D024`, remapea Group Scroll a glifos usados por el área y utiliza el kernel individual TEST175 para combinarlo con Map Scroll. El mapa de TEST196 puede duplicar cada fila para optimizar el scroll; el repaque respeta esa representación. **Generación ASM y VICE aún pendientes de validación de este adaptador**; no afirmar PASS. El modo diagonal multiframe sigue pendiente.
+
+
+## Group-only + animación individual (ampliación)
+
+El exportador Group-only ya conserva y exporta el scheduler nativo TEST175 para caracteres individuales **distintos de los del grupo**. Comprobación sintética PASS en modo Text y Extended con **ONDAS**. La IRQ marca ambos trabajos; el bucle principal da prioridad a Group Scroll y luego mueve un carácter individual por iteración. Para **Ping Pong atómico + individuales**, todavía hay conflicto de sincronización con las conmutaciones de BANK: se muestra un error técnico y el proyecto no se modifica. Diagnóstico: `window.RICO_TEST331_GROUP_INDIVIDUAL_LAST`.
+
+[Mapa actualizado de modos y límites](../../docs/MAPA_FEATURES_EXPORT_TEST331_2026-11-05.md).

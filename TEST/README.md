@@ -1,5 +1,8 @@
 # TEST — Laboratorios aislados
 
+**TEST331 (experimental):** [ECM repack desde mapa usado: horizontal, vertical, diagonal, Group-only](test331-ecm-map-only-glyphs/). [Matriz completa de capacidades](../docs/MAPA_FEATURES_EXPORT_TEST331_2026-11-05.md). Todavía sin PASS de VICE.
+
+
 **TEST330 en pruebas:** [Ondas y animación individual+grupal sin borrar configuraciones](test330-effects-recovery/). [Auditoría integral](../docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md). No modifica los PASS históricos.
 
 
