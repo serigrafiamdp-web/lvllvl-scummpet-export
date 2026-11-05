@@ -71,6 +71,16 @@ El **Screen editable 120×120** es la meta común. La **Window C64 sigue siendo 
 
 **Validación:** generación ASM sintética de 4 diagonales 120×120, 119×120, 120×119; regresión 60×30 con Window válida en Up-Left y Down-Right pasó sin activar el motor compacto. **No hay PASS de compilación 6502/VICE**, y ECM multiframe, multigrupo y compositor de glyph solapado siguen pendientes. No se agregaron advertencias de tamaño al editar.
 
+## TEST336 — Frames recuperados desde TEST53/205/206/327 (05/11)
+
+[Editor de prueba TEST336](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test336-frames-recovered/) · [Informe completo](../TEST/test336-frames-recovered/README.md).
+
+El usuario confirmó PASS del arreglo de corrupción SID en TEST335, pero el PRG no cambiaba de frame. Se rastreó una regresión concreta: el wrapper ECM posterior volvía a recopilar el `graphic.frames` completo durante `H.build`, anulando el motor multiframe previo y disparando el antiguo guard de un frame. TEST336 conserva TEST205/206, el clock de mapa por frame, ticks de duración, Group/Ondas y TEST327 individual, evitando el choque de Zero Page `$30` (dirección de frame) vs. `anim175_ptr_lo` (trasladado a `$70–$74` solo en multiframe).
+
+El repaque ECM se hace **globalmente** para todos los frames y actualiza hasta cuatro registros de fondo por frame. La integración SID TEST335 sigue activa. Se verificó **generación de ASM sintética** para 2 y 5 frames, con Group + Individual + ECM + SID, y también secuencia Left/OFF/Right con duraciones 12/30/7 ticks. TEST336 **NO tiene PASS funcional VICE**.
+
+Multiframe grande vertical/diagonal, varios grupos simultáneos y streaming de más de 64 glifos ECM siguen pendientes; el editor principal y los MASTER están intactos.
+
 ## Puntos desconectados y trabajos pendientes
 
 1. **Límite real ECM 64 simultáneos:** si existen 65 patrones distintos repartidos a lo largo de un mapa grande, implementar un compositor de charset **por ventana/posición de cámara** para superar el límite global sin cambiar el modo C64.
