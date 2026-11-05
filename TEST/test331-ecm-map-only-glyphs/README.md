@@ -28,19 +28,19 @@ Si después de fusionar dibujos idénticos y reservar destinos animados quedan m
 - 65 dibujos físicos verdaderamente distintos visibles: mostrar error técnico, no exportar un mapa truncado.
 - 1–4 fondos ECM, con rechazo de más de cuatro; regresión con MEGASOFT, PARED y Bitmap TEST297.
 
-**No se afirma compatibilidad ECM universal para diagonal, vertical, multiframe ni Bitmap en TEST331; esas rutas siguen necesitando portar el asignador y el compositor de fondos al pipeline propio.**
+**TEST331 ya incorpora de forma experimental los exportadores ECM horizontal, vertical, diagonal y Group-only con el asignador compartido.** No significa PASS en VICE ni compatibilidad universal: multiframe, varios grupos, Switch Bank combinado y Bitmap siguen siendo motores separados.
 
 [Editor TEST331](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test331-ecm-map-only-glyphs/)
 
 
 ## Vertical Up/Down en TEST331 (ruta experimental)
 
-Se incorporó adaptador ECM para **Map Scroll vertical 40×N** (Window 40×24/25, un frame) basado en TEST168. Utiliza el mismo asignador de glifos usados en el mapa, remapea caracteres individuales/grupales, y mantiene el bit ECM de `$D011` durante el Fine Scroll vertical. Genera `$D021–$D024` y espeja los 64 glifos en las cuatro regiones para la detección de glifos vacíos del motor de Color RAM. **Sin PASS de VICE; probar el PRG en PAL**. Los modos diagonales y multiframe aún requieren su propio motor ECM.
+Se incorporó adaptador ECM para **Map Scroll vertical 40×N** (Window 40×24/25, un frame) basado en TEST168. Utiliza el mismo asignador de glifos usados en el mapa, remapea caracteres individuales/grupales, y mantiene el bit ECM de `$D011` durante el Fine Scroll vertical. Genera `$D021–$D024` y espeja los 64 glifos en las cuatro regiones para la detección de glifos vacíos del motor de Color RAM. **Sin PASS de VICE; probar el PRG en PAL**. El adaptador diagonal ya está incluido en TEST331; multiframe continúa pendiente.
 
 
 ## Diagonal ECM — nuevo adaptador experimental
 
-Se agregó el asignador compartido a **Diagonal Up/Down Left/Right** de un frame, con Window 40×25. Conserva los cuatro fondos en `$D011/$D021–$D024`, remapea Group Scroll a glifos usados por el área y utiliza el kernel individual TEST175 para combinarlo con Map Scroll. El mapa de TEST196 puede duplicar cada fila para optimizar el scroll; el repaque respeta esa representación. **Generación ASM y VICE aún pendientes de validación de este adaptador**; no afirmar PASS. El modo diagonal multiframe sigue pendiente.
+Se agregó el asignador compartido a **Diagonal Up/Down Left/Right** de un frame, con Window 40×25. Conserva los cuatro fondos en `$D011/$D021–$D024`, remapea Group Scroll a glifos usados por el área y utiliza el kernel individual TEST175 para combinarlo con Map Scroll. El mapa de TEST196 puede duplicar cada fila para optimizar el scroll; el repaque respeta esa representación. **Generación ASM verificada con pruebas sintéticas**; la compilación binaria real y VICE siguen pendientes de PASS. El modo diagonal multiframe sigue pendiente.
 
 
 ## Group-only + animación individual (ampliación)
@@ -48,3 +48,25 @@ Se agregó el asignador compartido a **Diagonal Up/Down Left/Right** de un frame
 El exportador Group-only ya conserva y exporta el scheduler nativo TEST175 para caracteres individuales **distintos de los del grupo**. Comprobación sintética PASS en modo Text y Extended con **ONDAS**. La IRQ marca ambos trabajos; el bucle principal da prioridad a Group Scroll y luego mueve un carácter individual por iteración. Para **Ping Pong atómico + individuales**, todavía hay conflicto de sincronización con las conmutaciones de BANK: se muestra un error técnico y el proyecto no se modifica. Diagnóstico: `window.RICO_TEST331_GROUP_INDIVIDUAL_LAST`.
 
 [Mapa actualizado de modos y límites](../../docs/MAPA_FEATURES_EXPORT_TEST331_2026-11-05.md).
+
+## Matriz de regresión del exportador (05/11/2026)
+
+Se ejecutó el botón `ToPRGAdv.prototype.createPRG({mode:'extended', download:false})` con cuatro configuraciones sintéticas que comparten **Ondas de grupo + dos caracteres individuales**; se comprobó que cada ruta genera ASM, mantiene el bit ECM y escribe `$D021–$D024`:
+
+| Ruta | Geometría | Generación ASM | Glifos físicos | Individual + Group |
+| --- | --- | --- | --- | --- |
+| Horizontal Left | 120×25 | Correcta | 22 | Presentes |
+| Vertical Up | 40×60 | Correcta | 22 | Presentes |
+| Diagonal Up-Left | 60×30 | Correcta | 22 | Presentes |
+| Group-only Ondas | 40×25 | Correcta | 22 | Presentes |
+
+Pruebas del asignador independiente: **256 índices / 4 patrones físicos → 4 glifos**; los mismos códigos con 8 animados → **12 glifos**; 12 fuentes grupales invisibles no ocupan glifos VIC; 65 patrones verdaderamente distintos se rechazan sin truncamiento.
+
+**Limitación de estas pruebas:** el ensamblador empleado fue un simulador que recibió el código ASM; no lo compiló a un PRG 6502 ejecutable. Ninguna fila equivale todavía a PASS de VICE. El Bitmap TEST297 no se modificó.
+
+### Errores y efectos no soportados
+
+Se reparó el diagnóstico diagonal: ante error, `window.RICO_TEST331_ECM_DIAGONAL.error` queda disponible y el monitor de Export PRG muestra esa causa. Switch Bank sin motor diagonal, varios grupos o un grupo no reconocido **no se omiten silenciosamente**.
+
+Pendiente: un compositor multigrupo, animación individual sobre el mismo glifo modificado por un grupo, sincronización con Ping Pong atómico y **ECM multiframe**. No sustituir estas rutas con Text Mode sin avisar.
+
