@@ -165,6 +165,8 @@ function packGroupECM331(self,layer,ts,group,map,b1,b2,wx,wy){
     packed.push(g|(slot<<6));
   }
   var new1=allocated.bank1,new2=allocated.bank2;
+  // The group source tile matrix MUST remain original: groupASM reads tiles[code].data.
+  // Only target destination addresses are remapped; offscreen targets write to $E000.
   var originalBank=group.bank===2?b2:b1, columns=[],cells=[],addresses=[],protection=[],codes=Object.create(null),
       guard=ts.getDocRecord().data.ricoGroupAnimationsV1||{},
       protect=guard.animateEmptyCharacters!==true;
@@ -186,7 +188,7 @@ function packGroupECM331(self,layer,ts,group,map,b1,b2,wx,wy){
     invisibleGroupSources:allocated.unpaintedGroupSourceCount,backgrounds:regs.slice(),
     groupType:group.sourceEffect||group.type,groupTiles:group.w*group.h,nonDestructive:true};
   return {bank1:new1,bank2:new2,map:packed,bg:regs[0],backgrounds:regs,
-    group:Object.assign({},group,{cells:cells,addresses:addresses,codes:codes,columns:columns,protection:protection})};
+    group:Object.assign({},group,{addresses:addresses,codes:codes,columns:columns,protection:protection})};
 }
 
 function build(self,args){
