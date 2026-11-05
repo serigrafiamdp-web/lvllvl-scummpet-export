@@ -187,8 +187,71 @@ function packGroupECM331(self,layer,ts,group,map,b1,b2,wx,wy){
     usedGlyphs:allocated.uniqueGlyphs,mergedAliases:allocated.mergedAliases,
     invisibleGroupSources:allocated.unpaintedGroupSourceCount,backgrounds:regs.slice(),
     groupType:group.sourceEffect||group.type,groupTiles:group.w*group.h,nonDestructive:true};
-  return {bank1:new1,bank2:new2,map:packed,bg:regs[0],backgrounds:regs,
+  return {bank1:new1,bank2:new2,map:packed,bg:regs[0],backgrounds:regs,physicalByCode:convert,
     group:Object.assign({},group,{addresses:addresses,codes:codes,columns:columns,protection:protection})};
+}
+
+
+function collectIndividual331(ts,layer,wx,wy,group,pack,mode){
+ var store=ts.getDocRecord().data||{},banks=[ts.tileData,store.ricoCharsetBank2&&store.ricoCharsetBank2.tileData],
+ used=Object.create(null),groupOriginal=Object.create(null),records=[],
+ types={left:0,right:1,up:2,down:3,blink:4},
+ already=mode==='c64ecm'||(typeof TextModeEditor!=='undefined'&&mode===TextModeEditor.Mode.C64ECM);
+ for(var x=0;x<group.w;x++)for(var y=0;y<group.h;y++){
+  var code=group.cells[x][y];groupOriginal[already?code&63:code]=true;
+ }
+ for(var y=0;y<25;y++)for(var x=0;x<40;x++){
+  var c=layer.getCell({x:wx+x,y:wy+y,frame:0})||{},id=Number(c.t);
+  if(Number.isInteger(id)&&id>=0&&id<=255)used[already?id&63:id]=true;
+ }
+ for(var bank=1;bank<=2;bank++){
+  var tiles=banks[bank-1];if(!tiles)continue;
+  for(var k in used){
+   var id=Number(k),p=tiles[id]&&tiles[id].props||{},type=p.animated;
+   if(type===null||type===undefined||type===false||type==='')continue;
+   if(!Object.prototype.hasOwnProperty.call(types,type))
+     throw Error('Group+Individual: tile '+id+' tiene efecto no soportado: '+type);
+   var ticks=Number(p.ticksPerFrame);
+   if(!Number.isInteger(ticks)||ticks<1||ticks>255)
+     throw Error('Group+Individual: ticks inválidos para tile '+id+' (1–255).');
+   if(group.bank===bank&&groupOriginal[id])
+     throw Error('Group+Individual: tile '+id+' recibe dos animaciones sobre los mismos 8 bytes; hace falta composición física.');
+   var dst=pack?pack.physicalByCode[id]:id;
+   if(!Number.isInteger(dst))throw Error('Group+Individual: tile '+id+' sin posición física de exportación.');
+   records.push({bank:bank,code:dst,ticks:ticks,type:types[type],
+     address:(bank===2?0x3800:0x3000)+dst*8});
+  }
+ }
+ return records;
+}
+function replaceASM331(src,a,b,which){
+ var pos=src.indexOf(a);
+ if(pos<0||src.indexOf(a,pos+a.length)>=0)throw Error('Group+Individual: ancla de ASM '+which+' cambió o está duplicada.');
+ return src.slice(0,pos)+b+src.slice(pos+a.length);
+}
+function injectIndividual331(source,records,bank1,bank2,bank,bg,border){
+ var L=window.RICO_TEST168_PRG_LARGE_MAP;
+ if(!L||!L.buildSource)throw Error('Group+Individual: falta kernel TEST175.');
+ var empty=new Uint8Array(40*26),colors=new Uint8Array(40*26);colors.fill(14);
+ var mock={width:40,height:26,type:'up',typeCode:1,ticks:1,pixels:1,duration:12,
+  bg:bg,border:border,bank:bank,initialRow:0,
+  window:{x:0,y:0,width:40,height:25},area:{x:0,y:0,width:40,height:26},
+  bank1:bank1,bank2:bank2,map:empty,colors:colors,
+  anim175:{records:records,switchTicks:0,group:null}};
+ var donor=L.buildSource(mock),start=donor.indexOf('\nanim175_tick\n'),end=donor.indexOf('\n*=$3000\n',start);
+ if(start<0||end<start)throw Error('Group+Individual: kernel nativo TEST175 no encontrado.');
+ source=replaceASM331(source,'*=$2000\nstart',
+  '*=$2000\nanim175_ptr_lo=$30\nanim175_ptr_hi=$31\nanim175_dest_lo=$32\nanim175_dest_hi=$33\nanim175_temp=$34\nstart','punteros');
+ source=replaceASM331(source,
+  'main240\n lda group182_pending\n beq main240\n jsr group182_step\n jmp main240',
+  'main240\n lda group182_pending\n bne group331_run\n lda anim175_pending\n beq main240\n jsr anim175_tick\n jmp main240\ngroup331_run\n jsr group182_step\n jmp main240',
+  'planificador de grupo');
+ source=replaceASM331(source,
+  ' jsr group182_irq_tick\n pla\n tay\n pla\n tax\n pla\n rti',
+  ' jsr group182_irq_tick\n lda anim175_pending\n cmp #$ff\n beq group331_pending_max\n inc anim175_pending\ngroup331_pending_max\n pla\n tay\n pla\n tax\n pla\n rti','tick IRQ');
+ source=replaceASM331(source,'\n*=$3000\ncharset_bank1',
+  '\n'+donor.slice(start+1,end)+'\n*=$3000\ncharset_bank1','kernel TEST175');
+ return source;
 }
 
 function build(self,args){
@@ -218,10 +281,12 @@ function build(self,args){
   if(wantECM){groupECM=packGroupECM331(self,layer,ts,group,map,bank1,bank2,wx,wy);
     map=groupECM.map;bank1=groupECM.bank1;bank2=groupECM.bank2;
     group=groupECM.group;bg=groupECM.bg;}
+  var individual331=collectIndividual331(ts,layer,wx,wy,group,groupECM,screenMode);
+  if(perfect&&individual331.length)throw Error('Group+Individual: Ping Pong atómico conmuta los dos bancos; todavía falta sincronizar las animaciones individuales con el intercambio. Las configuraciones siguen guardadas. ONDAS progresivas y Scroll circular sí pueden combinarse.');
   var originalGroupType=state.groups[0].g.type;
   var scroll247=/^(left|right|up|down)$/.test(originalGroupType);
   var pp247=/^pingpong-(left|right|up|down)$/.test(originalGroupType)&&group.pixels!==8;
-  if(!wantECM&&(scroll247||pp247)&&window.RICO_TEST247_SCROLL_REMAP){
+  if(!wantECM&&!individual331.length&&(scroll247||pp247)&&window.RICO_TEST247_SCROLL_REMAP){
     var next=window.RICO_TEST247_SCROLL_REMAP.compile({
       group:group,map:map,colors:colors,bg:bg,border:border,
       bank1:bank1,bank2:bank2,activeBank:activeBank
@@ -239,7 +304,7 @@ function build(self,args){
   }
   // TEST246 screen remap: prefer the four pre-shifted fonts and change only
   // screen references; no per-tick glyph-buffer copy for eligible groups.
-  if(!wantECM&&perfect&&group.pixels===8&&window.RICO_TEST246_SCREEN_REMAP){
+  if(!wantECM&&!individual331.length&&perfect&&group.pixels===8&&window.RICO_TEST246_SCREEN_REMAP){
     var remapped=window.RICO_TEST246_SCREEN_REMAP.compile({
       group:group,map:map,colors:colors,bg:bg,border:border,
       bank1:bank1,bank2:bank2,activeBank:activeBank
@@ -350,7 +415,14 @@ function build(self,args){
   }
   if(group.ondasProgressive)out.push('; TEST330 ONDAS: original visible-charset progressive phase.');
   out.push(groupASM);
-  return out.join('\n')+'\n';
+  var asm=out.join('\n')+'\n';
+  if(individual331.length){
+    asm=injectIndividual331(asm,individual331,bank1,bank2,activeBank,bg,border);
+    window.RICO_TEST331_GROUP_INDIVIDUAL_LAST={records:individual331.length,
+      group:group.sourceEffect||group.type,ecm:wantECM,
+      scheduler:'Group first, individual native TEST175 after group, same IRQ'};
+  }
+  return asm;
 }
 function assemble(self,source){
   var as=typeof g_app!=='undefined'&&g_app&&g_app.assembler;
