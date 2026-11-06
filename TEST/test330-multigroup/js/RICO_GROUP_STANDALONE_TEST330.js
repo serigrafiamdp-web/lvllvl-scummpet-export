@@ -167,30 +167,36 @@ function buildMulti330(state,ts,bank1,bank2,map,colors,bg,border,activeBank){
   groups.forEach(function(group,i){
     var raw=window.RICO_TEST186_HORIZONTAL.groupASM(group,bank1,bank2);
     if(!/\*\=\$a000\b/i.test(raw))throw new Error('TEST330: origen ASM inesperado para grupo '+(i+1));
-    if(!/group182_sources_hi/.test(raw)||!/group182_step/.test(raw))
-      throw new Error('TEST330: grupo '+(i+1)+' requiere una rutina compatible; no se reemplaza silenciosamente.');
-    // Las fuentes originales están alineadas en páginas y sus punteros
-    // HI numéricos deben reubicarse igual que los segmentos ASM.
-    var sourceLength=group.columns.reduce(function(sum,col){return sum+col.length;},0);
-    var sourceOrigins=Array.from(raw.matchAll(/\*=\$([a-f0-9]{4})/gi)).map(function(m){return parseInt(m[1],16);});
+    var horizontal=/^(left|right)$/.test(group.type);
+    var tableName=horizontal?'group183_source_his':'group182_sources_hi';
+    if(raw.indexOf(tableName)<0||raw.indexOf('group182_step')<0)
+      throw new Error('TEST330: formato ASM no reconocido para grupo '+(i+1)+' ('+group.type+').');
+    var sourceLength=horizontal?group.w*group.h*16:group.columns.reduce(function(sum,col){return sum+col.length;},0);
+    var sourceOrigins=Array.from(raw.matchAll(/\\*=\\$([a-f0-9]{4})/gi)).map(function(m){return parseInt(m[1],16);});
     var sourceBase=Math.max.apply(null,sourceOrigins);
-    if(sourceBase<0xa800||sourceBase>=0xd000)throw new Error('TEST330: ubicación de fuentes inesperada para grupo '+(i+1));
+    if(sourceBase<0xa800||sourceBase>=0xd000)throw new Error('TEST330: origen de datos inesperado en grupo '+(i+1));
     var required=(sourceBase-0xa000)+sourceLength;
     var segmentBytes=(required+255)&~255;
     if(cursor+segmentBytes>0xd000)
-      throw new Error('TEST330: memoria insuficiente para '+groups.length+' grupos. Grupo '+(i+1)+' requiere '+segmentBytes+' bytes adicionales de RAM segura; no es un límite arbitrario de cantidad.');
-    var delta=cursor-0xa000;
-    var hiDelta=delta>>8;
-    raw=raw.replace(/(group182_sources_hi\s*\n)((?:!byte[^\n]*\n?)+)/,function(_,head,data){
-      return head+data.replace(/\$[0-9a-f]{2}/gi,function(v){return hex(parseInt(v.slice(1),16)+hiDelta);});
+      throw new Error('TEST330: RAM insuficiente para todos los grupos: el grupo '+(i+1)+' requiere '+segmentBytes+' bytes. No se descarta ningún grupo.');
+    var delta=cursor-0xa000,hiDelta=delta>>8;
+    // Reubicar tablas HIGH absolutas calculadas durante la generación del grupo.
+    // Ambas variantes tienen LOW inalterado porque delta es múltiplo de 256.
+    var tabRe=new RegExp('('+tableName+'\\\\s*\\\\n)((?:!byte[^\\\\n]*\\\\n?)+)');
+    var updated=false;
+    raw=raw.replace(tabRe,function(_,head,data){
+      updated=true;
+      return head+data.replace(/\\$[0-9a-f]{2}/gi,function(v){return hex(parseInt(v.slice(1),16)+hiDelta);});
     });
-    raw=raw.replace(/\*=\$([0-9a-f]{4})/gi,function(_,addr){
+    if(!updated)throw new Error('TEST330: no se pudo reubicar la tabla de fuentes del grupo '+(i+1));
+    raw=raw.replace(/\\*=\\$([0-9a-f]{4})/gi,function(_,addr){
       var n=parseInt(addr,16);
       return n>=0xa000&&n<0xd000?'*='+b16(n+delta):'*='+b16(n);
     });
-    // Nombres independientes para todos los símbolos del motor.
-    raw=raw.replace(/\bgroup182_([a-z0-9_]+)/gi,function(_,name){return 'group330_'+i+'_'+name;});
-    // Los punteros ZP siguen siendo compartidos y secuenciales.
+    raw=raw.replace(/\\bgroup(182|183)_([a-z0-9_]+)/gi,function(_,engine,name){return 'group330_'+i+'_'+engine+'_'+name;});
+    // El scheduler llama a las entradas de grupo182, que ahora están aisladas.
+    // Sustituir referencias para conservar el contrato previsto.
+    raw=raw.replace(/group330_([0-9]+)_182_(irq_tick|step|pending)/g,'group330_$1_$2');
     out.push(raw);
     plans.push({bank:group.bank,tiles:group.w*group.h,type:group.type,base:b16(cursor),bytes:segmentBytes});
     cursor+=segmentBytes;
