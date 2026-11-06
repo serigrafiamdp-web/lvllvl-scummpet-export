@@ -182,7 +182,7 @@ function buildMulti330(state,ts,bank1,bank2,map,colors,bg,border,activeBank){
     var delta=cursor-0xa000,hiDelta=delta>>8;
     // Reubicar tablas HIGH absolutas calculadas durante la generación del grupo.
     // Ambas variantes tienen LOW inalterado porque delta es múltiplo de 256.
-    var tabRe=new RegExp('('+tableName+'\\\\s*\\\\n)((?:!byte[^\\\\n]*\\\\n?)+)');
+    var tabRe=new RegExp('('+tableName+'\\s*\\n)((?:!byte[^\\n]*\\n?)+)');
     var updated=false;
     raw=raw.replace(tabRe,function(_,head,data){
       updated=true;
