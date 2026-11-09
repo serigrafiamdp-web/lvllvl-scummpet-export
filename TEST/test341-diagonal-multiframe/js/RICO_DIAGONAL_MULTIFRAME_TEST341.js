@@ -209,33 +209,33 @@ function planStep(){
  ' lda camera_x',' sta pending_x',
  ' lda camera_y',' sta pending_y',
  ' lda f341_dirx',' beq frame341_xleft',
- ' lda fine_x',' clc',' adc f341_pixels',
+ ' lda fine_x',' clc',' adc f341_pixels',' sta f341_tmpfine',
  ' cmp #$08',' bcc frame341_xdone',
- ' sec',' sbc #$08',
+ ' sec',' sbc #$08',' sta f341_tmpfine',
  ' lda pending_x',' bne frame341_xright_dec',
  ' lda f341_width',' sec',' sbc #$01',' sta pending_x',
  ' jmp frame341_xdone',
  'frame341_xright_dec',' dec pending_x',' jmp frame341_xdone',
  'frame341_xleft',
- ' lda fine_x',' sec',' sbc f341_pixels',' bcs frame341_xdone',
- ' clc',' adc #$08',
+ ' lda fine_x',' sec',' sbc f341_pixels',' sta f341_tmpfine',' bcs frame341_xdone',
+ ' clc',' adc #$08',' sta f341_tmpfine',
  ' inc pending_x',' ldx pending_x',' cpx f341_width',' bcc frame341_xdone',
  ' ldx #$00',' stx pending_x',
- 'frame341_xdone',' sta next_fx',
+ 'frame341_xdone',' lda f341_tmpfine',' sta next_fx',
  ' lda f341_diry',' beq frame341_yup',
- ' lda fine_y',' clc',' adc f341_pixels',
+ ' lda fine_y',' clc',' adc f341_pixels',' sta f341_tmpfine',
  ' cmp #$08',' bcc frame341_ydone',
- ' sec',' sbc #$08',
+ ' sec',' sbc #$08',' sta f341_tmpfine',
  ' lda pending_y',' bne frame341_ydown_dec',
  ' lda f341_height',' sec',' sbc #$01',' sta pending_y',
  ' jmp frame341_ydone',
  'frame341_ydown_dec',' dec pending_y',' jmp frame341_ydone',
  'frame341_yup',
- ' lda fine_y',' sec',' sbc f341_pixels',' bcs frame341_ydone',
- ' clc',' adc #$08',
+ ' lda fine_y',' sec',' sbc f341_pixels',' sta f341_tmpfine',' bcs frame341_ydone',
+ ' clc',' adc #$08',' sta f341_tmpfine',
  ' inc pending_y',' ldx pending_y',' cpx f341_height',' bcc frame341_ydone',
  ' ldx #$00',' stx pending_y',
- 'frame341_ydone',' sta next_fy',
+ 'frame341_ydone',' lda f341_tmpfine',' sta next_fy',
  ' lda pending_x',' cmp camera_x',' bne frame341_queue',
  ' lda pending_y',' cmp camera_y',' bne frame341_queue',
  ' lda next_fx',' sta fine_x',
@@ -253,12 +253,12 @@ function build(plan){
  'f341_width=$33','f341_height=$34',
  'f341_maplo=$39','f341_maphi=$3a','f341_collo=$3b','f341_colhi=$3c',
  'f341_stride_lo=$3d','f341_stride_hi=$3e',
- 'f341_bg=$3f','f341_border=$40','f341_edge=$41'
+ 'f341_bg=$3f','f341_border=$40','f341_edge=$41','f341_tmpfine=$42'
  ].join('\n');
  src=once(src,'start\n sei','start\n sei','startup'); // deliberate early source integrity check
  src=once(src,'tmp_x=$28\n','tmp_x=$28\n'+zp+'\n','ZP layout');
- src=once(src,' lda camera_x\n sta pending_x\n lda camera_y\n sta pending_y',
-  ' lda #$00\n sta f341_index\n sta f341_pending\n sta f341_switching\n jsr frame341_load\n lda pending_x\n sta camera_x\n lda pending_y\n sta camera_y\n lda next_fx\n sta fine_x\n lda next_fy\n sta fine_y',
+ src=once(src,' sta $d020\n lda camera_x\n sta pending_x\n lda camera_y\n sta pending_y',
+  ' sta $d020\n lda #$00\n sta f341_index\n sta f341_pending\n sta f341_switching\n jsr frame341_load\n lda pending_x\n sta camera_x\n lda pending_y\n sta camera_y\n lda next_fx\n sta fine_x\n lda next_fy\n sta fine_y',
   'initial frame load');
  src=once(src,' sta $d019\n',' sta $d019\n jsr frame341_tick\n','frame timer IRQ');
  src=once(src,'main_loop\n lda prep_request',
@@ -270,7 +270,7 @@ function build(plan){
  src=src.replace(m,'tick_check\n lda tick_hi\n cmp f341_tickhi\n bne irq_group\n lda tick_lo\n cmp f341_ticklo\n bne irq_group');
  src=once(src,' jsr swap_screens\n lda pending_x',
   ' jsr swap_screens\n jsr frame341_commit\n lda pending_x','commit atomico frame');
- src=segment(src,'plan_step\n','render_to_dst\n',planStep()+'\n','cuatro direcciones plan_step');
+ src=segment(src,'\nplan_step\n','\nrender_to_dst\n','\n'+planStep()+'\n','cuatro direcciones plan_step');
  src=once(src,' inc src_col\n lda src_col\n cmp #'+byte(d.areaWidth),
   ' inc src_col\n lda src_col\n cmp f341_width','ancho variable');
  src=once(src,' inc row_id\n lda row_id\n cmp #'+byte(d.areaHeight),
