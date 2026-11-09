@@ -280,7 +280,7 @@ function build(plan){
  }
  return code.join('\n')+'\n';
 }
-function assemble(source){
+function assemble(source,plan){
  var app=typeof g_app==='undefined'?null:g_app,assembler=app&&app.assembler;
  if(!assembler||typeof assembler.assemble!=='function')throw Error('TEST345: ensamblador del editor no disponible.');
  var result=assembler.assemble(source,0x0801);
@@ -289,6 +289,16 @@ function assemble(source){
   throw Error('TEST345 ASM: '+(msg||'error de ensamblado sin detalles'));
  }
  var mem=assembler.getMemory();
+ for(var gi=0;gi<512;gi++){
+  if((mem[0x3800+gi]&255)!==plan.glyphs[gi])
+   throw Error('TEST345: charset sobrescrito en $'+(0x3800+gi).toString(16));
+ }
+ for(var pi=0;pi<1000;pi++){
+  if((mem[0x6000+pi]&255)!==plan.frames[0].screen[pi])
+   throw Error('TEST345: pantalla inicial sobrescrita en byte '+pi);
+  if((mem[0x6400+pi]&255)!==plan.frames[0].colors[pi])
+   throw Error('TEST345: color inicial sobrescrito en byte '+pi);
+ }
  if(result.start!==0x0801||result.end<=0x7000||result.end>=0x8000)
   throw Error('TEST345: rango de PRG inesperado: '+w(result.start)+'..'+w(result.end));
  var bytes=new Uint8Array(result.end-result.start+2);
@@ -303,7 +313,7 @@ ToPRGAdv.prototype.createPRG=function(args){
  if(mode!=='c64ecm'&&!(typeof TextModeEditor!=='undefined'&&mode===TextModeEditor.Mode.C64ECM)
     ||fs.length<2)return old.apply(this,arguments);
  try{
-  var plan=collect(this,args||{}),asm=build(plan),prg=assemble(asm);
+  var plan=collect(this,args||{}),asm=build(plan),prg=assemble(asm,plan);
   this.prg=prg;
   window.RICO_TEST345_LAST_REPORT={status:'PRG GENERADO; PENDIENTE DE VICE',frames:plan.reports,
     charsetBytes:512,patchBytes:plan.patchBytes,maxTransitionCycles:plan.maxCycles,
