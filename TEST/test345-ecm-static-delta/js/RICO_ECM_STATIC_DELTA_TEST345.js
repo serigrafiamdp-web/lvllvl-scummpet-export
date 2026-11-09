@@ -102,47 +102,52 @@ function collect(self,args){
  var initial=Object.keys(count).map(Number).sort(function(a,b){return count[b]-count[a]||a-b;}).slice(0,4);
  if(initial.indexOf(all[0].bg0)===-1)initial[initial.length===4?3:initial.length]=all[0].bg0;
  for(var c=0;initial.length<4&&c<16;c++)if(initial.indexOf(c)<0)initial.push(c);
+ // A *single* row-palette scheme across EVERY frame. A blink that only
+ // changes one cell must not force 25 other screen codes to be rewritten.
+ var unionNeed=Array.from({length:25},function(){return new Set();});
+ all.forEach(function(f){f.required.forEach(function(set,row){
+  set.forEach(function(c){unionNeed[row].add(c);});
+ });});
+ for(var ur=0;ur<25;ur++)if(unionNeed[ur].size>4)
+  throw Error('TEST345: fila '+ur+' utiliza '+unionNeed[ur].size+
+    ' fondos distintos entre frames; requiere un compositor ECM por frame. No se altera la imagen.');
+ var currentPal=initial.slice(),previousRow=new Set(),sharedPal=[],events=[];
+ for(var ry=0;ry<25;ry++){
+  var need=unionNeed[ry],missing=Array.from(need).filter(function(bg){return currentPal.indexOf(bg)===-1;});
+  missing.sort(function(a,b){return a-b;});
+  missing.forEach(function(bg){
+   var choices=[];
+   for(var k=0;k<4;k++)if(!need.has(currentPal[k]))choices.push(k);
+   if(!choices.length)throw Error('TEST345: faltan slots EBCM en fila '+ry+'.');
+   choices.sort(function(a,b){
+    function score(idx){
+     var v=currentPal[idx],next=25;
+     for(var y=ry+1;y<25;y++)if(unionNeed[y].has(v)){next=y;break;}
+     return (previousRow.has(v)?0:1000)+next;
+    }
+    return score(b)-score(a)||a-b;
+   });
+   var slot=choices[0],old=currentPal[slot];
+   if(previousRow.has(old))
+    throw Error('TEST345: cambio de fondo raster inseguro en fila '+ry+' (color '+old+').');
+   currentPal[slot]=bg;events.push({row:ry,slot:slot,from:old,to:bg});
+  });
+  sharedPal.push(currentPal.slice());previousRow=need;
+ }
  var reports=[],maxWrites=0;
  all.forEach(function(f,fi){
-  var palette=initial.slice(),prevNeed=new Set(),rowPal=[],events=[],screen=[],colors=[];
-  for(var row=0;row<25;row++){
-   var need=f.required[row];
-   if(need.size>4)throw Error('TEST345: frame '+(fi+1)+' fila '+row+
-    ' necesita '+need.size+' fondos EBCM simultáneos.');
-   var missing=Array.from(need).filter(function(bg){return palette.indexOf(bg)===-1;});
-   missing.sort(function(a,b){return a-b;});
-   missing.forEach(function(bg){
-    var choices=[];
-    for(var k=0;k<4;k++)if(!need.has(palette[k]))choices.push(k);
-    if(!choices.length)throw Error('TEST345: no existe slot de fondo libre en fila '+row+'.');
-    choices.sort(function(a,b){
-     function score(idx){
-      var v=palette[idx],next=25;
-      for(var yy=row+1;yy<25;yy++)if(f.required[yy].has(v)){next=yy;break;}
-      return (prevNeed.has(v)?0:1000)+next;
-     }
-     return score(b)-score(a)||a-b;
-    });
-    var slot=choices[0],oldColor=palette[slot];
-    if(prevNeed.has(oldColor))
-     throw Error('TEST345: raster no seguro en frame '+(fi+1)+' fila '+row+
-      '; slot antiguo '+oldColor+' todavía visible en la fila anterior.');
-    palette[slot]=bg;events.push({row:row,slot:slot,from:oldColor,to:bg});
-   });
-   rowPal.push(palette.slice());
-   for(var x=0;x<40;x++){
-    var cell=f.raw[row*40+x],slot=palette.indexOf(cell.bg);
-    if(slot<0){
-     if(!tileSolid[cell.id])throw Error('TEST345: fondo '+cell.bg+' no representable en F'+(fi+1)+' fila '+row);
-     slot=0;
-    }
-    screen.push((slot<<6)|cell.id);colors.push(cell.fg);
+  var screen=[],colors=[];
+  for(var row=0;row<25;row++)for(var x=0;x<40;x++){
+   var cell=f.raw[row*40+x],slot=sharedPal[row].indexOf(cell.bg);
+   if(slot<0){
+    if(!tileSolid[cell.id])throw Error('TEST345: BG no representable en frame '+(fi+1)+', fila '+row);
+    slot=0;
    }
-   prevNeed=need;
+   screen.push((slot<<6)|cell.id);colors.push(cell.fg);
   }
-  f.screen=screen;f.colors=colors;f.rowPal=rowPal;f.events=events;
+  f.screen=screen;f.colors=colors;f.rowPal=sharedPal;f.events=events;
   reports.push({frame:fi+1,duration:f.duration,rasterChanges:events.length,
-    changedCells:0,changedChars:0,changedColors:0,backgroundsRow0:rowPal[0]});
+    changedCells:0,changedChars:0,changedColors:0,backgroundsRow0:sharedPal[0]});
  });
  // The display update is a small collection of fixed-address STA instructions
  // at vertical blank; no indirect screen copier or map-scroll engine.
