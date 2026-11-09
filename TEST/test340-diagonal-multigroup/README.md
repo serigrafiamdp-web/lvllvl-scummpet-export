@@ -35,3 +35,6 @@ El código de TEST196 conserva la limitación: `groupFromStore` selecciona `[0]`
 
 ## Estado
 La sintaxis JavaScript fue verificada. **No hay prueba real de ensamblador LVLLVL ni VICE.** No promover a principal hasta PASS confirmado por el usuario.
+
+## Verificación de código posterior a publicación
+Se ejecutó un **smoke test sintético** del wrapper TEST340 con dos grupos Left+Right y un exportador/ensamblador simulados. Se verificó que se construye un plan de 2 grupos, se generan símbolos diferenciados `group340_0_*` y `group340_1_*`, se calcula la RAM por grupo y el resultado retorna bytes. Este test **no demuestra** que el ASM C64 real compile, que los punteros sean correctos ni que corra en VICE; las validaciones reales siguen pendientes.
