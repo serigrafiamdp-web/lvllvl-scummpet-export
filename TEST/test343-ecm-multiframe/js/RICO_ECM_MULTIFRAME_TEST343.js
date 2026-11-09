@@ -32,7 +32,7 @@ function noAnimation(ts){
 function prepare(self,args){
  var ed=self.editor,graphic=ed.graphic,layer=ed.layers.getSelectedLayerObject(),
      frames=graphic.frames||[],ts=layer.getTileSet();
- if(frames.length<2||frames.length>12)throw Error('TEST343: este banco de memoria permite 2–12 frames de 40×25; el proyecto tiene '+frames.length+'.');
+ if(frames.length<2||frames.length>10)throw Error('TEST343: este banco de memoria permite 2–10 frames de 40×25; el proyecto tiene '+frames.length+'.');
  if(graphic.getGridWidth()!==40||graphic.getGridHeight()!==25)
   throw Error('TEST343: esta prueba es para animaciones EBCM de 40×25, sin Map Scroll.');
  if(frames.some(f=>f&&f.ricoMapScrollV1&&f.ricoMapScrollV1.type))
@@ -99,8 +99,7 @@ function build(info){
  src=one(src,' ora #$10\n ora f342_edge\n sta $d011',
              ' ora #$10\n ora f342_edge\n ora #$40\n sta $d011','EBCM $D011');
  // Static 40x25: 40-column border and stable vertical scroll.
- src=one(src,'frame342_edge\n!byte '+fs.map(function(){return hex(0);}).join(','),
-             'frame342_edge\n!byte '+fs.map(function(){return hex(8);}).join(','),'CSEL 40 columns');
+ // TEST342 already emits CSEL=8 for these static EBCM frames (edgeMask=false).
  src=one(src,'frame342_fine_x\n!byte '+fs.map(function(){return hex(7);}).join(','),
              'frame342_fine_x\n!byte '+fs.map(function(){return hex(0);}).join(','),'horizontal centering');
  src=one(src,'frame342_fine_y\n!byte '+fs.map(function(){return hex(7);}).join(','),
