@@ -315,7 +315,9 @@ ToPRGAdv.prototype.createPRG=function(args){
   window.RICO_TEST342_LAST_ERROR=null;
   if(args&&args.download===false)return prg;
   var name=args&&args.filename||'RICO_DIAGONAL_MULTIFRAME_TEST342.prg';
-  if(!/\.prg$/i.test(name))name+='.prg';
+  name=name.replace(/\.prg$/i,'');
+  if(!/_TEST342$/i.test(name))name+='_TEST342';
+  name+='.prg';
   if(typeof window.download!=='function')throw Error('TEST342: descarga PRG no disponible.');
   window.download(prg,name,'application/prg');
   return prg;
