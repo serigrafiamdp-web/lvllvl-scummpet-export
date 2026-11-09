@@ -7,7 +7,7 @@
 if(typeof TileEditorGrid==='undefined')return;
 if(TileEditorGrid.prototype.__rico338RefreshEdit)return;
 var previous=TileEditorGrid.prototype.updateCharacter;
-var busy=false;
+var busy=false, pending=false, lastEditor=null;
 function currentEditor(grid){
  return grid&&grid.editor||
         (window.g_app&&g_app.textModeEditor)||null;
@@ -36,12 +36,22 @@ function refresh(ed){
   }
  }catch(e){console.warn('[TEST338] Canvas refresh:',e);}
 }
+function schedule(ed){
+ lastEditor=ed||lastEditor;
+ if(pending)return;
+ pending=true;
+ var enqueue=typeof requestAnimationFrame==='function'?requestAnimationFrame:function(f){setTimeout(f,16);};
+ enqueue(function(){
+  pending=false;
+  if(busy)return;
+  busy=true;
+  try{refresh(lastEditor);}
+  finally{busy=false;}
+ });
+}
 TileEditorGrid.prototype.updateCharacter=function(){
  var result=previous.apply(this,arguments);
- if(busy)return result;
- busy=true;
- try{refresh(currentEditor(this));}
- finally{busy=false;}
+ if(!busy)schedule(currentEditor(this));
  return result;
 };
 TileEditorGrid.prototype.__rico338RefreshEdit=true;
