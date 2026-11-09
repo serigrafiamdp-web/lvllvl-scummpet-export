@@ -53,82 +53,114 @@ function prepare(self,args){
  var tsData=ts.tileData;
  function glyphPix(id){return tsData[id]&&tsData[id].data&&tsData[id].data[0];}
  for(var fi=0;fi<data.frames.length;fi++){
-  var d=data.frames[fi],fullCells=[],otherColors=Object.create(null),countBG=Object.create(null),
-      usedGlyphs=Object.create(null),warnings=[],exact=0;
+  var d=data.frames[fi],usedGlyphs=Object.create(null),map=[],colors=[],palettes=[];
   if(!d.still||d.map.length!==1000||d.colors.length!==1000)
    throw Error('TEST343: Frame '+(fi+1)+' no es una imagen estática 40×25.');
-  var cells=[];
-  for(var y=0;y<25;y++)for(var x=0;x<40;x++){
-   var cell=layer.getCell({x:x,y:y,frame:fi})||{},t=Number(cell.t),fg=Number(cell.fc),bg=Number(cell.bc);
-   if(!Number.isInteger(t)||t<0||t>255||!Number.isInteger(fg)||fg<0||fg>15)
-    throw Error('TEST343: tile o foreground inválido en frame '+(fi+1)+' X'+x+' Y'+y);
-   if(!Number.isInteger(bg)||bg<0||bg>15)
-    bg=Number(layer.getBackgroundColor(fi))&15;
-   var id=t&63,pix=glyphPix(id);
-   if(!pix||pix.length!==64)throw Error('TEST343: glifo físico '+id+' incompleto.');
-   var solid=true;for(var q=0;q<64;q++){if(!pix[q]){solid=false;break;}}
-   if(!solid)countBG[bg]=(countBG[bg]||0)+1;
-   usedGlyphs[id]=true;
-   cells.push({id:id,t:t,fg:fg,bg:bg,solid:solid,x:x,y:y});
-  }
-  var bg0=Number(layer.getBackgroundColor(fi))&15;
-  var sorted=Object.keys(countBG).map(Number).sort(function(a,b){
-   return (b===bg0?1:0)-(a===bg0?1:0)||countBG[b]-countBG[a]||a-b;
-  });
-  var palette=[bg0];
-  sorted.forEach(function(c){if(palette.length<4&&palette.indexOf(c)<0)palette.push(c);});
-  while(palette.length<4)palette.push(palette[palette.length-1]);
-  var map=[],colors=[],unrepresented=[];
-  for(var ci=0;ci<cells.length;ci++){
-   var c=cells[ci],slot=palette.indexOf(c.bg);
-   if(slot<0){
-    // A completely filled glyph never exposes its background.
-    // For other glyphs, reject: never silently substitute a background.
-    if(!c.solid)unrepresented.push({x:c.x,y:c.y,bg:c.bg,fg:c.fg,glyph:c.id});
-    slot=0;
+  for(var ry=0;ry<25;ry++){
+   var row=[],freq=Object.create(null);
+   for(var rx=0;rx<40;rx++){
+    var cell=layer.getCell({x:rx,y:ry,frame:fi})||{},
+        t=Number(cell.t),fg=Number(cell.fc),bg=Number(cell.bc);
+    if(!Number.isInteger(t)||t<0||t>255||!Number.isInteger(fg)||fg<0||fg>15)
+     throw Error('TEST343: tile o foreground inválido en frame '+(fi+1)+' X'+rx+' Y'+ry);
+    if(!Number.isInteger(bg)||bg<0||bg>15)bg=Number(layer.getBackgroundColor(fi))&15;
+    var id=t&63,pix=glyphPix(id);
+    if(!pix||pix.length!==64)throw Error('TEST343: glifo físico '+id+' incompleto.');
+    var solid=true;for(var q=0;q<64;q++)if(!pix[q]){solid=false;break;}
+    if(!solid)freq[bg]=(freq[bg]||0)+1;
+    usedGlyphs[id]=true;
+    row.push({id:id,t:t,fg:fg,bg:bg,solid:solid,x:rx,y:ry});
    }
-   map.push(c.id|(slot<<6));colors.push(c.fg);
+   var keys=Object.keys(freq).map(Number).sort(function(a,b){return freq[b]-freq[a]||a-b;});
+   if(keys.length>4)throw Error('TEST343: frame '+(fi+1)+' fila '+ry+
+      ' tiene '+keys.length+' fondos distintos sobre píxeles visibles; el C64 EBCM admite solo 4 por fila raster.');
+   var bg0=Number(layer.getBackgroundColor(fi))&15;
+   if(keys.length<4&&keys.indexOf(bg0)<0)keys.unshift(bg0);
+   while(keys.length<4)keys.push(keys[keys.length-1]||0);
+   palettes.push(keys);
+   for(var ri=0;ri<40;ri++){
+    var c=row[ri],slot=keys.indexOf(c.bg);
+    if(slot<0){
+     if(!c.solid)throw Error('TEST343: fondo sin índice físico en frame '+fi+' fila '+ry);
+     slot=0; // all pixels are foreground; this background is never visible
+    }
+    map.push(c.id|(slot<<6));colors.push(c.fg);
+   }
   }
-  if(unrepresented.length)
-   throw Error('TEST343: Frame '+(fi+1)+' necesita '+(new Set(unrepresented.map(x=>x.bg))).size+
-    ' colores extra de fondo en '+unrepresented.length+' celdas con dibujo. EBCM permite 4 fondos por raster. Ejemplo: X'+
-    unrepresented[0].x+' Y'+unrepresented[0].y+' BG'+unrepresented[0].bg+
-    '. Se necesita planificador raster para conservar esos colores; no se reemplazaron.');
-  d.map=map;d.colors=colors;d.ecm343=palette;d.bg=palette[0];d.edgeMask=false;
-  reports.push({frame:fi+1,duration:d.duration,glyphs:Object.keys(usedGlyphs).length,palette:palette});
+  d.map=map;d.colors=colors;d.ecm343Rows=palettes;d.bg=palettes[0][0];d.edgeMask=false;
+  reports.push({frame:fi+1,duration:d.duration,glyphs:Object.keys(usedGlyphs).length,
+    paletteFirstRow:palettes[0],rasterPalettes:palettes.length});
  }
  return {data:data,reports:reports};
 }
 function build(info){
  var plan=info.data,fs=plan.frames,src=core.build(plan),extra=[];
- // VIC-II ECM: bit 6. TEST342's fine scroll may write D011 on each frame.
+ // VIC-II EBCM bit 6; TEST342's fine scroll writes D011 at frame updates.
  src=one(src,' ora #$10\n ora f342_edge\n sta $d011',
-             ' ora #$10\n ora f342_edge\n ora #$40\n sta $d011','ECM $D011');
- // 40 columns and stable vertical scroll of 3 pixels for full 40x25.
+             ' ora #$10\n ora f342_edge\n ora #$40\n sta $d011','EBCM $D011');
+ // Static 40x25: 40-column border and stable vertical scroll.
  src=one(src,'frame342_edge\n!byte '+fs.map(function(){return hex(0);}).join(','),
-             'frame342_edge\n!byte '+fs.map(function(){return hex(8);}).join(','),'CSEL 40-column table');
+             'frame342_edge\n!byte '+fs.map(function(){return hex(8);}).join(','),'CSEL 40 columns');
  src=one(src,'frame342_fine_x\n!byte '+fs.map(function(){return hex(7);}).join(','),
-             'frame342_fine_x\n!byte '+fs.map(function(){return hex(0);}).join(','),'fine X table');
+             'frame342_fine_x\n!byte '+fs.map(function(){return hex(0);}).join(','),'horizontal centering');
  src=one(src,'frame342_fine_y\n!byte '+fs.map(function(){return hex(7);}).join(','),
-             'frame342_fine_y\n!byte '+fs.map(function(){return hex(3);}).join(','),'fine Y table');
- // Copy palettes once at startup and upon every committed frame change.
- var call=' jsr frame343_backgrounds\n';
+             'frame342_fine_y\n!byte '+fs.map(function(){return hex(3);}).join(','),'vertical centering');
+ // Run the existing tested TEST342 frame clock only at $FA. Use lightweight
+ // raster interrupts at $30,$38,...,$F0 to change the 4 backgrounds per row.
+ src=one(src,' lda #$fa\n sta $d012',' lda #$30\n sta $d012','first visible raster');
+ src=one(src,' lda #<irq\n sta $fffe\n lda #>irq\n sta $ffff',
+             ' lda #<frame343_irq\n sta $fffe\n lda #>frame343_irq\n sta $ffff','IRQ entry');
  src=one(src,' jsr frame342_load\n lda pending_x',
-             ' jsr frame342_load\n'+call+' lda pending_x','initial palette');
+             ' jsr frame342_load\n jsr frame343_set_base\n lda pending_x','initial frame palette');
  src=one(src,' lda f342_border\n sta $d020\n lda #$00',
-             ' lda f342_border\n sta $d020\n'+call+' lda #$00','palette per frame');
- extra.push('frame343_backgrounds',' ldx f342_index');
- for(var channel=1;channel<4;channel++){
-  extra.push(' lda frame343_bg'+channel+',x',' sta $d0'+(21+channel).toString(16));
+             ' lda f342_border\n sta $d020\n jsr frame343_set_base\n lda #$00','palette frame switch');
+ var pal=[];
+ for(var n=0;n<fs.length;n++){
+  if(!fs[n].ecm343Rows||fs[n].ecm343Rows.length!==25)
+   throw Error('TEST343: tabla raster de 25 filas incompleta en frame '+(n+1));
+  for(var row=0;row<25;row++)pal.push(fs[n].ecm343Rows[row]);
  }
- extra.push(' rts');
- for(var n=1;n<4;n++){
-  extra.push('frame343_bg'+n);
-  extra.push('!byte '+fs.map(function(f){return hex(f.ecm343[n]);}).join(','));
+ if(pal.length>255)throw Error('TEST343: tablas raster superan 255 filas. Limitar las frames.');
+ // ZP $68/$69 not used by TEST342 nor the TEST203 sparse color patch ($50-57).
+ src=one(src,'f342_tmpfine=$42\n',
+             'f342_tmpfine=$42\nf343_row=$68\nf343_base=$69\n','IRQ scratch ZP');
+ extra.push(
+  'frame343_set_base',
+  ' ldx f342_index',
+  ' lda frame343_frame_base,x',
+  ' sta f343_base',
+  ' lda #$00',' sta f343_row',
+  ' rts',
+  'frame343_irq',
+  ' lda f343_row',' cmp #$19',' bne frame343_color_row',
+  ' lda #$00',' sta f343_row',
+  ' lda #$30',' sta $d012',
+  ' jmp irq',
+  'frame343_color_row',
+  ' pha',' txa',' pha',' tya',' pha',
+  ' lda #$01',' sta $d019',
+  ' lda f343_row',' clc',' adc f343_base',' tax',
+  ' lda frame343_bg0,x',' sta $d021',
+  ' lda frame343_bg1,x',' sta $d022',
+  ' lda frame343_bg2,x',' sta $d023',
+  ' lda frame343_bg3,x',' sta $d024',
+  ' inc f343_row',
+  ' ldx f343_row',
+  ' lda frame343_raster,x',' sta $d012',
+  ' pla',' tay',' pla',' tax',' pla',' rti',
+  'frame343_frame_base',
+  '!byte '+fs.map(function(_,i){return hex(i*25);}).join(','),
+  'frame343_raster',
+  '!byte '+Array.from({length:25},function(_,i){return hex(0x30+i*8);}).concat([hex(0xfa)]).join(',')
+ );
+ for(var channel=0;channel<4;channel++){
+  extra.push('frame343_bg'+channel);
+  var vals=pal.map(function(row){return hex(row[channel]);});
+  for(var k=0;k<vals.length;k+=16)extra.push('!byte '+vals.slice(k,k+16).join(','));
  }
- src=one(src,'*=$3000\ncharset_bank1',extra.join('\n')+'\n*=$3000\ncharset_bank1','insert palette scheduler');
- if(!src.includes('frame342_tick')||!src.includes('frame342_stage')||!src.includes('frame343_backgrounds'))
-  throw Error('TEST343: código ASM de multiframe incompleto.');
+ src=one(src,'*=$3000\ncharset_bank1',extra.join('\n')+'\n*=$3000\ncharset_bank1','row palette raster scheduler');
+ if(!src.includes('frame342_tick')||!src.includes('frame342_stage')||!src.includes('frame343_irq'))
+  throw Error('TEST343: planificador de frames e IRQ raster incompleto.');
  return src;
 }
 function assemble(src){
