@@ -387,22 +387,21 @@ ToPRGAdv.prototype.createPRG=function(args){
    console.warn('[TEST350 fallback] No added restrictions:',String(unsupported&&unsupported.message||unsupported));
    return old.apply(this,arguments);
   }
-  var pos350=15*40+8, a350=plan.frames[0],b350=plan.frames[1];
-  window.RICO_TEST350_CHAR_CHECK={pos:'X8 Y15',
-    frame1Tile:a350.raw[pos350].t,frame2Tile:b350.raw[pos350].t,
-    frame1Screen:a350.screen[pos350],frame2Screen:b350.screen[pos350],
-    frame1Foreground:a350.colors[pos350],frame2Foreground:b350.colors[pos350],
-    frame1Background:a350.raw[pos350].bg,frame2Background:b350.raw[pos350].bg,
-    frame1GlyphBitmap:plan.glyphs.slice(14*8,14*8+8),
-    frame2GlyphBitmap:plan.glyphs.slice(24*8,24*8+8),
-    physicalGlyphsAreDifferent:plan.glyphs.slice(14*8,14*8+8).some(function(v,i){return v!==plan.glyphs[24*8+i];}),
-    kFrame9Tile:plan.frames[8].raw[8*40+27].t,
-    kFrame9Background:plan.frames[8].raw[8*40+27].bg,
-    kFrame9Screen:plan.frames[8].screen[8*40+27],
-    earlyRows:plan.frames[0].events.map(function(e){return {row:e.row,slot:e.slot,color:e.to};})};
-  // Diagnostic only: no requirement for REMISERIA-specific glyphs in other files.
-  console.log('[TEST350 EBCM CHARACTER BYTE CHECK]',window.RICO_TEST350_CHAR_CHECK);
-  var asm=build(plan),prg=assemble(asm,plan);
+  // Generic optional information only. Never assume frame 9 or a special
+  // REMISERIA tile: this code is shared by ALL static ECM frame projects.
+  window.RICO_TEST350_CHAR_CHECK={
+    frameCount:plan.frames.length,
+    perFrameChanges:plan.reports.map(function(f){return {frame:f.frame,chars:f.changedChars,colors:f.changedColors};}),
+    rasterChanges:plan.frames[0].events.length
+  };
+  var asm;
+  try{asm=build(plan);}
+  catch(unsupportedBuild){
+   window.RICO_TEST350_LAST_ROUTE='PREVIOUS EXPORTER: static ASM representation not applicable';
+   console.warn('[TEST350 fallback] No added restrictions:',String(unsupportedBuild&&unsupportedBuild.message||unsupportedBuild));
+   return old.apply(this,arguments);
+  }
+  var prg=assemble(asm,plan);
   this.prg=prg;
   window.RICO_TEST350_LAST_REPORT={status:'PRG GENERADO; PENDIENTE DE VICE',frames:plan.reports,
     charsetBytes:512,patchBytes:plan.patchBytes,maxTransitionCycles:plan.maxCycles,
