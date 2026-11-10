@@ -186,8 +186,9 @@ function build(plan){
  for(var fi=1;fi<fs.length;fi++)for(var row=0;row<25;row++)
   for(var slot=0;slot<4;slot++)if(fs[fi].rowPal[row][slot]!==rowPalette[row][slot])
    throw Error('TEST348: paletas no compartidas entre frames.');
- var eventPalettes=eventRows.map(function(row){return rowPalette[row];}),
-     eventRaster=eventRows.map(function(row){return 0x30+8*row;});
+ var eventRaster=eventRows.map(function(row){return 0x33+8*(row-1);}),
+     eventColors=events.map(function(e){return e.to;}),
+     eventSlots=events.map(function(e){return e.slot;});
  eventRaster.push(0xfc); // End of all visible character rows
  var topRaster=eventRaster[0],firstPalette=rowPalette[0];
  var code=[
