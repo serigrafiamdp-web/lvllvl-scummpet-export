@@ -172,7 +172,7 @@ function assemble(source,plan,sid){
  if(!compiled||!compiled.success)
   throw Error('TEST351 ASM: '+((compiled&&compiled.errors||[]).map(function(x){return x.message||String(x);}).join(' | ')||'error desconocido'));
  var mem=asm.getMemory();
- for(var g=0;g<512;g++)if((mem[0x3800+g]&255)!==plan.glyphs[g])
+ for(var g=0;g<plan.glyphs.length;g++)if((mem[0x3800+g]&255)!==plan.glyphs[g])
   throw Error('TEST351: charset sobrescrito en $'+(0x3800+g).toString(16));
  for(var c=0;c<1000;c++)if((mem[0x6000+c]&255)!==plan.frames[0].screen[c]||
     (mem[0x6400+c]&255)!==plan.frames[0].colors[c])
