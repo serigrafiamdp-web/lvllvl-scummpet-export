@@ -240,8 +240,8 @@ function build(plan){
  'frame348_event_irq',
  ' tax',
  ' lda frame348_event_color,x',
- ' ldx frame348_event_slot,x',
- ' sta $d021,x', // only the background register whose previous color is no longer used
+ ' ldy frame348_event_slot,x',
+ ' sta $d021,y', // only the background register whose previous color is no longer used
  ' inc irq_row',
  ' ldx irq_row',
  ' lda frame348_event_raster,x',' sta $d012',
