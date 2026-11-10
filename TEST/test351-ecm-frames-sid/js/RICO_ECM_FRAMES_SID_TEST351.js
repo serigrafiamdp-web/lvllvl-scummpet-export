@@ -154,7 +154,7 @@ function build(plan,sid,timing){
   '!byte $0b,$08,$0a,$00,$9e,$32,$30,$36,$31,$00,$00,$00',
   'BASIC SYS 2061');
  core=unique(core,' sta duration_hi\n ldx #$00\n',
-  ' sta duration_hi\n jsr sid351_init\n ldx #$00\n','SID INIT');
+  ' sta duration_hi\n jsr sid351_init\n lda #$7f\n sta $dc0d\n lda $dc0d\n lda #$00\n sta $dc0e\n lda $dd00\n and #$fc\n ora #$03\n sta $dd00\n ldx #$00\n','SID INIT');
  core=unique(core,' sta $d024\n lda duration_lo',
   ' sta $d024\n jsr sid351_tick\n lda duration_lo','SID PLAY once per PAL frame');
  core+='\n'+helpers(sid,timing);
