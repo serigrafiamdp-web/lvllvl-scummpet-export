@@ -139,8 +139,8 @@ function helpers(sid,timing){
  );
  return v.join('\n')+'\n';
 }
-function build(plan,sid,timing){
- var src=engine.build(plan);
+function build(plan,sid,timing,visualSource){
+ var src=visualSource||engine.build(plan);
  var codeAnchor='*=$2000\n',fontAnchor='*=$3800\n',
      coreStart=src.indexOf(codeAnchor),coreEnd=src.indexOf(fontAnchor,coreStart+codeAnchor.length);
  if(coreStart<0||coreEnd<0||src.indexOf(codeAnchor,coreStart+codeAnchor.length)>=0||
@@ -245,6 +245,6 @@ ToPRGAdv.prototype.createPRG=function(args){
  return true;
 };
 window.RICO_TEST351_ECM_SID={version:351,route:route,build:build,
- speedInfo:speedInfo,export:export351,last:state};
+ speedInfo:speedInfo,assemble:assemble,readSID:readSID,export:export351,last:state};
 console.log('[TEST351] EBCM static frames + protected PSID; all scroll and unrelated engines delegated unchanged.');
 })();
