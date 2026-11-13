@@ -23,7 +23,9 @@ Export the provided CALACA SCROLL (2).json (imported by the user locally) withou
 - JavaScript syntax: PASS.
 - Synthetic collector with 40×40 and matching four 33×25 source frames: PASS; shared camera begins at (30,0) after wrapping the area origin (3,0).
 - Native ASM source generation via the project TEST196 generator: PASS (four direction and duration tables present, no duplicate source labels in the synthetic case).
-- **Real ACME assembly and actual C64/VICE execution: NOT YET TESTED.**
+- **Original uploaded CALACA SCROLL (2).json analyzed end-to-end:** collector accepted all 4 identical frames and preserved 33×25 source area; the project's own native `Assembler` generated a 38,916-byte PRG without errors (load $0801, end $A003) using the unmodified user JSON. [Download independent compiled PRG](CALACA_SCROLL_TEST354.prg).
+- **Export PRG button in the browser: user reported no download.** Investigating route differences in the UI. The test now shows an explicit rejection reason if the 4-frame diagonal configuration isn't selected, instead of silently delegating to the older exporter. Diagnostic: `window.RICO_TEST354_DIAGONAL_FRAMES.state`.
+- **VICE execution: NOT YET TESTED.**
 - Performance: unverified. This initial route favors geometry and frame correctness over diagonal acceleration. At 4 px/tick it may run below target speed while the 40×25 render finishes.
 
 ## User test
