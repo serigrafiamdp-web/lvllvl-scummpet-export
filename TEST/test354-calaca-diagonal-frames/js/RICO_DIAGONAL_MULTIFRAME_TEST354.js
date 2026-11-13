@@ -10,6 +10,7 @@ var old=ToPRGAdv.prototype.createPRG,base=window.RICO_TEST196_DIAGONAL;
 var DIR={'diag-up-left':[0,0],'diag-up-right':[1,0],
          'diag-down-right':[1,1],'diag-down-left':[0,1]};
 var state={version:354,last:'READY',lastError:null,lastPlan:null};
+function reject354(reason){state.last='NOT MATCHED';state.lastError=reason;return null;}
 function h(v){return '$'+('0'+(v&255).toString(16)).slice(-2);}
 function byteRows(tiles){
  var result=new Uint8Array(2048);
@@ -41,15 +42,15 @@ function sameCell(a,b){
 function scan(self,args){
  var ed=self&&self.editor,g=ed&&ed.graphic,fs=g&&g.frames||[];
  var layer=ed&&ed.layers&&ed.layers.getSelectedLayerObject&&ed.layers.getSelectedLayerObject();
- if(!g||!layer||!modeOK(layer)||fs.length!==4)return null;
- if(g.getGridWidth()!==40||g.getGridHeight()<25)return null;
+ if(!g||!layer||!modeOK(layer)||fs.length!==4)return reject354('screen mode or frames: mode '+(layer&&layer.getScreenMode&&layer.getScreenMode())+', frames '+fs.length);
+ if(g.getGridWidth()!==40||g.getGridHeight()<25)return reject354('map geometry: '+g.getGridWidth()+'x'+g.getGridHeight());
  var first=dims(fs[0]),a=first.a,w=first.w,c=first.c;
- if(!a||w.x!==0||w.y!==0||w.width!==40||w.height!==25)return null;
+ if(!a||w.x!==0||w.y!==0||w.width!==40||w.height!==25)return reject354('Window must be 40x25 at origin in this TEST');
  if(!Number.isInteger(a.x)||!Number.isInteger(a.y)||!Number.isInteger(a.width)||!Number.isInteger(a.height)||
     a.width<1||a.width>=40||a.height<1||a.height>25||a.x<0||a.y<0||
-    a.x+a.width>g.getGridWidth()||a.y+a.height>g.getGridHeight())return null;
+    a.x+a.width>g.getGridWidth()||a.y+a.height>g.getGridHeight())return reject354('Scroll Area invalid or outside map');
  if(!DIR[c.type]||c.ticksPerStep<1||c.ticksPerStep>255||
-    c.pixelsPerStep<1||c.pixelsPerStep>8)return null;
+    c.pixelsPerStep<1||c.pixelsPerStep>8)return reject354('diagonal direction or speed invalid');
  var direction=[],durations=[],bank=Number(fs[0].charsetBank||1);
  for(var i=0;i<fs.length;i++){
   var d=dims(fs[i]),ff=fs[i],duration=Number(ff.duration);
@@ -60,27 +61,27 @@ function scan(self,args){
      Number(d.c.pixelsPerStep)!==Number(c.pixelsPerStep)||
      (d.c.diagonalEdgeMask!==false)!==(c.diagonalEdgeMask!==false)||
      Number(ff.charsetBank||1)!==bank||
-     !Number.isInteger(duration)||duration<1||duration>65535)return null;
+     !Number.isInteger(duration)||duration<1||duration>65535)return reject354('frame '+(i+1)+' direction/geometry/timing mismatches frame 1');
   direction.push(DIR[d.c.type]);durations.push(duration);
  }
- if(bank!==1&&bank!==2)return null;
+ if(bank!==1&&bank!==2)return reject354('charset bank unsupported');
  var ts=layer.getTileSet&&layer.getTileSet();
- if(!ts||ts.getTileWidth()!==8||ts.getTileHeight()!==8)return null;
+ if(!ts||ts.getTileWidth()!==8||ts.getTileHeight()!==8)return reject354('charset must be 8x8');
  var store=ts.getDocRecord&&ts.getDocRecord(),meta=store&&store.data||{};
  var groups=meta.ricoGroupAnimationsV1||{};
  if((groups.bank1||[]).some(function(x){return x&&x.type;})||
-    (groups.bank2||[]).some(function(x){return x&&x.type;}))return null;
+    (groups.bank2||[]).some(function(x){return x&&x.type;}))return reject354('Group Animate requires another export path');
  var banks=[ts.tileData,meta.ricoCharsetBank2&&meta.ricoCharsetBank2.tileData];
  if(banks.some(function(b){return b&&b.some(function(t){
   return t&&t.props&&t.props.animated&&t.props.animated!=='none';
- });}))return null;
+ });}))return reject354('animated characters require another export path');
  var audio=window.RICO_TEST207_ORIGINAL_SID;
  var sid=audio&&audio.getState&&audio.getState();
- if((sid&&sid.enabled)||(args&&(args.sidData||args.music==='sid'||args.music==='yes')))return null;
+ if((sid&&sid.enabled)||(args&&(args.sidData||args.music==='sid'||args.music==='yes')))return reject354('SID selected; first validate CALACA without SID');
  // This route shares a single map. Never silently discard different drawings.
  for(var y=0;y<g.getGridHeight();y++)for(var x=0;x<g.getGridWidth();x++){
   var ref=layer.getCell({x:x,y:y,frame:0});
-  for(var n=1;n<4;n++)if(!sameCell(ref,layer.getCell({x:x,y:y,frame:n})))return null;
+  for(var n=1;n<4;n++)if(!sameCell(ref,layer.getCell({x:x,y:y,frame:n})))return reject354('pixel/color mismatch at frame '+(n+1)+', x='+x+', y='+y);
  }
  var map=[],colors=[];
  for(var yy=0;yy<a.height;yy++)for(var xx=0;xx<a.width;xx++){
@@ -199,7 +200,18 @@ function assemble(self,asm){
 ToPRGAdv.prototype.createPRG=function(args){
  var data;
  try{data=scan(this,args||{});}catch(err){data=null;console.warn('[TEST354 eligibility]',err);}
- if(!data)return old.apply(this,arguments);
+ if(!data){
+  var fs=this.editor&&this.editor.graphic&&this.editor.graphic.frames||[];
+  var diagonalCase=fs.length===4&&fs.every(function(f){return f&&f.ricoMapScrollV1&&DIR[f.ricoMapScrollV1.type];});
+  if(diagonalCase){
+   state.last='ERROR';
+   state.lastError=state.lastError||'The four diagonal frames did not match the TEST354 route';
+   console.error('[TEST354 route]',state.lastError);
+   if(typeof window.alert==='function')window.alert('TEST354: '+state.lastError);
+   return false;
+  }
+  return old.apply(this,arguments);
+ }
  state.last='BUILDING';state.lastError=null;
  try{
   var asm=build354(data),prg=assemble(this,asm);
