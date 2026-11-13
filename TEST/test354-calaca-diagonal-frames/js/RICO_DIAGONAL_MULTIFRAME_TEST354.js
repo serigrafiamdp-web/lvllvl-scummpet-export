@@ -93,7 +93,7 @@ function scan(self,args){
  var cx=((w.x-a.x)%a.width+a.width)%a.width,
      cy=((w.y-a.y)%a.height+a.height)%a.height;
  var plan={
-  direction:c.type,dir:{x:-1,y:-1},ticks:Number(c.ticksPerStep),
+  direction:c.type,dir:{x:direction[0][0]?1:-1,y:direction[0][1]?1:-1},ticks:Number(c.ticksPerStep),
   pixels:Number(c.pixelsPerStep),areaWidth:a.width,areaHeight:a.height,
   cameraX:cx,cameraY:cy,bank:bank,
   bg:Number(layer.getBackgroundColor(0))&15,
