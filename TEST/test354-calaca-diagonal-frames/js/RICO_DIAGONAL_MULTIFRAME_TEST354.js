@@ -142,12 +142,14 @@ function runtime354(entry){
  var p=entry.plan,ds=entry.dirs,dur=entry.durations;
  return [
  'frame_clock354',
- ' lda prep_request',' bne frame_notready354',' lda main_busy',' bne frame_notready354',
- ' inc frame_clock_lo354',' bne frame_clock_check354',' inc frame_clock_hi354',
+ ' lda prep_request',' beq frame_idle354',' clc',' rts',
+ 'frame_idle354',' lda main_busy',' beq frame_count354',' clc',' rts',
+ 'frame_count354',' inc frame_clock_lo354',' bne frame_clock_check354',' inc frame_clock_hi354',
  'frame_clock_check354',' ldx frame_index354',' lda frame_clock_hi354',
- ' cmp frame_dur_hi354,x',' bne frame_notready354',
- ' lda frame_clock_lo354',' cmp frame_dur_lo354,x',' bne frame_notready354',
- ' lda #$00',' sta frame_clock_lo354',' sta frame_clock_hi354',
+ ' cmp frame_dur_hi354,x',' beq frame_high_ok354',' clc',' rts',
+ 'frame_high_ok354',' lda frame_clock_lo354',
+ ' cmp frame_dur_lo354,x',' beq frame_expired354',' clc',' rts',
+ 'frame_expired354',' lda #$00',' sta frame_clock_lo354',' sta frame_clock_hi354',
  ' inx',' cpx #$04',' bcc frame_index_ok354',' ldx #$00',
  'frame_index_ok354',' stx frame_index354',
  // Reset source phase exactly as the editor resets it on frame change.
@@ -163,7 +165,6 @@ function runtime354(entry){
  'reset_y_store354',' sta fine_y',' sta next_fy',
  ' lda #$01',' sta prep_request',' lda #$00',' sta prep_ready',
  ' sec',' rts',
- 'frame_notready354',' clc',' rts',
  'frame_index354','!byte $00',
  'frame_clock_lo354','!byte $00',
  'frame_clock_hi354','!byte $00',
