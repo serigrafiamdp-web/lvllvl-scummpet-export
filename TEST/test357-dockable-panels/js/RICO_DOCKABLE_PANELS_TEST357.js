@@ -7,7 +7,8 @@
 if(window.RICO_TEST357_DOCK) return;
 var VERSION=357, panels={}, activeDrag=null, ready=false, throttle=0;
 var definitions=[
- {key:'tiles',id:'eastTilesPanel',title:'#sidecharPaletteCloseButton',name:'Tiles',width:366,height:590},
+ {key:'tileEditor',id:'tileEditor',title:'#tileEditorCloseButton',name:'Tile Editor',width:340,height:610},
+ {key:'tiles',id:'sidecharPalette',title:'#sidecharPaletteCloseButton',name:'Tiles',width:366,height:590},
  {key:'colours',id:'palettePanel',title:'#colorPaletteCloseButton',name:'Colours',width:330,height:380},
  {key:'layers',id:'layersPanel',title:null,name:'Layers',width:330,height:360}
 ];
@@ -17,6 +18,7 @@ function editor(){return window.g_app&&g_app.textModeEditor;}
 function redraw(key){
  var e=editor();if(!e)return;
  try{
+  if(key==='tileEditor'&&e.tileEditor&&e.tileEditor.getVisible&&e.tileEditor.getVisible())e.tileEditor.resize();
   if(key==='tiles'&&e.sideTilePalette){e.sideTilePalette.resize();e.sideTilePalette.drawTilePalette({redrawTiles:true});}
   if(key==='colours'&&e.colorPalettePanel&&e.colorPalettePanel.colorPaletteResize)e.colorPalettePanel.colorPaletteResize();
   if(key==='layers'&&e.layers&&e.layers.resize)e.layers.resize();
@@ -224,7 +226,7 @@ function init(){
  definitions.forEach(installPanel);
  ready=definitions.every(function(cfg){return panels[cfg.key];});
  if(ready){state.last='DOCKED';return;}
- if(throttle<80){throttle++;setTimeout(init,100);}
+ if(throttle<160){throttle++;setTimeout(init,100);}
  else state.last='PARTIAL INSTALL';
 }
 window.addEventListener('resize',function(){
@@ -236,7 +238,21 @@ window.addEventListener('resize',function(){
   scheduleDraw(key);
  });
 });
+
+// Keep the native Tile Editor lifecycle consistent when its close button is used
+// while floating; docking restores its original DOM before the left panel closes.
+if(typeof TileEditor!=='undefined'&&!TileEditor.prototype.__rico357FloatLifeCycle){
+ var originalTileEditorSetVisible357=TileEditor.prototype.setVisible;
+ TileEditor.prototype.setVisible=function(value){
+  if(!value&&panels.tileEditor&&panels.tileEditor.floating)dockPanel('tileEditor');
+  var result=originalTileEditorSetVisible357.apply(this,arguments);
+  if(value&&panels.tileEditor&&panels.tileEditor.floating)scheduleDraw('tileEditor');
+  return result;
+ };
+ TileEditor.prototype.__rico357FloatLifeCycle=true;
+}
+
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-window.RICO_TEST357_DOCK={state:state,floatPanel:floatPanel,dockPanel:dockPanel,scrollToBank:bankTarget};
-console.info('[TEST357] Dockable Tiles/Colours/Layers and BANK 1–2 scroller installed; exports untouched');
+window.RICO_TEST357_DOCK={state:state,floatPanel:floatPanel,dockPanel:dockPanel,scrollToBank:bankTarget,panels:panels};
+console.info('[TEST357] Dockable Tile Editor/Tiles/Colours/Layers and BANK 1–2 scroller installed; exports untouched');
 })();
