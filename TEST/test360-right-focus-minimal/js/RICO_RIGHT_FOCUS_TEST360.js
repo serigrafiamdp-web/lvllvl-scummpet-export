@@ -91,11 +91,9 @@ function fitBank(){
   if(split>available+3){
    var palette=e.sideTilePalette;
    // Only fall back to native 100% for genuinely short browser windows.
-   if(palette&&palette.setScale&&!firstFit){
-    palette.setScale(1);firstFit=true;
-    state.bankFit='COMPACT (100%) FOR SHORT WINDOW';
-    requestAnimationFrame(fitBank);
-   }else state.bankFit='SCROLL TO SEE WHOLE BANK';
+   // Do not auto-change the user's native Tiles scale. TEST359 did that and
+   // displayed BANK 2 in the space meant for the first 256 characters.
+   state.bankFit='BANK1 USES INDEX SCROLL AT CURRENT SCALE';
 
   } else {
    state.bankFit='256 GLYPHS FIT AT CURRENT SCALE';
@@ -120,18 +118,28 @@ function apply(){
  var e=ed();
  if(!e||!e.tileEditor||!base.panels.tileEditor||!base.panels.tiles)return false;
  if(!getTile()||!document.getElementById('sidecharPalette'))return false;
- if(!base.dockRight()) {state.lastError=base.state.lastError||'DOCK FAILED';return false;}
- // Keep original working 200% Columns-of-16 layout (not TEST359 100% default).
- // The dock is in place before we show Tile Editor, avoiding an exposed left
- // area and preserving the prior black-patch fix.
- if(e.tileSetManager&&e.tileSetManager.getCurrentTileSet&&e.tileSetManager.getCurrentTileSet()){
-  if(e.tileEditor.getVisible&&!e.tileEditor.getVisible())e.tileEditor.setVisible(true);
-  var chars=e.currentTile&&e.currentTile.getCharacters&&e.currentTile.getCharacters();
-  if(chars&&chars.length&&chars[0]&&chars[0].length&&e.tileEditor.setCharacters)e.tileEditor.setCharacters(chars);
+ // C3's native docking works when the Tile Editor has first been opened.
+ // On a fresh page, the original TileEditor.visible is false; initialize it
+ // exactly as a user opening it would, BEFORE moving it into the right slot.
+ // Otherwise C3 can leave the full-size Tiles index alone on the right.
+ var tileSet=e.tileSetManager&&e.tileSetManager.getCurrentTileSet&&e.tileSetManager.getCurrentTileSet();
+ if(!tileSet){state.lastError='WAITING FOR CURRENT TILESET';return false;}
+ if(e.tileEditor.getVisible&&!e.tileEditor.getVisible())e.tileEditor.setVisible(true);
+ if(!e.tileEditor.getVisible||!e.tileEditor.getVisible()){
+  state.lastError='TILE EDITOR WAS NOT OPENED';
+  return false;
  }
+ if(!base.dockRight()) {state.lastError=base.state.lastError||'DOCK FAILED';return false;}
+ // The right pane must exist before marking startup as complete.
+ var rightPane=right().bottom&&right().bottom.getElement&&right().bottom.getElement();
+ if(!rightPane||!rightPane.contains(getTile())){
+  state.lastError='EDITOR MISSING IN RIGHT SPLIT';
+  return false;
+ }
+ var chars=e.currentTile&&e.currentTile.getCharacters&&e.currentTile.getCharacters();
+ if(chars&&chars.length&&chars[0]&&chars[0].length&&e.tileEditor.setCharacters)e.tileEditor.setCharacters(chars);
  state.started=true;state.layoutApplied=true;
  fitHalf();moveColoursBelow();fitSelectedTile();
- // Measure only after the dock has established its final canvas geometry.
  setTimeout(fitBank,140);
  state.lastError=null;
  return true;
@@ -192,7 +200,11 @@ if(typeof TextModeEditor!=='undefined'&&!TextModeEditor.prototype.__rico360Load)
  };
  TextModeEditor.prototype.__rico360Load=true;
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+// Use LVLLVL's actual UI-ready event, not only DOMContentLoaded. The
+// tileEditor.html and the current TileSet become available later than the
+// surrounding document in some startup paths.
+if(window.UI&&UI.on)UI.on('ready',function(){setTimeout(boot,0);});
+else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
 else boot();
 console.info('[TEST360] TEST358 C3 minimal 50/50 right dock, 256 bank focus, colour controls retained under scroll.');
 })();
