@@ -116,15 +116,17 @@ function fitHalf(){
 }
 function apply(){
  var e=ed();
- if(!e||!e.tileEditor||!base.panels.tileEditor||!base.panels.tiles)return false;
- if(!getTile()||!document.getElementById('sidecharPalette'))return false;
+ if(!e||!e.tileEditor)return false;
  // C3's native docking works when the Tile Editor has first been opened.
  // On a fresh page, the original TileEditor.visible is false; initialize it
  // exactly as a user opening it would, BEFORE moving it into the right slot.
  // Otherwise C3 can leave the full-size Tiles index alone on the right.
  var tileSet=e.tileSetManager&&e.tileSetManager.getCurrentTileSet&&e.tileSetManager.getCurrentTileSet();
  if(!tileSet){state.lastError='WAITING FOR CURRENT TILESET';return false;}
- if(e.tileEditor.getVisible&&!e.tileEditor.getVisible())e.tileEditor.setVisible(true);
+ try{if(e.tileEditor.getVisible&&!e.tileEditor.getVisible())e.tileEditor.setVisible(true);}
+ catch(ex){state.lastError='OPEN TILE EDITOR: '+(ex&&ex.message||ex);return false;}
+ if(!base.panels.tileEditor||!base.panels.tiles){state.lastError='WAITING FOR DOCK CONTROL INSTALL';return false;}
+ if(!getTile()||!document.getElementById('sidecharPalette')){state.lastError='WAITING FOR EDITOR HTML';return false;}
  if(!e.tileEditor.getVisible||!e.tileEditor.getVisible()){
   state.lastError='TILE EDITOR WAS NOT OPENED';
   return false;
