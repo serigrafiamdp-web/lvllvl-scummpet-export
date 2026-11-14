@@ -153,13 +153,19 @@ function prepareRightDock(){
 // scrollable 512-glyph index. This never changes Tiles zoom, canvas pixel
 // content, bank map or selection; only the native right SplitPanel divider.
 var c8UserMovedDivider=false,c8FitPending=false,c8NativeBar=null;
+// C9: explicit, manual menu-driven saved dock layout. No autosave.
+// Saved via Editor.setPref(), on the same origin as LVLLVL.
+var ricoDockStatusPref='rico358.saveDockStatus.v1';
+var savedRatioForSession=.5, dockRestoreStarted=false, dockRestoreFinished=false;
+var saveDockMenuItem=null;
+
 function fitRightDockHalf(){
  var r=rightDock;
  if(!r.active||!r.split||!r.host||c8UserMovedDivider)return false;
  var h=r.host.getBoundingClientRect().height;
  if(h<240)return false;
  var bar=r.split.southBarSize||5;
- var desired=Math.max(110,Math.floor((h-bar)/2));
+ var desired=Math.max(110,Math.floor((h-bar)*savedRatioForSession));
  desired=Math.min(desired,Math.max(110,h-125));
  if(Math.abs(r.split.southSize-desired)<2)return true;
  var drag=r.split.resizePanel;
@@ -432,9 +438,197 @@ function installBankControl(p){
   if(v!==last&&document.activeElement!==slider){slider.value=String(v);last=v;}
  },500);
 }
+// Interface > Save Dock Status replaces native "Perf Stats". Saving
+// is a deliberate action; reloading the page never overwrites a saved
+// layout until the user activates this menu command again.
+function getSavedDockStatus(){
+ try{
+  var txt=window.g_app&&g_app.getPref?g_app.getPref(ricoDockStatusPref):null;
+  if(!txt)return null;
+  var obj=JSON.parse(txt);
+  return obj&&obj.version===1&&obj.panels?obj:null;
+ }catch(err){console.warn('[TEST358 C9] invalid saved layout',err);return null;}
+}
+function panelVisibleForDock(key){
+ var e=editor();
+ if(!e)return false;
+ try{
+  if(key==='tiles')return !!e.getTilePalettePanelVisible('side');
+  if(key==='tileEditor')return !!e.tileEditor.getVisible();
+  if(key==='colours')return !!e.getColorPalettePanelVisible();
+  if(key==='layers')return !!e.getLayersPanelVisible();
+ }catch(err){}
+ return true;
+}
+function captureDockStatus(){
+ var e=editor();
+ if(!e||!panels.tileEditor||!panels.tiles)return null;
+ var obj={version:1,rightDock:!!rightDock.active,panels:{}};
+ for(var n=0;n<definitions.length;n++){
+  var key=definitions[n].key,p=panels[key];
+  if(!p)continue;
+  var info={visible:panelVisibleForDock(key),floating:!!p.floating};
+  if(p.floating&&p.shell){
+   var r=p.shell.getBoundingClientRect();
+   info.bounds={x:Math.round(r.left),y:Math.round(r.top),
+    width:Math.round(r.width),height:Math.round(r.height)};
+  }
+  obj.panels[key]=info;
+ }
+ var width=e.textModeEditorPanel&&e.textModeEditorPanel.eastSize;
+ if(Number.isFinite(width)&&width>=80)obj.eastWidth=width;
+ var r=rightDock;
+ if(r.active&&r.host&&r.split){
+  var rect=r.host.getBoundingClientRect(),bar=r.split.southBarSize||5;
+  var height=Math.max(1,rect.height-bar);
+  var ratio=r.split.southSize/height;
+  if(Number.isFinite(ratio)&&ratio>=.14&&ratio<=.86)obj.splitRatio=ratio;
+ }
+ return obj;
+}
+function saveDockStatusFromMenu(){
+ var data=captureDockStatus();
+ if(!data){state.lastError='NO DOCK WINDOWS AVAILABLE TO SAVE';return false;}
+ try{
+  g_app.setPref(ricoDockStatusPref,JSON.stringify(data));
+  if(Number.isFinite(data.splitRatio))savedRatioForSession=data.splitRatio;
+  state.last='DOCK STATUS SAVED';
+  state.savedDockStatus=true;
+  state.lastError=null;
+  if(saveDockMenuItem){
+   saveDockMenuItem.setLabel('Dock Status Saved');
+   setTimeout(function(){if(saveDockMenuItem)saveDockMenuItem.setLabel('Save Dock Status');},1500);
+  }
+  console.info('[TEST358] Dock Status saved (positions, visibility, divider only)',data);
+  return true;
+ }catch(err){
+  state.lastError='SAVE DOCK STATUS: '+(err&&err.message||String(err));
+  console.error('[TEST358] save Dock Status',err);
+  return false;
+ }
+}
+function findInterfaceSaveItem(){
+ if(!window.g_app||!g_app.menuBar||!g_app.menuBar.menus)return null;
+ for(var i=0;i<g_app.menuBar.menus.length;i++){
+  var menu=g_app.menuBar.menus[i];
+  if(!menu||menu.label!=='Interface')continue;
+  var items=menu.menuItems||[];
+  for(var j=0;j<items.length;j++){
+   if(items[j]&&(items[j].uiID==='view-perfstats'||items[j].uiID==='rico358-save-dock-status'||items[j].label==='Perf Stats'||items[j].label==='Save Dock Status'))
+    return items[j];
+  }
+ }
+ return null;
+}
+function replacePerfStatsMenu(){
+ var item=findInterfaceSaveItem();
+ if(!item)return false;
+ if(item.uiID!=='rico358-save-dock-status'){
+  item.uiID='rico358-save-dock-status';
+  item.label='Save Dock Status';
+ }
+ saveDockMenuItem=item;
+ // Set already-rendered menu label if buildInterface has completed.
+ var node=$(item.id);
+ if(node){var label=node.querySelector('.ui-menu-item-label');if(label)label.textContent='Save Dock Status';}
+ state.saveDockMenuInstalled=true;
+ return true;
+}
+function panelSetVisible(key,visible){
+ var e=editor();
+ if(!e)return;
+ try{
+  if(key==='tiles'&&e.getTilePalettePanelVisible('side')!==visible)e.setTilePalettePanelVisible('side',visible);
+  if(key==='colours'&&e.getColorPalettePanelVisible()!==visible)e.setColorPalettePanelVisible(visible);
+  if(key==='layers'&&e.getLayersPanelVisible()!==visible)e.setLayersPanelVisible(visible);
+ }catch(err){console.warn('[TEST358] restore panel '+key,err);}
+}
+function restoreSavedFloating(key,detail){
+ var p=panels[key];
+ if(!p||!detail||!detail.floating)return;
+ if(!p.floating){
+  var bounds=detail.bounds||{};
+  if(!floatPanel(key,{x:bounds.x,y:bounds.y}))return;
+ }
+ if(!p.shell)return;
+ var b=detail.bounds||{};
+ var w=Math.min(window.innerWidth-12,Math.max(260,Number(b.width)||p.cfg.width));
+ var h=Math.min(window.innerHeight-40,Math.max(170,Number(b.height)||p.cfg.height));
+ var x=Math.max(2,Math.min(window.innerWidth-w,Number(b.x)||0));
+ var y=Math.max(26,Math.min(window.innerHeight-h,Number(b.y)||28));
+ p.shell.style.width=w+'px';p.shell.style.height=h+'px';
+ p.shell.style.left=x+'px';p.shell.style.top=y+'px';
+ scheduleDraw(key);
+}
+function restoreDockStatusOnce(data){
+ if(dockRestoreFinished)return true;
+ var e=editor();
+ if(!e||!data||!data.panels||!panels.tileEditor||!panels.tiles)return false;
+ if(!rightDock.active&&data.rightDock&&!dockEditorRight())return false;
+ try{
+  // Restore sidebar width independently of glyph zoom or frame bank.
+  if(Number.isFinite(data.eastWidth)&&data.eastWidth>=80&&
+     e.textModeEditorPanel&&e.textModeEditorPanel.resizeThePanel){
+   var maxWidth=Math.max(200,window.innerWidth-290);
+   e.textModeEditorPanel.resizeThePanel({panel:'east',size:Math.min(maxWidth,data.eastWidth)});
+  }
+  // Preserve native panel visibility; this is the same action as its X/menu.
+  for(var key of ['tiles','layers','colours']){
+   if(data.panels[key]&&typeof data.panels[key].visible==='boolean')
+    panelSetVisible(key,data.panels[key].visible);
+  }
+  if(data.panels.tileEditor&&typeof data.panels.tileEditor.visible==='boolean'&&
+     e.tileEditor.getVisible()!==data.panels.tileEditor.visible){
+   e.tileEditor.setVisible(data.panels.tileEditor.visible);
+  }
+  // The real right-side Tile Editor must never be simultaneously open
+  // in the original left drawer.
+  if(rightDock.active)nativeGridVisible(false);
+  // Floating window locations are restored from the actual saved geometry.
+  for(var key of ['tiles','colours','layers','tileEditor']){
+   var info=data.panels[key],p=panels[key];
+   if(!info||!p)continue;
+   if(info.floating)restoreSavedFloating(key,info);
+   else if(p.floating)dockPanel(key,key==='tileEditor'?'right':'native');
+  }
+  if(rightDock.active&&rightDock.split&&data.panels.tileEditor&&data.panels.tileEditor.visible!==false){
+   var sp=rightDock.split;
+   if(!sp.getPanelVisible('south'))sp.setPanelVisible('south',true,240,true);
+  }
+  var rr=Number(data.splitRatio);
+  if(Number.isFinite(rr)&&rr>=.14&&rr<=.86)savedRatioForSession=rr;
+  else savedRatioForSession=.5;
+  dockRestoreFinished=true;
+  state.last='SAVED DOCK STATUS RESTORED';
+  state.savedDockStatus=true;
+  state.lastError=null;
+  // Wait until native Colours/Layers/sidebars recalculate the host height
+  // and then apply the saved relative divider once to its final dimensions.
+  c8UserMovedDivider=false;
+  deferRightDockFit();
+  setTimeout(deferRightDockFit,120);
+  console.info('[TEST358] Saved Dock Status restored');
+  return true;
+ }catch(err){
+  state.lastError='DOCK RESTORE FAILED: '+(err&&err.message||String(err));
+  console.error('[TEST358] saved layout restore',err);
+  return false;
+ }
+}
+if(typeof Editor!=='undefined'&&!Editor.prototype.__rico358SaveDockMenu){
+ var originalMenuClick358=Editor.prototype.menuClick;
+ Editor.prototype.menuClick=function(action){
+  if(action==='rico358-save-dock-status')return saveDockStatusFromMenu();
+  return originalMenuClick358.apply(this,arguments);
+ };
+ Editor.prototype.__rico358SaveDockMenu=true;
+}
+
 function init(){
  if(!document.body)return;
  css();
+ // Replace Perf Stats in the existing Interface menu; no new menu or item.
+ replacePerfStatsMenu();
  definitions.forEach(installPanel);
  ready=definitions.every(function(cfg){return panels[cfg.key];});
  // Start once the two relevant panels exist. Colours/Layers can remain
@@ -511,6 +705,22 @@ function startRightByDefault(){
   e.tileEditor.setVisible(true);
  nativeGridVisible(false);
  if(rightDock.active){
+  // If the user explicitly saved a layout, use THAT instead of always
+  // closing Colours and forcing the default arrangement on every launch.
+  var saved=getSavedDockStatus();
+  if(saved){
+   if(!dockRestoreStarted){
+    dockRestoreStarted=true;
+    var restoreTries=0;
+    (function retrySaved(){
+     if(restoreDockStatusOnce(saved))return;
+     if(++restoreTries<120)setTimeout(retrySaved,100);
+    })();
+   }
+   state.defaultDockDone=true;
+   state.last='RESTORING SAVED DOCK STATUS';
+   return true;
+  }
   // Same exact action as clicking the native Colours X. Only once on startup:
   // users remain free to reopen Colours later. No palette swatches, tile zoom,
   // split sizes or editor layout are modified by this patch.
