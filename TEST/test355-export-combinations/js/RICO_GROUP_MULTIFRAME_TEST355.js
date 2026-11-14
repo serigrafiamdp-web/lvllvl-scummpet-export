@@ -170,8 +170,12 @@ function build(self,plan){
   framesData.push('*='+addr(at),'frame_map355_'+n);emitBytes(framesData,m);
   framesData.push('*='+addr(at+0x400),'frame_col355_'+n);emitBytes(framesData,cols);
  }
- // Source builder can use further resources at $A000+; frame banks end before.
- return core+copyCode(fs.length)+data.join('\n')+'\n'+tail+'\n'+framesData.join('\n')+'\n';
+ // Preserve ascending segment order: LVLLVL assembler end address is the
+ // last written segment, not the highest earlier bank. Group code lives $A000+.
+ var groupStart=tail.search(/^\*=\$a000\s*$/m);
+ if(groupStart<0)throw Error('TEST355: no se identificó el comienzo del motor Group en $A000.');
+ var merged=tail.slice(0,groupStart)+framesData.join('\n')+'\n'+tail.slice(groupStart);
+ return core+copyCode(fs.length)+data.join('\n')+'\n'+merged;
 }
 function assemble(asm){
  var a=typeof g_app!=='undefined'&&g_app&&g_app.assembler;
