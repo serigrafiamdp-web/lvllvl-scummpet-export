@@ -490,7 +490,12 @@ function saveDockStatusFromMenu(){
  var data=captureDockStatus();
  if(!data){state.lastError='NO DOCK WINDOWS AVAILABLE TO SAVE';return false;}
  try{
-  g_app.setPref(ricoDockStatusPref,JSON.stringify(data));
+  var storedJson=JSON.stringify(data);
+  g_app.setPref(ricoDockStatusPref,storedJson);
+  // Editor.setPref silently skips writes when browser storage is unavailable.
+  // Confirm persistence before reporting that the layout was saved.
+  if(g_app.getPref(ricoDockStatusPref)!==storedJson)
+   throw new Error('Browser did not retain the Dock Status preference');
   if(Number.isFinite(data.splitRatio))savedRatioForSession=data.splitRatio;
   state.last='DOCK STATUS SAVED';
   state.savedDockStatus=true;
@@ -596,6 +601,12 @@ function restoreDockStatusOnce(data){
   if(data.panels.tileEditor&&typeof data.panels.tileEditor.visible==='boolean'&&
      e.tileEditor.getVisible()!==data.panels.tileEditor.visible){
    e.tileEditor.setVisible(data.panels.tileEditor.visible);
+  }
+  // Respect an explicitly saved LEFT layout too. Without a saved status,
+  // TEST358 still opens its native right-docked default.
+  if(data.rightDock===false&&rightDock.active&&
+     !(data.panels.tileEditor&&data.panels.tileEditor.floating)){
+   releaseRightDock(!!(data.panels.tileEditor&&data.panels.tileEditor.visible));
   }
   // The real right-side Tile Editor must never be simultaneously open
   // in the original left drawer.
@@ -777,6 +788,6 @@ function retryRightByDefault(){
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-window.RICO_TEST358_DOCK={state:state,floatPanel:floatPanel,dockPanel:dockPanel,dockRight:dockEditorRight,undockRight:releaseRightDock,scrollToBank:bankTarget,panels:panels,rightDock:rightDock,getRightHost:function(){return getNativePanelElement('eastTilesPanel');}};
+window.RICO_TEST358_DOCK={state:state,floatPanel:floatPanel,dockPanel:dockPanel,dockRight:dockEditorRight,undockRight:releaseRightDock,scrollToBank:bankTarget,panels:panels,rightDock:rightDock,saveDockStatus:saveDockStatusFromMenu,getSavedDockStatus:getSavedDockStatus,getRightHost:function(){return getNativePanelElement('eastTilesPanel');}};
 console.info('[TEST358] Native right-split dock + resizable floating Tile Editor/Tiles/Colours/Layers and BANK 1–2 scroller installed; exports untouched');
 })();
