@@ -1,23 +1,33 @@
-# Índice de documentación
+# LVLLVL RICO — índice técnico (actualizado 14/11/2026)
 
-**TEST331 (05/11):** [Mapa de todos los exportadores y funciones conectadas/desconectadas](MAPA_FEATURES_EXPORT_TEST331_2026-11-05.md) · [Página experimental TEST331](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test331-ecm-map-only-glyphs/). Generación ASM comprobada en horizontal, vertical, diagonal y Group-only; **VICE pendiente**. TEST329 principal y TEST328 PASS conservados.
+**Primera lectura:** [README principal](../README.md) · [Editor publicado](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)
 
+## Documentación vigente para desarrollar
 
-**Auditoría 05/11:** [Revisión integral de modos/exportadores, Ondas y restricciones TEST330](AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md). [Prueba TEST330](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test330-effects-recovery/). Sin PASS VICE para TEST330.
+1. [Arquitectura Map Scroll y Group Animate — esquema, fuentes de datos, motores, memoria y rutinas](ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md)
+2. [Manifiesto exacto de scripts de index.html — 127 módulos, orden inalterable](MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md)
+3. [TEST362 PASS en VICE y matriz de validación real](PASS_Y_REGRESIONES_2026-11-14.md)
+4. [Análisis de 64tass: ASM completo, binarios por banco/frame/grupo y ZIP](PLAN_EXPORTACION_COMPLETA_64TASS_ASM_BIN_2026-11-14.md)
+5. [Limpieza de 39 directorios numéricos, respaldo y recuperación](LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md)
+6. [Caso de regresión TEST361/362 y selección de charset en diagonal](../TEST/test361-diagonal-charset/README.md)
 
+## Referencia técnica anterior (conservada)
 
-**Nuevo TEST329 (integración experimental en la portada):** [PARED y recuperación de scroll Left ECM](TEST329_PARED_LEFT_EXPORT.md). No es todavía un PASS en VICE. El Bitmap TEST297 está conservado en la base y la portada antigua en backup; TEST328 aislado mantiene su PASS propio.
+- [Arquitectura histórica, mapa de memoria y SID](ARQUITECTURA_MOTOR_Y_EXPORT.md) — MASTER 22/10; leer junto a la nueva arquitectura.
+- [Auditoría de exportadores, modos y restricciones TEST330](AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md).
+- [Mapa de funciones y rutas TEST331](MAPA_FEATURES_EXPORT_TEST331_2026-11-05.md).
+- [Exportación ECM horizontal TEST326–328](FEATURES_EXPORT_PRG_ECM_TEST326_328.md).
+- [Estado previo 04/11 y TEST329](ESTADO_PROYECTO_2026-11-04.md) · [PARED](TEST329_PARED_LEFT_EXPORT.md).
+- [Cronología TEST214–228](CRONOLOGIA_TEST214_228.md).
+- [Historial unificado de pruebas](HISTORIAL_UNIFICADO_PRUEBAS.md).
+- [Antiguas guías para otro chat / MASTER](GUIA_PARA_NUEVO_CHAT_IA.md) y [22 octubre](ESTADO_MASTER_22_OCTUBRE_2026.md).
+- [Documentos históricos SID y README de main](historico/).
 
+**Importante:** los documentos anteriores a 14/11 mencionan TEST297/329 como portada y contienen enlaces a laboratorios archivados; son historia, no estado actual. Para recuperar los laboratorios antiguos usar la [rama archivada TEST362](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/archive/tests-pre-audit-2026-11-14-test362-pass).
 
-**Estado 04/11/2026:** [TEST328 — PASS usuario](../TEST/test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md) · [Progreso actualizado](ESTADO_PROYECTO_2026-11-04.md) · [Features corregidas TEST326–328](FEATURES_EXPORT_PRG_ECM_TEST326_328.md). Página principal TEST297 preservada.
+## Reglas de publicación y PASS
 
-
-**MASTER vigente:** [README raíz](../README.md) · [estado 22 octubre](ESTADO_MASTER_22_OCTUBRE_2026.md) · [arquitectura](ARQUITECTURA_MOTOR_Y_EXPORT.md).
-
-**Para retomar en otro chat:** [GUÍA PARA NUEVO CHAT IA](GUIA_PARA_NUEVO_CHAT_IA.md) (leer primero), [cronología TEST214–228](CRONOLOGIA_TEST214_228.md).
-
-**Historia conservada:** [HISTORIAL UNIFICADO](HISTORIAL_UNIFICADO_PRUEBAS.md) contiene sin recortar `log.txt` y `mapaconceptual.txt` anteriores. Los documentos originales de SID TEST207–213 están bajo [historico/](historico/) y el antiguo README de `main` en [README_MAIN_LEGACY_20_OCT_2026.md](historico/README_MAIN_LEGACY_20_OCT_2026.md).
-
-**Laboratorios históricos:** [TEST/test150–test165](../TEST/README.md) fuera de la raíz de producción.
-
-**Advertencia de ramas:** `gh-pages` es el motor web actual; `main` es historia divergente. El MASTER congelado se llama `MASTER_LVLLVL_RICO_22_OCTUBRE_2026`. No registrar PASS de VICE basados solo en tests de código.
+- Ejecutar y publicar solamente desde `gh-pages` en la URL canónica.
+- `main` diverge. No fusionar ramas sin revisar.
+- No eliminar extensiones activas por sus nombres históricos ni imponer bloqueos artificiales para hacer funcionar un caso.
+- Documentar separado: análisis JSON, fuente ASM, PRG generado, prueba real en VICE y PASS dado por el usuario.
