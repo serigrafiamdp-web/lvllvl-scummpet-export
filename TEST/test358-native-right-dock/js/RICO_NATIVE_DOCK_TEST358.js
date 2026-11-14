@@ -496,8 +496,8 @@ function saveDockStatusFromMenu(){
   state.savedDockStatus=true;
   state.lastError=null;
   if(saveDockMenuItem){
-   saveDockMenuItem.setLabel('Dock Status Saved');
-   setTimeout(function(){if(saveDockMenuItem)saveDockMenuItem.setLabel('Save Dock Status');},1500);
+   setSaveDockMenuLabel('Dock Status Saved');
+   setTimeout(function(){setSaveDockMenuLabel('Save Dock Status');},1500);
   }
   console.info('[TEST358] Dock Status saved (positions, visibility, divider only)',data);
   return true;
@@ -520,6 +520,23 @@ function findInterfaceSaveItem(){
  }
  return null;
 }
+function setSaveDockMenuLabel(label){
+ var item=saveDockMenuItem;
+ if(!item)return;
+ item.label=label;
+ var node=$(item.id)||$('ui-menu-item-'+item.id);
+ if(!node)return;
+ var textNode=node.querySelector('.ui-menu-item-label');
+ if(textNode){textNode.textContent=label;return;}
+ // This LVLLVL menu renderer uses a bare text node (instead of a label span).
+ // Keep the existing native menu DIV, its class and event listeners intact.
+ for(var i=0;i<node.childNodes.length;i++){
+  if(node.childNodes[i].nodeType===3){
+   node.childNodes[i].nodeValue=label;return;
+  }
+ }
+ node.textContent=label;
+}
 function replacePerfStatsMenu(){
  var item=findInterfaceSaveItem();
  if(!item)return false;
@@ -528,9 +545,8 @@ function replacePerfStatsMenu(){
   item.label='Save Dock Status';
  }
  saveDockMenuItem=item;
- // Set already-rendered menu label if buildInterface has completed.
- var node=$(item.id);
- if(node){var label=node.querySelector('.ui-menu-item-label');if(label)label.textContent='Save Dock Status';}
+ // Supports BOTH UI.Menu.getHTML and UI.MenuItem.getElement renderers.
+ setSaveDockMenuLabel('Save Dock Status');
  state.saveDockMenuInstalled=true;
  return true;
 }
@@ -615,6 +631,19 @@ function restoreDockStatusOnce(data){
   return false;
  }
 }
+// Capture clicks on the existing native row before the original Perf Stats
+// handler; some LVLLVL versions dispatch the menu by DOM id instead of uiID.
+document.addEventListener('click',function(ev){
+ var menuItem=saveDockMenuItem;
+ if(!menuItem||!ev.target||!ev.target.closest)return;
+ var row=ev.target.closest('.ui-menu-item');
+ if(!row||(row.id!==menuItem.id&&row.id!=='ui-menu-item-'+menuItem.id))return;
+ ev.preventDefault();
+ ev.stopPropagation();
+ ev.stopImmediatePropagation();
+ if(window.g_app&&g_app.menuBar&&g_app.menuBar.hideMenu)g_app.menuBar.hideMenu();
+ saveDockStatusFromMenu();
+},true);
 if(typeof Editor!=='undefined'&&!Editor.prototype.__rico358SaveDockMenu){
  var originalMenuClick358=Editor.prototype.menuClick;
  Editor.prototype.menuClick=function(action){
