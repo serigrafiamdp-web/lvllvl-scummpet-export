@@ -130,7 +130,9 @@ function apply(){
   if(chars&&chars.length&&chars[0]&&chars[0].length&&e.tileEditor.setCharacters)e.tileEditor.setCharacters(chars);
  }
  state.started=true;state.layoutApplied=true;
- fitHalf();moveColoursBelow();fitSelectedTile();fitBank();
+ fitHalf();moveColoursBelow();fitSelectedTile();
+ // Measure only after the dock has established its final canvas geometry.
+ setTimeout(fitBank,140);
  state.lastError=null;
  return true;
 }
