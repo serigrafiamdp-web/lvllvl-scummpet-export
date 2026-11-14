@@ -469,8 +469,15 @@ function startRightByDefault(){
   e.tileEditor.setVisible(true);
  nativeGridVisible(false);
  if(rightDock.active){
+  // Same exact action as clicking the native Colours X. Only once on startup:
+  // users remain free to reopen Colours later. No palette swatches, tile zoom,
+  // split sizes or editor layout are modified by this patch.
+  if(e.getColorPalettePanelVisible&&e.setColorPalettePanelVisible&&
+     e.getColorPalettePanelVisible()){
+   e.setColorPalettePanelVisible(false);
+  }
   state.defaultDockDone=true;
-  state.last='RIGHT DOCK AT STARTUP';
+  state.last='RIGHT DOCK AT STARTUP / COLOURS CLOSED';
   return true;
  }
  return false;
