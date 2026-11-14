@@ -37,3 +37,11 @@ Instead of overlaying the right sidebar with a floating window, TEST358 inserts 
 ## Backups
 - TEST357 remains available unchanged.
 - TEST356 PALETTE PASS remains unchanged.
+
+## C3 — Right Dock fix (2026-11-14)
+
+Reported: floating Edit Tile returned to the **left** when pressing Dock, while the previous black left area no longer remained. Verified root cause: the previous `prepareRightDock` tried `document.getElementById('eastTilesPanel')`, but LVLLVL `UI.create('UI.Panel',{id:'eastTilesPanel'})` registers `eastTilesPanel` as a *UI alias* and renders a DOM node using an auto-generated `uiNNN` ID. The destination lookup therefore returned null after the old code had already redocked Tile Editor to the left.
+
+C3 resolves the actual live DOM element through `UI('eastTilesPanel').id`; creates the right native SplitPanel with sized top/south panel elements; validates the target before any move; and performs direct **floating -> right** reparenting without the intermediate left transition. The existing left `gridSplitPanel.west` stays hidden while docked right, retaining the user's already-working black-patch fix. Added `window.RICO_TEST358_DOCK.state.lastError` for diagnostics. The JS query string is bumped to `358-c3-right-atomic`.
+
+**C3 source and syntax were verified in GitHub; browser behavior remains unconfirmed until user tests.**
