@@ -10,7 +10,7 @@ var base=window.RICO_TEST358_DOCK;
 var state={version:360,started:false,layoutApplied:false,swatchesBelow:false,lastError:null,bankVisible:0,bankFit:'WAITING'};
 window.RICO_TEST360={state:state,restoreColours:restoreColours,fitBank:fitBank,apply:apply};
 if(!base){state.lastError='Missing TEST358 C3';return;}
-var nodes=[],holderOriginalWidth=null,holder=null,resizeObs=null;
+var nodes=[],holderOriginalWidth=null,holderOriginalMarginLeft=null,holderOriginalMarginRight=null,holder=null,resizeObs=null;
 var checkTimer=null,pending=false,firstFit=false,userMovedDivider=false;
 function ed(){return window.g_app&&g_app.textModeEditor;}
 function getTile(){return document.getElementById('tileEditor');}
@@ -42,24 +42,35 @@ function moveColoursBelow(){
 function restoreColours(){
  nodes.forEach(function(n){if(n.marker.parentNode)n.marker.parentNode.insertBefore(n.el,n.marker);n.marker.remove();});
  nodes=[];state.swatchesBelow=false;
- if(holder&&holderOriginalWidth!==null)holder.style.maxWidth=holderOriginalWidth;
- holder=null;holderOriginalWidth=null;
+ if(holder&&holderOriginalWidth!==null){
+  holder.style.maxWidth=holderOriginalWidth;
+  holder.style.marginLeft=holderOriginalMarginLeft||'';
+  holder.style.marginRight=holderOriginalMarginRight||'';
+ }
+ holder=null;holderOriginalWidth=null;holderOriginalMarginLeft=null;holderOriginalMarginRight=null;
 }
 function fitSelectedTile(){
  if(!inRight())return;
  var r=right(),pane=r.bottom&&r.bottom.getElement&&r.bottom.getElement();
  var c=document.getElementById('tileEditorCanvasHolder');
  if(!pane||!c)return;
- if(c!==holder){holder=c;holderOriginalWidth=c.style.maxWidth||'';}
+ if(c!==holder){
+  holder=c;holderOriginalWidth=c.style.maxWidth||'';
+  holderOriginalMarginLeft=c.style.marginLeft||'';
+  holderOriginalMarginRight=c.style.marginRight||'';
+ }
  // Keep the full selected tile visible above the fold, and never change the
  // actual 8x8 pixels or the pixel-editing engine.
  var h=pane.getBoundingClientRect().height;
  if(h>0){
   var maxWidth=Math.floor(Math.max(145,Math.min(350,h-75)));
-  c.style.maxWidth=maxWidth+'px';
-  c.style.marginLeft='auto';c.style.marginRight='auto';
+  var desired=maxWidth+'px';
+  if(c.style.maxWidth!==desired){
+   c.style.maxWidth=desired;
+   c.style.marginLeft='auto';c.style.marginRight='auto';
+   resizeLater();
+  }
  }
- resizeLater();
 }
 function fitBank(){
  if(!inRight())return false;
@@ -75,12 +86,17 @@ function fitBank(){
   var ratio=(window.UI&&UI.devicePixelRatio)||1;
   var split=loc.y/ratio;
   var available=d.viewHeight||d.canvas.height/ratio;
-  state.bankVisible=256;
+  // Only claim all 256 visible after the geometry has been checked.
+  state.bankVisible=split<=available+3?256:Math.max(0,Math.min(255,Math.floor(256*available/Math.max(1,split))));
   if(split>available+3){
    var palette=e.sideTilePalette;
    // Only fall back to native 100% for genuinely short browser windows.
-   if(palette&&palette.setScale&&!firstFit){palette.setScale(1);firstFit=true;}
-   state.bankFit='COMPACT (100%) FOR SHORT WINDOW';
+   if(palette&&palette.setScale&&!firstFit){
+    palette.setScale(1);firstFit=true;
+    state.bankFit='COMPACT (100%) FOR SHORT WINDOW';
+    requestAnimationFrame(fitBank);
+   }else state.bankFit='SCROLL TO SEE WHOLE BANK';
+
   } else {
    state.bankFit='256 GLYPHS FIT AT CURRENT SCALE';
   }
