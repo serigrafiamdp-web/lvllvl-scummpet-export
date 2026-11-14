@@ -145,9 +145,8 @@ function build(self,plan){
   throw Error('TEST355: el motor Group original cambió etiquetas; no se genera PRG truncado.');
  var sep=source.indexOf('*=$3000\ncharset_bank1');
  var core=source.slice(0,sep),tail=source.slice(sep);
- var main='main240\n';
- if(core.split(main).length!==2)throw Error('TEST355: main240 ambiguo');
- core=core.replace(main,main+' jsr frame_stage355\n');
+ if(!/^main240$/m.test(core))throw Error('TEST355: main240 no encontrado');
+ core=core.replace(/^main240$/m,'main240\n jsr frame_stage355');
  var irqEnd=' pla\n tay\n pla\n tax\n pla\n rti';
  if(core.split(irqEnd).length!==2)throw Error('TEST355: irq240 ambiguo');
  core=core.replace(irqEnd,' jsr frame_irq355\n'+irqEnd);
