@@ -91,7 +91,20 @@ function prepareRightDock(){
   split.add(top);
   var south=UI.create('UI.Panel',{id:'rico358NativeEditTile'});
   split.addSouth(south,Math.max(160,Math.round(host.getBoundingClientRect().height*0.48)),true,false);
-  split.setMinSize('south',100);
+  split.setMinSize('south',110);
+  // Match native split drag while protecting at least a small Tiles viewport.
+  var nativeResize358=split.resizeThePanel;
+  split.resizeThePanel=function(args){
+   if(args&&(args.panel==='south'||(!args.panel&&this.resizePanel==='south'))){
+    var proposed=(typeof args.size==='number')?args.size:(this.southSize-(args.yDiff||0));
+    var available=host.getBoundingClientRect().height||500;
+    var bounded=Math.max(110,Math.min(Math.max(110,available-125),proposed));
+    var opts={};for(var k in args)if(Object.prototype.hasOwnProperty.call(args,k))opts[k]=args[k];
+    opts.panel='south';opts.size=bounded;delete opts.yDiff;
+    return nativeResize358.call(this,opts);
+   }
+   return nativeResize358.apply(this,arguments);
+  };
   rightDock.split=split;rightDock.top=top;rightDock.bottom=south;
   rightDock.root=split.getElement();rightDock.host=host;
   rightDock.root.style.zIndex='12';
