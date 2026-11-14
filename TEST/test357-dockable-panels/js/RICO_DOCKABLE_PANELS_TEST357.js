@@ -67,6 +67,10 @@ function updateState(){
 function floatPanel(key,pos){
  var p=panels[key];if(!p||p.floating)return false;
  var node=p.node,rect=node.getBoundingClientRect();
+ if(key==='colours'&&rect.height<35&&window.RICO_TEST80_UI&&window.RICO_TEST80_UI.setColoursMinimized){
+  window.RICO_TEST80_UI.setColoursMinimized(false);
+  rect=node.getBoundingClientRect();
+ }
  if(rect.width<35||rect.height<35)return false;
  var w=Math.min(Math.max(260,p.cfg.width,rect.width),window.innerWidth-15),
      h=Math.min(Math.max(170,p.cfg.height),window.innerHeight-55);
