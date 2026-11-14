@@ -397,6 +397,12 @@ function init(){
  css();
  definitions.forEach(installPanel);
  ready=definitions.every(function(cfg){return panels[cfg.key];});
+ // Start once the two relevant panels exist. Colours/Layers can remain
+ // independently hidden and must not block right-side Tile Editor docking.
+ if(panels.tileEditor&&panels.tiles&&!state.defaultDockScheduled){
+  state.defaultDockScheduled=true;
+  setTimeout(retryRightByDefault,0);
+ }
  if(ready){state.last='DOCKED';return;}
  if(throttle<160){throttle++;setTimeout(init,100);}
  else state.last='PARTIAL INSTALL';
@@ -411,20 +417,71 @@ window.addEventListener('resize',function(){
  });
 });
 
-// Keep the native Tile Editor lifecycle consistent when its close button is used
-// while floating; docking restores its original DOM before the left panel closes.
+// Keep the original live Tile Editor in the RIGHT dock. The original
+// TileEditor.setVisible(true) opens gridSplitPanel.west; close that obsolete
+// left slot immediately when the native right dock is active. Double-click
+// must reuse this right editor, not resurrect the left drawer.
 if(typeof TileEditor!=='undefined'&&!TileEditor.prototype.__rico357FloatLifeCycle){
  var originalTileEditorSetVisible357=TileEditor.prototype.setVisible;
  TileEditor.prototype.setVisible=function(value){
-  if(!value&&rightDock.active)releaseRightDock(false);
-  if(!value&&panels.tileEditor&&panels.tileEditor.floating)dockPanel('tileEditor','native');
-  var result=originalTileEditorSetVisible357.apply(this,arguments);
-  if(value&&(rightDock.active||(panels.tileEditor&&panels.tileEditor.floating))){
-   nativeGridVisible(false);scheduleDraw('tileEditor');
+  var p=panels.tileEditor;
+  if(value){
+   if(!rightDock.active&&p&&!p.floating)dockEditorRight();
+   if(rightDock.active&&rightDock.split&&!rightDock.split.getPanelVisible('south')){
+    rightDock.split.setPanelVisible('south',true,240,true);
+   }
+   var shown=originalTileEditorSetVisible357.apply(this,arguments);
+   if(rightDock.active||(p&&p.floating)){
+    nativeGridVisible(false);
+    scheduleDraw('tileEditor');
+   }
+   return shown;
   }
-  return result;
+  if(rightDock.active){
+   // Closing Edit Tile hides only its right-hand subsection. Keep the native
+   // DOM in that right panel so the next double-click can reopen it there.
+   var closed=originalTileEditorSetVisible357.apply(this,arguments);
+   if(rightDock.split&&rightDock.split.getPanelVisible('south'))
+    rightDock.split.setPanelVisible('south',false);
+   nativeGridVisible(false);
+   return closed;
+  }
+  if(p&&p.floating)dockPanel('tileEditor','native');
+  return originalTileEditorSetVisible357.apply(this,arguments);
  };
  TileEditor.prototype.__rico357FloatLifeCycle=true;
+}
+
+// Startup correction only: TEST358 C3 otherwise waits for an explicit Dock
+// click and therefore opens the old LEFT editor by default after rollback.
+// Do not change palette zoom, 512 glyph map, splitter ratio, or exports.
+var startupDockAttempts=0;
+function startRightByDefault(){
+ if(state.defaultDockDone)return true;
+ var e=editor(),p=panels.tileEditor;
+ if(!p||!panels.tiles||!e||!e.tileEditor||
+    !e.tileSetManager||!e.tileSetManager.getCurrentTileSet||
+    !e.tileSetManager.getCurrentTileSet()||
+    !document.getElementById('tileEditor'))return false;
+ if(p.floating){state.defaultDockDone=true;return true;}
+ if(!rightDock.active&&!dockEditorRight())return false;
+ if(e.tileEditor.getVisible&&!e.tileEditor.getVisible())
+  e.tileEditor.setVisible(true);
+ nativeGridVisible(false);
+ if(rightDock.active){
+  state.defaultDockDone=true;
+  state.last='RIGHT DOCK AT STARTUP';
+  return true;
+ }
+ return false;
+}
+function retryRightByDefault(){
+ if(state.defaultDockDone)return;
+ try{if(startRightByDefault())return;}catch(err){
+  state.lastError='STARTUP RIGHT DOCK: '+(err&&err.message||String(err));
+  console.error('[TEST358] startup right dock',err);
+ }
+ if(++startupDockAttempts<300)setTimeout(retryRightByDefault,120);
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
