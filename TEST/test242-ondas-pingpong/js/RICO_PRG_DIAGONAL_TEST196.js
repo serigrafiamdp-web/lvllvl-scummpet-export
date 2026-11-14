@@ -335,8 +335,10 @@ function build(d){
    var setupAt=out.indexOf(' lda camera_x');
    if(setupAt<0)throw new Error('TEST197: startup color initialization point missing.');
    out.splice.apply(out,[setupAt,0].concat(colorSetup));
+   // Keep LDA #$0C: it also selects the real $3000 VIC charset for BANK 1.
+   // Filtering it globally corrupted all diagonal uniform-color exports.
    var oldColorLines={
-     ' sta color_dst_lo':true,' lda #$d8':true,' lda #$0c':true,' sta color_dst_hi':true,
+     ' sta color_dst_lo':true,' lda #$d8':true,' sta color_dst_hi':true,
      ' lda color_rows_lo,x':true,' sta color_src_lo':true,
      ' lda color_rows_hi,x':true,' sta color_src_hi':true,
      ' lda (color_src_lo),y':true,' sta tmp_col':true,
