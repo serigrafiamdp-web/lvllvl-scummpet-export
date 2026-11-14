@@ -31,6 +31,9 @@ function setTilesVisible(show){
    sp.setPanelVisible('center',show,Math.max(160,Math.floor((r.host&&r.host.clientHeight||600)*0.48)),true);
   }
   state.tilesVisible=show;
+  // Recalculate the south slot after native center collapse. This lets the
+  // Edit Tile reclaim the height rather than leaving a blank index strip.
+  if(sp.resize){var direction=sp.resizePanel;try{sp.resize();}finally{sp.resizePanel=direction;}}
   if(show)fitRight();
   if(!show){
    // When Tiles closes, the native SplitPanel expands the bottom Edit Tile
@@ -182,6 +185,19 @@ if(typeof TextModeEditor!=='undefined'&&!TextModeEditor.prototype.__rico359Separ
  };
  TextModeEditor.prototype.__rico359SeparateTiles=true;
 }
+// Opening a file may happen after the short initial page startup retry window.
+// Only fill the default layout if it has never been applied; do not forcibly
+// redock an editor the user intentionally left floating.
+if(typeof TextModeEditor!=='undefined'&&!TextModeEditor.prototype.__rico359AfterLoad){
+ var previousLoadScreen359=TextModeEditor.prototype.loadScreen;
+ TextModeEditor.prototype.loadScreen=function(){
+  var value=previousLoadScreen359.apply(this,arguments);
+  if(!state.defaultApplied)setTimeout(applyDefault,120);
+  return value;
+ };
+ TextModeEditor.prototype.__rico359AfterLoad=true;
+}
+
 // Startup can finish before the tile set or the HTMLPanel contents load.
 // Retry only until the first valid editor state; never force the user's
 // deliberately chosen floating layout back into the dock later.
