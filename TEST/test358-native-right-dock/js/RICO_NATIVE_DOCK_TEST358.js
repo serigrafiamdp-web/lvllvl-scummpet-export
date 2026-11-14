@@ -98,7 +98,7 @@ function prepareRightDock(){
   var top=UI.create('UI.Panel',{id:'rico358NativeTiles'});
   split.add(top);
   var south=UI.create('UI.Panel',{id:'rico358NativeEditTile'});
-  split.addSouth(south,Math.max(160,Math.round(host.getBoundingClientRect().height*0.50)),true,false);
+  split.addSouth(south,Math.max(160,Math.round(host.getBoundingClientRect().height*0.48)),true,false);
   // UI.Panel returns a bare div, not the fill-sized .panelFill of HTMLPanel.
   // Make each split section explicitly fill its native geometry.
   [top.getElement(),south.getElement()].forEach(function(node){
@@ -122,12 +122,6 @@ function prepareRightDock(){
   };
   rightDock.split=split;rightDock.top=top;rightDock.bottom=south;
   rightDock.root=split.getElement();rightDock.host=host;
-  // Fill the native Tiles host with one functional splitter.
-  if(getComputedStyle(host).position==='static')host.style.position='relative';
-  rightDock.root.style.position='absolute';
-  rightDock.root.style.left='0';rightDock.root.style.top='0';
-  rightDock.root.style.right='0';rightDock.root.style.bottom='0';
-  rightDock.root.style.width='100%';rightDock.root.style.height='100%';
   rightDock.root.style.zIndex='12';
   split.on('resizesouth',function(){scheduleDraw('tileEditor');scheduleDraw('tiles');});
   if(typeof ResizeObserver!=='undefined'){
@@ -159,34 +153,15 @@ function prepareRightDock(){
 // scrollable 512-glyph index. This never changes Tiles zoom, canvas pixel
 // content, bank map or selection; only the native right SplitPanel divider.
 var c8UserMovedDivider=false,c8FitPending=false,c8NativeBar=null;
-// C10: Save Dock Status is manual. Store the layout on this Pages origin.
-// The old C9 saved state is deliberately not reused because its dimensions
-// may have been recorded against an unrelated splitter.
-var ricoDockStatusPref='rico358.saveDockStatus.v2';
+// C9: explicit, manual menu-driven saved dock layout. No autosave.
+// Saved via Editor.setPref(), on the same origin as LVLLVL.
+var ricoDockStatusPref='rico358.saveDockStatus.v1';
 var savedRatioForSession=.5, dockRestoreStarted=false, dockRestoreFinished=false;
-var saveDockMenuItem=null, defaultEastWidth358=380;
-function rightSidebarSplitter358(){
- try{return window.UI&&UI.exists('textModeEditor')?UI('textModeEditor'):null;}
- catch(e){return null;}
-}
-function setRightSidebarWidth358(width){
- var s=rightSidebarSplitter358();
- if(!s||!s.resizeThePanel||!Number.isFinite(width))return false;
- var target=Math.min(Math.max(280,window.innerWidth-300),Math.max(280,Math.round(width)));
- var old=s.resizePanel;
- try{s.resizeThePanel({panel:'east',size:target});}
- finally{s.resizePanel=old;}
- return true;
-}
+var saveDockMenuItem=null;
 
 function fitRightDockHalf(){
  var r=rightDock;
  if(!r.active||!r.split||!r.host||c8UserMovedDivider)return false;
- // An X on Tile Editor collapses its native south pane; Tiles uses 100%.
- if(r.split.getPanelVisible&&r.split.getPanelVisible('south')===false){
-  r.split.resize();scheduleDraw('tiles');return true;
- }
- r.split.resize();
  var h=r.host.getBoundingClientRect().height;
  if(h<240)return false;
  var bar=r.split.southBarSize||5;
@@ -468,13 +443,11 @@ function installBankControl(p){
 // layout until the user activates this menu command again.
 function getSavedDockStatus(){
  try{
-  var txt=null;
-  try{txt=window.localStorage.getItem(ricoDockStatusPref);}catch(ex){}
-  if(!txt&&window.g_app&&g_app.getPref)txt=g_app.getPref(ricoDockStatusPref);
+  var txt=window.g_app&&g_app.getPref?g_app.getPref(ricoDockStatusPref):null;
   if(!txt)return null;
   var obj=JSON.parse(txt);
-  return obj&&obj.version===2&&obj.panels?obj:null;
- }catch(err){console.warn('[TEST358 C10] invalid saved layout',err);return null;}
+  return obj&&obj.version===1&&obj.panels?obj:null;
+ }catch(err){console.warn('[TEST358 C9] invalid saved layout',err);return null;}
 }
 function panelVisibleForDock(key){
  var e=editor();
@@ -490,7 +463,7 @@ function panelVisibleForDock(key){
 function captureDockStatus(){
  var e=editor();
  if(!e||!panels.tileEditor||!panels.tiles)return null;
- var obj={version:2,rightDock:!!rightDock.active,panels:{}};
+ var obj={version:1,rightDock:!!rightDock.active,panels:{}};
  for(var n=0;n<definitions.length;n++){
   var key=definitions[n].key,p=panels[key];
   if(!p)continue;
@@ -502,10 +475,8 @@ function captureDockStatus(){
   }
   obj.panels[key]=info;
  }
- var sidebar=rightSidebarSplitter358();
- var width=sidebar&&sidebar.getPanelSize?sidebar.getPanelSize({panel:'east'}):sidebar&&sidebar.eastSize;
- if(!Number.isFinite(width)&&sidebar)width=sidebar.eastSize;
- if(Number.isFinite(width)&&width>=80)obj.eastWidth=Math.round(width);
+ var width=e.textModeEditorPanel&&e.textModeEditorPanel.eastSize;
+ if(Number.isFinite(width)&&width>=80)obj.eastWidth=width;
  var r=rightDock;
  if(r.active&&r.host&&r.split){
   var rect=r.host.getBoundingClientRect(),bar=r.split.southBarSize||5;
@@ -519,16 +490,11 @@ function saveDockStatusFromMenu(){
  var data=captureDockStatus();
  if(!data){state.lastError='NO DOCK WINDOWS AVAILABLE TO SAVE';return false;}
  try{
-  var storedJson=JSON.stringify(data),persisted=false;
-  try{
-   window.localStorage.setItem(ricoDockStatusPref,storedJson);
-   persisted=window.localStorage.getItem(ricoDockStatusPref)===storedJson;
-  }catch(storageError){console.warn('[TEST358 C10] storage blocked',storageError);}
-  if(!persisted&&g_app.setPref&&g_app.getPref){
-   g_app.setPref(ricoDockStatusPref,storedJson);
-   persisted=g_app.getPref(ricoDockStatusPref)===storedJson;
-  }
-  if(!persisted||!getSavedDockStatus())
+  var storedJson=JSON.stringify(data);
+  g_app.setPref(ricoDockStatusPref,storedJson);
+  // Editor.setPref silently skips writes when browser storage is unavailable.
+  // Confirm persistence before reporting that the layout was saved.
+  if(g_app.getPref(ricoDockStatusPref)!==storedJson)
    throw new Error('Browser did not retain the Dock Status preference');
   if(Number.isFinite(data.splitRatio))savedRatioForSession=data.splitRatio;
   state.last='DOCK STATUS SAVED';
@@ -543,10 +509,6 @@ function saveDockStatusFromMenu(){
  }catch(err){
   state.lastError='SAVE DOCK STATUS: '+(err&&err.message||String(err));
   console.error('[TEST358] save Dock Status',err);
-  if(saveDockMenuItem){
-   setSaveDockMenuLabel('Dock Save Failed');
-   setTimeout(function(){setSaveDockMenuLabel('Save Dock Status');},2200);
-  }
   return false;
  }
 }
@@ -625,10 +587,13 @@ function restoreDockStatusOnce(data){
  if(!e||!data||!data.panels||!panels.tileEditor||!panels.tiles)return false;
  if(!rightDock.active&&data.rightDock&&!dockEditorRight())return false;
  try{
-  // Restore the real right sidebar width, without changing glyph zoom.
-   if(Number.isFinite(data.eastWidth)&&data.eastWidth>=80)
-    setRightSidebarWidth358(data.eastWidth);
-   // Preserve native panel visibility; this is the same action as its X/menu.
+  // Restore sidebar width independently of glyph zoom or frame bank.
+  if(Number.isFinite(data.eastWidth)&&data.eastWidth>=80&&
+     e.textModeEditorPanel&&e.textModeEditorPanel.resizeThePanel){
+   var maxWidth=Math.max(200,window.innerWidth-290);
+   e.textModeEditorPanel.resizeThePanel({panel:'east',size:Math.min(maxWidth,data.eastWidth)});
+  }
+  // Preserve native panel visibility; this is the same action as its X/menu.
   for(var key of ['tiles','layers','colours']){
    if(data.panels[key]&&typeof data.panels[key].visible==='boolean')
     panelSetVisible(key,data.panels[key].visible);
@@ -754,8 +719,6 @@ if(typeof TileEditor!=='undefined'&&!TileEditor.prototype.__rico357FloatLifeCycl
    var closed=originalTileEditorSetVisible357.apply(this,arguments);
    if(rightDock.split&&rightDock.split.getPanelVisible('south'))
     rightDock.split.setPanelVisible('south',false);
-   if(rightDock.split)rightDock.split.resize();
-   scheduleDraw('tiles');
    nativeGridVisible(false);
    return closed;
   }
@@ -798,10 +761,7 @@ function startRightByDefault(){
    state.last='RESTORING SAVED DOCK STATUS';
    return true;
   }
-  // On a fresh launch, use the desired right dock width; after manual Save,
-   // an explicit saved width overrides this default.
-   setRightSidebarWidth358(defaultEastWidth358);
-   // Same exact action as clicking the native Colours X. Only once on startup:
+  // Same exact action as clicking the native Colours X. Only once on startup:
   // users remain free to reopen Colours later. No palette swatches, tile zoom,
   // split sizes or editor layout are modified by this patch.
   if(e.getColorPalettePanelVisible&&e.setColorPalettePanelVisible&&
