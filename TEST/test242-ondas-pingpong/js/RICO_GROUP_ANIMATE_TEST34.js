@@ -754,8 +754,8 @@
         '<div id="ricoGroupEmptyRow151" style="margin-top:9px;">' +
           '<label for="ricoGroupEmptyChar151" style="cursor:pointer; color:#bbb;">' +
           '<input type="checkbox" id="ricoGroupEmptyChar151" style="vertical-align:middle; margin-right:5px;"/>' +
-          'Animar caracteres vacíos</label>' +
-          '<div style="font-size:10px;color:#888;margin-left:19px;">Todos los índices: vacío = 0 píxeles; al dibujar 1 píxel vuelve a animarse. BANK 1 + BANK 2.</div>' +
+          'Animate empty characters</label>' +
+          '<div style="font-size:10px;color:#888;margin-left:19px;">All character slots: empty = 0 pixels; drawing 1 pixel resumes animation. BANK 1 + BANK 2.</div>' +
         '</div>' +
         '<div id="ricoGroupInfo34" style="margin-top:5px; font-size:11px; color:#aaa;"></div>' +
       '</div>';
