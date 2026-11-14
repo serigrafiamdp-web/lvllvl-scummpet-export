@@ -13,7 +13,7 @@ var definitions=[
  {key:'colours',id:'palettePanel',title:'#colorPaletteCloseButton',name:'Colours',width:330,height:380},
  {key:'layers',id:'layersPanel',title:null,name:'Layers',width:330,height:360}
 ];
-var state={version:VERSION,installed:[],last:'INITIALIZING',floating:[],dockThreshold:96};
+var state={version:VERSION,installed:[],last:'INITIALIZING',lastError:null,floating:[],dockThreshold:96};
 function $(id){return document.getElementById(id);}
 function editor(){return window.g_app&&g_app.textModeEditor;}
 function redraw(key){
@@ -78,11 +78,19 @@ function updateState(){
 function nativeGridVisible(visible){
  try{if(UI.exists('gridSplitPanel'))UI('gridSplitPanel').setPanelVisible('west',!!visible);}catch(ex){console.warn('[TEST358] gridSplitPanel toggle',ex);}
 }
+function getNativePanelElement(name){
+ // UI.create({id:name}) stores name as a UI alias while the real DOM ID is
+ // an auto-generated uiNNN. Never call getElement() here: for UI.Panel this
+ // may create a detached duplicate if its first render used getHTML().
+ var component=window.UI&&UI.exists(name)?UI(name):null;
+ return component?document.getElementById(component.id):$(name);
+}
 function prepareRightDock(){
  var p=panels.tiles, t=panels.tileEditor;
- if(!p||!t||!window.UI||!UI.ready)return false;
- var host=$('eastTilesPanel');
- if(!host)return false;
+ if(!p||!t||!window.UI||!UI.ready){state.lastError='PANELS OR UI NOT READY';return false;}
+ var host=getNativePanelElement('eastTilesPanel');
+ if(!host||!host.isConnected){state.lastError='RIGHT HOST NOT FOUND';return false;}
+ state.lastError=null;
  if(p.floating)dockPanel('tiles','native');
  if(!rightDock.split){
   var split=UI.create('UI.SplitPanel',{id:'rico358NativeRightSplit'});
@@ -91,6 +99,13 @@ function prepareRightDock(){
   split.add(top);
   var south=UI.create('UI.Panel',{id:'rico358NativeEditTile'});
   split.addSouth(south,Math.max(160,Math.round(host.getBoundingClientRect().height*0.48)),true,false);
+  // UI.Panel returns a bare div, not the fill-sized .panelFill of HTMLPanel.
+  // Make each split section explicitly fill its native geometry.
+  [top.getElement(),south.getElement()].forEach(function(node){
+   node.style.position='absolute';
+   node.style.left='0';node.style.right='0';node.style.top='0';node.style.bottom='0';
+   node.style.overflow='hidden';
+  });
   split.setMinSize('south',110);
   // Match native split drag while protecting at least a small Tiles viewport.
   var nativeResize358=split.resizeThePanel;
@@ -146,25 +161,51 @@ function releaseRightDock(keepVisible){
  scheduleDraw('tileEditor');scheduleDraw('tiles');
 }
 function dockEditorRight(){
- var p=panels.tileEditor, e=editor();
- if(!p||!e||!e.tileEditor)return false;
+ var p=panels.tileEditor,e=editor();
+ if(!p||!e||!e.tileEditor){state.lastError='TILE EDITOR NOT READY';return false;}
  if(rightDock.active)return true;
- if(p.floating)dockPanel('tileEditor','native');
- if(!prepareRightDock())return false;
- var south=rightDock.bottom.getElement();
- south.appendChild(p.node);
- p.node.classList.add('rico358-right-docked');
- p.dockedRight=true;rightDock.active=true;
- nativeGridVisible(false);
- if(rightDock.split){
-  var split=rightDock.split, height=rightDock.host.getBoundingClientRect().height;
-  var old=split.resizePanel;
-  try{split.resizeThePanel({panel:'south',size:Math.max(110,Math.min(height-100,split.southSize||260))});}
-  finally{split.resizePanel=old;}
+ // Preflight the native right host while the floating editor is still intact.
+ // Never send the editor left before the right destination exists.
+ try{
+  if(!prepareRightDock())return false;
+  var south=rightDock.bottom&&rightDock.bottom.getElement();
+  if(!south||!south.isConnected){state.lastError='RIGHT SPLITTER SOUTH NOT ATTACHED';return false;}
+  if(p.floating){
+   try{if(p.resizeObserver)p.resizeObserver.disconnect();}catch(ex){}
+   p.node.classList.remove('rico357-floated-panel');
+   if(p.saved){
+    ['left','top','right','bottom','width','height','position','display','overflow'].forEach(function(prop){
+     p.node.style[prop]=p.saved[prop];
+    });
+   }
+   // Direct float -> right: no intermediate append into the left panel.
+   south.appendChild(p.node);
+   if(p.placeholder&&p.placeholder.parentNode)p.placeholder.remove();
+   if(p.shell)p.shell.remove();
+   p.placeholder=null;p.shell=null;p.floating=false;p.resizeObserver=null;
+  }else{
+   south.appendChild(p.node);
+  }
+  p.node.classList.add('rico358-right-docked');
+  p.dockedRight=true;rightDock.active=true;
+  nativeGridVisible(false); // Free left workspace; no black/empty patch.
+  if(rightDock.split){
+   var split=rightDock.split,height=rightDock.host.getBoundingClientRect().height;
+   var old=split.resizePanel;
+   try{
+    var desired=Math.max(110,Math.min(Math.max(110,height-125),split.southSize||260));
+    split.resizeThePanel({panel:'south',size:desired});
+   }finally{split.resizePanel=old;}
+  }
+  scheduleDraw('tiles');scheduleDraw('tileEditor');
+  updateState();state.last='EDIT TILE DOCKED RIGHT';state.lastError=null;
+  return true;
+ }catch(err){
+  state.lastError='RIGHT DOCK ERROR: '+(err&&err.message||String(err));
+  console.error('[TEST358] right dock error:',err);
+  // On an unexpected failure, do not force the editor left or hide its controls.
+  return false;
  }
- scheduleDraw('tiles');scheduleDraw('tileEditor');
- state.last='EDIT TILE DOCKED RIGHT';
- return true;
 }
 function installResizeGrip(shell,key){
  var grip=document.createElement('div');
@@ -213,7 +254,7 @@ function floatPanel(key,pos){
  var title=document.createElement('div');title.className='rico357-float-title';
  var grip=document.createElement('span');grip.className='rico357-grip';grip.textContent='⠿';
  var label=document.createElement('span');label.textContent=p.cfg.name;
- var btn=document.createElement('button');btn.className='rico357-close';btn.textContent='Dock ↘';btn.title='Return panel to the right';
+ var btn=document.createElement('button');btn.className='rico357-close';btn.textContent='Dock ↘';btn.title=key==='tileEditor'?'Dock Edit Tile on the RIGHT':'Return panel to its native position';
  title.append(grip,label,btn);shell.append(title);
  var body=document.createElement('div');body.className='rico357-float-body';shell.append(body);
  var placeholder=document.createElement('div');placeholder.className='rico357-placeholder';
@@ -387,6 +428,6 @@ if(typeof TileEditor!=='undefined'&&!TileEditor.prototype.__rico357FloatLifeCycl
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-window.RICO_TEST358_DOCK={state:state,floatPanel:floatPanel,dockPanel:dockPanel,dockRight:dockEditorRight,undockRight:releaseRightDock,scrollToBank:bankTarget,panels:panels,rightDock:rightDock};
+window.RICO_TEST358_DOCK={state:state,floatPanel:floatPanel,dockPanel:dockPanel,dockRight:dockEditorRight,undockRight:releaseRightDock,scrollToBank:bankTarget,panels:panels,rightDock:rightDock,getRightHost:function(){return getNativePanelElement('eastTilesPanel');}};
 console.info('[TEST358] Native right-split dock + resizable floating Tile Editor/Tiles/Colours/Layers and BANK 1–2 scroller installed; exports untouched');
 })();
