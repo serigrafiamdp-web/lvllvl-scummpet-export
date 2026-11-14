@@ -14,63 +14,7 @@ var definitions=[
  {key:'layers',id:'layersPanel',title:null,name:'Layers',width:330,height:360}
 ];
 var state={version:VERSION,installed:[],last:'INITIALIZING',lastError:null,floating:[],dockThreshold:96};
-// Save only the native right divider ratio; never touch Tiles scale or bank data.
-var splitRatioPref='rico358.rightDock.splitRatio.v1';
-var coloursFirstRunPref='rico358.rightDock.coloursDefaultApplied.v1';
-var applyingSavedSplit=false, draggingNativeDivider=false, pendingRatioUpdate=false;
 function $(id){return document.getElementById(id);}
-function savedSplitRatio(){
- try{
-  var raw=g_app.getPref(splitRatioPref),val=parseFloat(raw);
-  if(Number.isFinite(val)&&val>=.18&&val<=.82)return val;
- }catch(e){}
- return .5; // No saved layout: exact half Tiles / half Edit Tile.
-}
-function applySavedSplit(){
- var r=rightDock,split=r.split,host=r.host;
- if(!r.active||!split||!host||!host.isConnected)return false;
- if(split.getPanelVisible&&!split.getPanelVisible('south'))return false;
- var height=host.getBoundingClientRect().height;
- if(height<260)return false;
- var bar=split.southBarSize||5;
- var usable=height-bar;
- var desired=Math.round(usable*savedSplitRatio());
- desired=Math.max(110,Math.min(Math.max(110,height-125),desired));
- if(Math.abs(split.southSize-desired)<2)return true;
- var originalDrag=split.resizePanel;
- applyingSavedSplit=true;
- try{split.resizeThePanel({panel:'south',size:desired});}
- finally{split.resizePanel=originalDrag;applyingSavedSplit=false;}
- scheduleDraw('tiles');scheduleDraw('tileEditor');
- return true;
-}
-function queueSavedSplit(){
- if(pendingRatioUpdate)return;
- pendingRatioUpdate=true;
- requestAnimationFrame(function(){
-  pendingRatioUpdate=false;
-  if(!draggingNativeDivider)applySavedSplit();
- });
-}
-function saveUserSplitRatio(){
- var r=rightDock,sp=r.split,host=r.host;
- if(!r.active||!sp||!host||applyingSavedSplit)return;
- var usable=host.getBoundingClientRect().height-(sp.southBarSize||5);
- if(usable<=250)return;
- var ratio=sp.southSize/usable;
- if(!Number.isFinite(ratio)||ratio<.18||ratio>.82)return;
- try{
-  g_app.setPref(splitRatioPref,ratio.toFixed(4));
-  state.savedSplitRatio=ratio;
- }catch(e){state.lastError='COULD NOT SAVE DOCK RATIO';}
-}
-window.addEventListener('mouseup',function(){
- if(!draggingNativeDivider)return;
- draggingNativeDivider=false;
- // UI.SplitPanel processes its final mouse movement on mouseup.
- requestAnimationFrame(saveUserSplitRatio);
-});
-
 function editor(){return window.g_app&&g_app.textModeEditor;}
 function redraw(key){
  var e=editor();if(!e)return;
@@ -180,12 +124,6 @@ function prepareRightDock(){
   rightDock.root=split.getElement();rightDock.host=host;
   rightDock.root.style.zIndex='12';
   split.on('resizesouth',function(){scheduleDraw('tileEditor');scheduleDraw('tiles');});
-  // Save ONLY a drag of this native divider; programmatic layout and
-  // loading a project must never overwrite the user's last arrangement.
-  var resizeBar=$(split.id+'southbar');
-  if(resizeBar)resizeBar.addEventListener('mousedown',function(evt){
-   if(evt.button===0)draggingNativeDivider=true;
-  },true);
   if(typeof ResizeObserver!=='undefined'){
    rightDock.resizeObserver=new ResizeObserver(function(){
     if(!rightDock.active)return;
@@ -194,9 +132,6 @@ function prepareRightDock(){
      split.resize();
      split.resizePanel=old;
     }catch(e){}
-    // Hiding Colours or resizing the browser changes the host's height.
-    // Reapply the remembered RATIO, not the old absolute pixel height.
-    queueSavedSplit();
     scheduleDraw('tileEditor');scheduleDraw('tiles');
    });
    rightDock.resizeObserver.observe(host);
@@ -254,10 +189,14 @@ function dockEditorRight(){
   p.node.classList.add('rico358-right-docked');
   p.dockedRight=true;rightDock.active=true;
   nativeGridVisible(false); // Free left workspace; no black/empty patch.
-  // Whether docking with the title button or after floating, restore the
-  // user's saved relative split (default 50/50). Never push Editor to bottom.
-  applySavedSplit();
-  queueSavedSplit();
+  if(rightDock.split){
+   var split=rightDock.split,height=rightDock.host.getBoundingClientRect().height;
+   var old=split.resizePanel;
+   try{
+    var desired=Math.max(110,Math.min(Math.max(110,height-125),split.southSize||260));
+    split.resizeThePanel({panel:'south',size:desired});
+   }finally{split.resizePanel=old;}
+  }
   scheduleDraw('tiles');scheduleDraw('tileEditor');
   updateState();state.last='EDIT TILE DOCKED RIGHT';state.lastError=null;
   return true;
@@ -490,7 +429,6 @@ if(typeof TileEditor!=='undefined'&&!TileEditor.prototype.__rico357FloatLifeCycl
    if(!rightDock.active&&p&&!p.floating)dockEditorRight();
    if(rightDock.active&&rightDock.split&&!rightDock.split.getPanelVisible('south')){
     rightDock.split.setPanelVisible('south',true,240,true);
-    queueSavedSplit(); // Restore previous ratio on reopening Edit Tile.
    }
    var shown=originalTileEditorSetVisible357.apply(this,arguments);
    if(rightDock.active||(p&&p.floating)){
@@ -531,22 +469,15 @@ function startRightByDefault(){
   e.tileEditor.setVisible(true);
  nativeGridVisible(false);
  if(rightDock.active){
-  // Default Colours closed ONCE, via the original X handler. After that,
-  // LVLLVL's own existing textmode.colorPaletteVisible preference remembers
-  // any manual open/close, instead of us forcibly closing it every startup.
-  try{
-   if(g_app.getPref(coloursFirstRunPref)!=='yes'){
-    if(e.getColorPalettePanelVisible&&e.setColorPalettePanelVisible&&
-       e.getColorPalettePanelVisible())e.setColorPalettePanelVisible(false);
-    g_app.setPref(coloursFirstRunPref,'yes');
-   }
-  }catch(ex){console.warn('[TEST358] nonfatal Colours initial state',ex);}
-  // Important: after Colours closes, the right dock host gains height.
-  // Recalculate half/half (or saved proportion) against its FINAL height.
-  queueSavedSplit();
-  setTimeout(queueSavedSplit,80);
+  // Same exact action as clicking the native Colours X. Only once on startup:
+  // users remain free to reopen Colours later. No palette swatches, tile zoom,
+  // split sizes or editor layout are modified by this patch.
+  if(e.getColorPalettePanelVisible&&e.setColorPalettePanelVisible&&
+     e.getColorPalettePanelVisible()){
+   e.setColorPalettePanelVisible(false);
+  }
   state.defaultDockDone=true;
-  state.last='RIGHT DOCK AT STARTUP / RESTORED SPLIT';
+  state.last='RIGHT DOCK AT STARTUP / COLOURS CLOSED';
   return true;
  }
  return false;
@@ -558,6 +489,47 @@ function retryRightByDefault(){
   console.error('[TEST358] startup right dock',err);
  }
  if(++startupDockAttempts<300)setTimeout(retryRightByDefault,120);
+}
+
+// C7: Hide the unused bank INDEX *visually*, never its data or scroll.
+// C6 ratio auto-restoration was a regression; C7 restores the C5 native
+// right-dock geometry. BANK 1 / BANK 2 remain in one continuous 512 map.
+// At 200% the lower, inactive 256 slots should not distract from editing.
+// Native B1/B2 controls and mousewheel still navigate the full 512 glyphs.
+if(typeof TilePaletteDisplay!=='undefined'&&!TilePaletteDisplay.prototype.__rico358HideInactiveIndex){
+ var preDraw358=TilePaletteDisplay.prototype.draw;
+ TilePaletteDisplay.prototype.draw=function(args){
+  var result=preDraw358.apply(this,arguments);
+  if(this.canvasElementId!=='sidecharPaletteCanvas'||
+     this.charPaletteMapType!=='columns'||!this.context||
+     !this.tileLocations||!this.tileLocations[256]||
+     !this.tileLocations[256].length)return result;
+  try{
+   var dpi=UI.devicePixelRatio||1;
+   var bank2y=this.tileLocations[256][0].y;
+   if(!Number.isFinite(bank2y)||bank2y<=0)return result;
+   var viewHeight=Math.min(this.canvas.height||0,Math.round((this.viewHeight||0)*dpi));
+   var viewWidth=Math.min(this.canvas.width||0,Math.round((this.viewWidth||0)*dpi));
+   if(!viewHeight||!viewWidth)return result;
+   var scroll=this.scrollY||0;
+   var splitPx=bank2y-scroll*dpi-Math.max(1,(this.charMargin||0)*dpi);
+   // BANK 2 is visible when the user navigates into it. Do NOT auto-change
+   // the actual current-frame bank, zoom, tile map, tile count, or selection.
+   var showingBank2=scroll>=(bank2y/dpi)*.55;
+   var edge=Math.max(0,Math.min(viewHeight,Math.round(splitPx)));
+   this.context.save();
+   this.context.fillStyle='#111111';
+   if(showingBank2){
+    this.context.fillRect(0,0,viewWidth,edge);
+   }else{
+    this.context.fillRect(0,edge,viewWidth,viewHeight-edge);
+   }
+   this.context.restore();
+   state.indexShown=showingBank2?'BANK 2: 256–511':'BANK 1: 0–255';
+  }catch(ex){console.warn('[TEST358 C7] index mask only',ex);}
+  return result;
+ };
+ TilePaletteDisplay.prototype.__rico358HideInactiveIndex=true;
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
