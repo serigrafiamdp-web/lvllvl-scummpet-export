@@ -19,6 +19,18 @@ At runtime, standard BANK1 video pointers should be `$D018 = $1C / $2C` (low bit
 ## Known defect (not yet confirmed fixed)
 User observed repeated alphabet-like glyphs instead of edited custom font in VICE while running exported diagonal PRG. The JSON indices and generated TEST196 assembly font bytes are correct in the isolated JS test, **but compiled PRG and VIC runtime need further verification**. Never claim PASS until VICE confirms.
 
+## TEST362 — confirmed root cause and minimal correction
+
+The uploaded PRG `_lvllvl full print (8).prg` (SHA-256 `99e987f49ddb16de8ad9fe13227cd8c2d5493dd7efa4025b1524047e39f05918`) is **38,916 bytes**, load address **$0801**, and contains all 2,048 custom font bytes **correctly** at $3000–$37FF; BANK2 remains independently preserved at $3800–$3FFF.
+
+Binary inspection at **$2049** revealed `STA charset_bits` without the expected preceding `LDA #$0C`. The preceding accumulator value was **$07**, used for the fine Y scroll phase. Consequently `update_d018` could select `$17/$27` (VIC charset slot at **$1800**, where the C64 ROM charset is visible) instead of `$1C/$2C` (custom font at **$3000**).
+
+The source bug was in the **uniform-color optimization** of `TEST/test242-ondas-pingpong/js/RICO_PRG_DIAGONAL_TEST196.js`: `oldColorLines` filtered **every** `' lda #$0c'` by string equality. This accidentally removed the critical BANK 1 font initialization. The fix removes **only that overly broad filter entry**, preserving every other exporter path and memory layout. There are **no new restrictions or feature gates**.
+
+Offline source-level regression using the original JSON: **128/128 combinations passed** across 4 diagonal directions × 8 speeds (1–8 px/tick) × 2 charset banks × 2 color types (uniform and variable). Each generated ASM source now explicitly includes the matching `LDA #$0C/$0E; STA charset_bits` sequence. This is not a complete test of every LVLLVL export format.
+
+A separate, direct-patched TEST362 VICE PRG was also produced from the user's PRG: it changes only the initialization code around $2049, keeping the length, data tables, scroll routines, glyphs, and all address positions unchanged. The specific fixture has both background and border = 0, enabling the equivalent constant stores without moving addresses. **VICE playback of the corrected PRG still requires user confirmation**.
+
 ## Passive instrumentation
 The page loads `RICO_DIAGONAL_CHARSET_AUDIT_TEST361.js` after existing export wrappers, capturing the returned PRG.
 In browser DevTools: `window.RICO_TEST361_DIAG.last` (after export).
