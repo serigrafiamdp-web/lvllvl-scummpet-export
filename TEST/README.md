@@ -1,26 +1,36 @@
-# TEST — Laboratorios aislados
+# TEST — pruebas activas e historia de LVLLVL RICO
 
-**TEST331 (experimental):** [ECM repack desde mapa usado: horizontal, vertical, diagonal, Group-only](test331-ecm-map-only-glyphs/). [Matriz completa de capacidades](../docs/MAPA_FEATURES_EXPORT_TEST331_2026-11-05.md). Todavía sin PASS de VICE.
+**Estado 14/11/2026.** La portada ejecutada por el usuario es **[LVLLVL en /](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)** desde `gh-pages/index.html`. **No es necesario entrar en /TEST/ para probar la versión actual.**
 
+## Las carpetas TEST cargadas no son descartables
 
-**TEST330 en pruebas:** [Ondas y animación individual+grupal sin borrar configuraciones](test330-effects-recovery/). [Auditoría integral](../docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md). No modifica los PASS históricos.
+Varios módulos de producción conservan el nombre TEST en su ruta. Ejemplos:
 
+- `test242-ondas-pingpong/`: Group Animate del editor, motor diagonal y motor de mapa grande (incluye **fix TEST362**).
+- `test243-ondas-fast-pingpong/`, `test244-ondas-pingpong-fast/`, `test245-demoscene-speedcode/`, `test246-charset-remap/`, `test247-group-scroll-fast/`: optimizaciones de grupo, fuentes y compatibilidad.
+- `test326-horizontal-map-limits/`, `test327-horizontal-animated-map/`: horizontal, compactación y scheduler de glyphs animados.
+- `test328-ecm-preserve-4-backgrounds/`: preservación de fondos ECM, histórico PASS.
+- `test350-ecm-safe-router/`, `test351-ecm-frames-sid/`, `test352-standard-frames-sid/`: routing de ECM, frames y audio.
+- `test354-calaca-diagonal-frames/`: diagonal multiframe.
+- `test355-export-combinations/`: Group Animate multiframe standalone.
+- `test358-native-right-dock/`, `test359-full-height-right-sidebar/`: dock y altura de sidebar.
+- `test361-diagonal-charset/`: prueba pasiva de fuente y documentación del caso TEST362.
 
-**04/11, TEST329:** el editor principal `/` ahora integra los scripts del TEST328 PASS para mapas horizontales ECM de 100 columnas. Es una integración nueva pendiente de PASS. [Diagnóstico exacto de PARED.json](../docs/TEST329_PARED_LEFT_EXPORT.md). TEST297 Bitmap sigue siendo el checkpoint histórico de respaldo.
+Para **todos** los scripts que se ejecutan, no usar esta lista parcial: consultar [manifiesto exacto de index.html](../docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md).
 
+## Limpieza de laboratorios históricos
 
-**Último PASS comunicado (04/11/2026): [TEST328 ECM + mapa horizontal 100 columnas](test328-ecm-preserve-4-backgrounds/)**. Incluye repack no destructivo a 64 glifos, recuperación de los cuatro registros de fondo ECM y ruta de animación individual al exportar. [Registro y alcance](test328-ecm-preserve-4-backgrounds/PASS_04_NOV_2026.md) · [Detalles](../docs/FEATURES_EXPORT_PRG_ECM_TEST326_328.md). El caso MEGASOFT no tiene Group Scroll; esa combinación aún requiere PASS separado. La raíz continúa en TEST297.
+El 14/11/2026 se archivaron y retiraron de la rama `gh-pages` **39 carpetas numéricas sin nombre**: `test150..165` y `test238..260`, **199 archivos**. **NINGUNO se carga desde la portada actual.**
 
+- **Recuperación del histórico completo:** [`archive/tests-pre-audit-2026-11-14-test362-pass`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/archive/tests-pre-audit-2026-11-14-test362-pass)
+- [Informe de limpieza y su carácter reversible](../docs/LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md).
+- Los antiguos links /TEST/test150/, /TEST/test254/ etc. ya no funcionan desde la web canónica; recuperar su contenido desde el branch archivado o los MASTER congelados, sin sobrescribir motores nuevos.
 
-El MASTER del 22/10/2026 agrupó las carpetas `test150` a `test165` aquí. Se preservaron **34 archivos** (cada `index.html` y sus scripts de prueba), sin alterar los JS originales. Los 16 HTML recibieron `<base href="../../">` y las referencias cruzadas ahora apuntan a `TEST/testN/`.
+## PASS, experimentos y prioridades
 
-## Abrir las pruebas
+- [PASS y pendientes actualizados](../docs/PASS_Y_REGRESIONES_2026-11-14.md): TEST362 PASS de VICE para el PRG corregido de scroll diagonal; TEST358 C17 PASS de layout; otros modos se mantienen separados.
+- [Arquitectura de Map Scroll y Group Animate](../docs/ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md).
+- [64tass — por qué los datos ASM existentes todavía no implican exportación completa del motor](../docs/PLAN_EXPORTACION_COMPLETA_64TASS_ASM_BIN_2026-11-14.md).
+- [Auditoría TEST330 (historia de limitaciones y trabajos pendientes)](../docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md).
 
-- Web de pruebas: `https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/TEST/test150/` hasta `/TEST/test165/`.
-- Abrir siempre desde servidor web; la carga de módulos depende de `js/`, `css/`, `c64/` en la raíz del proyecto.
-- No se mantienen los URLs antiguos `/test150/` como ruta canónica para evitar volver a llenar raíz.
-- Backup previo: rama `backup/PRE_MASTER_22_OCTUBRE_2026_TEST228_PASS` conserva rutas originales si alguna prueba debe reproducirse idéntica.
-
-Estos laboratorios **no equivalen al código actual del MASTER** ni deben usarse para exportar por defecto. La app principal sigue en `../index.html` y el estado actual está en [docs/ESTADO_MASTER_22_OCTUBRE_2026.md](../docs/ESTADO_MASTER_22_OCTUBRE_2026.md).
-
-Las nuevas pruebas deben quedar en ramas `test/...` o dentro de `TEST/`; no crear más carpetas sueltas de tests en la raíz.
+**Reglas para nuevas pruebas:** reproducir fallo, aislar motor y recursos, no añadir topes artificiales ni omitir efectos; no tratar compilación JS/ASM como PASS de VICE; después de la validación integrar en **la misma URL principal** del editor. Conservar nuevas pruebas históricas en ramas etiquetadas, no multiplicar clones sin utilidad.
