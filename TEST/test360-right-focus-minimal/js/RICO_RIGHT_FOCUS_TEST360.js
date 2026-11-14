@@ -140,6 +140,13 @@ function apply(){
  }
  var chars=e.currentTile&&e.currentTile.getCharacters&&e.currentTile.getCharacters();
  if(chars&&chars.length&&chars[0]&&chars[0].length&&e.tileEditor.setCharacters)e.tileEditor.setCharacters(chars);
+ // Restore the user's TEST358 C3 working 200% glyph-index size. TEST359
+ // changed a persisted app preference to 100%, making BANK 2 appear before
+ // all of BANK 1 had the intended visible viewport.
+ var scaleSelect=document.getElementById('sidecharPaletteScale');
+ if(scaleSelect&&Number(scaleSelect.value)===1&&e.sideTilePalette&&e.sideTilePalette.setScale){
+  try{e.sideTilePalette.setScale(2);}catch(ex){console.warn('[TEST360] restore Tiles 200%',ex);}
+ }
  state.started=true;state.layoutApplied=true;
  fitHalf();moveColoursBelow();fitSelectedTile();
  setTimeout(fitBank,140);
