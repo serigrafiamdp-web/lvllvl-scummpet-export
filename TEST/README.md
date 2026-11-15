@@ -15,6 +15,7 @@ Varios módulos de producción conservan el nombre TEST en su ruta. Ejemplos:
 - `test355-export-combinations/`: Group Animate multiframe standalone.
 - `test358-native-right-dock/`, `test359-full-height-right-sidebar/`: dock y altura de sidebar.
 - `test361-diagonal-charset/`: prueba pasiva de fuente y documentación del caso TEST362.
+- `test363-diagonal-multiframe-unlocked/`: recuperación del kernel TEST342 PASS para 2+ frames, direcciones, mapas, colores, velocidades y BANK independientes; **TEST363 todavía pendiente de prueba VICE en portada**.
 
 Para **todos** los scripts que se ejecutan, no usar esta lista parcial: consultar [manifiesto exacto de index.html](../docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md).
 
