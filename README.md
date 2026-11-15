@@ -1,4 +1,4 @@
-# LVLLVL RICO — editor PETSCII / C64 y exportadores (estado 14/11/2026)
+# LVLLVL RICO — editor PETSCII / C64 y exportadores (estado 15/11/2026)
 
 **Editor único:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/  
 **Código que se ejecuta realmente:** rama [`gh-pages`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/gh-pages).  
@@ -13,7 +13,7 @@ Extensión de LVLLVL para edición de arte de caracteres Commodore 64 y PETSCII,
 ### Mapa de funcionamiento para otro programador
 
 ```text
- index.html                     <- orden de scripts CRÍTICO (127 externos+locales)
+ index.html                     <- orden de scripts CRÍTICO (128 externos+locales)
     │
     ├── js/main.js              <- base LVLLVL empaquetada
     ├── js/RICO_*.js            <- extensiones RICO y wrappers originales
@@ -56,7 +56,7 @@ La fuente de verdad para el mapa de dependencias es el [manifiesto de scripts](d
 | **Up / Down** | `TEST/test242-ondas-pingpong/js/RICO_PRG_LARGE_MAP_UNLOCK_TEST168.js` más overlays verticales 221–232. |
 | **Left / Right** | `TEST/test327-horizontal-animated-map/js/RICO_PRG_HORIZ_WIDE_TEST327.js`, `TEST/test326-horizontal-map-limits/js/RICO_PRG_HORIZ_COMPACT_TEST326.js`. |
 | **4 diagonales** | `TEST/test242-ondas-pingpong/js/RICO_PRG_DIAGONAL_TEST196.js` y componentes incrementales TEST221; **fix TEST362** ya integrado. |
-| **Diagonales multiframe** | `TEST/test354-calaca-diagonal-frames/js/RICO_DIAGONAL_MULTIFRAME_TEST354.js`. Ruta especializada, no todas las combinaciones. |
+| **Diagonales multiframe** | `TEST/test363-diagonal-multiframe-unlocked/js/RICO_DIAGONAL_MULTIFRAME_TEST363.js` recupera el **TEST342 PASS** (2+ frames, direcciones/mapas/colores/bancos propios). `TEST/test354-calaca-diagonal-frames/` sigue disponible para un caso especial de área reducida. TEST363 pendiente de VICE en la portada. |
 | **Caracteres individuales + horizontal** | `TEST/test327-horizontal-animated-map/js/RICO_HORIZ_CHAR_SCHEDULER_TEST327.js`. |
 | **SID integrado** | `js/RICO_PRG_EIGHT_FRAMES_ORIGINAL_SID_TEST207.js`, con evolución documentada de TEST211/228/229. |
 | **ECM / bitmap y colores** | `TEST/test328-ecm-preserve-4-backgrounds/`, `TEST/test350-ecm-safe-router/`, `TEST/test279..297-*/js/` según orden real. |
@@ -69,6 +69,8 @@ La fuente de verdad para el mapa de dependencias es el [manifiesto de scripts](d
 
 | Checkpoint | Qué está confirmado |
 |---|---|
+| **TEST342 — PASS histórico usuario / VICE (09/11)** | Diagonal multiframe en la versión aislada; kernel recuperado como TEST363, revalidación pendiente. |
+| **TEST363 — pendiente de VICE** | Ruta recuperada para 2+ frames independientes, sin alterar TEST362 ni agregar bloqueos globales. |
 | **TEST362 — PASS usuario / VICE** | Corrigió la selección errónea del charset BANK1 en scroll diagonal con color uniforme; se preservan las demás rutas. El caso 50×35, 8 px/tick, up-left está documentado. |
 | **TEST358 C17 — PASS usuario** | Distribución 50/50 del editor derecho Tile Editor / Tiles. |
 | **TEST359 / TEST360 / TEST361** | Cambios publicados o diagnósticos, sin un PASS general registrado en esta auditoría. |
@@ -84,7 +86,7 @@ Un paquete útil a otro coder debe incluir ASM de rutinas, **binarios ordenados*
 ## Documentación principal (empezar aquí)
 
 - **[Arquitectura actual — Map Scroll, bancos y Group Animate](docs/ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md)**
-- **[Manifiesto de los 127 scripts activos (orden de carga)](docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md)**
+- **[Manifiesto de los 128 scripts activos (orden de carga)](docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md)**
 - **[PASS recientes y regresiones pendientes](docs/PASS_Y_REGRESIONES_2026-11-14.md)**
 - **[64tass ASM + binarios — auditoría de viabilidad](docs/PLAN_EXPORTACION_COMPLETA_64TASS_ASM_BIN_2026-11-14.md)**
 - **[Limpieza de tests y cómo recuperar el histórico](docs/LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md)**
