@@ -1,10 +1,10 @@
 # LVLLVL RICO — manifiesto de carga de la página principal
 
-Última auditoría: **14/11/2026** · rama `gh-pages`. Fuente: `index.html` de la versión TEST362 PASS, anterior a la limpieza histórica.
+Última auditoría: **15/11/2026** · rama `gh-pages`. Fuente: `index.html` de la versión TEST362 PASS, anterior a la limpieza histórica.
 
 Este es el **orden real de carga**, no un inventario de todas las pruebas existentes. Cambiar el orden de los módulos puede modificar los wrappers de `ToPRGAdv.prototype.createPRG`, el compositor, las condiciones de selección de ruta y el comportamiento de Group Animate.
 
-- Scripts declarados: **127**.
+- Scripts declarados: **128**.
 - Scripts locales: **123**.
 - Scripts de proveedores externos: **4**.
 - Archivo de seguridad anterior a la limpieza: [`archive/tests-pre-audit-2026-11-14-test362-pass`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/archive/tests-pre-audit-2026-11-14-test362-pass).
@@ -137,7 +137,8 @@ Este es el **orden real de carga**, no un inventario de todas las pruebas existe
 124. `TEST/test356-c64-palette-index/js/RICO_C64_PALETTE_INDEX_TEST356.js?v=356-c64-idx-preserve-a1`
 125. `TEST/test358-native-right-dock/js/RICO_NATIVE_DOCK_TEST358_C17.js?v=358-c17-zero-height-host-fix`
 126. `TEST/test359-full-height-right-sidebar/js/RICO_FULL_HEIGHT_RIGHT_SIDEBAR_TEST359.js?v=359-full-height-right-ui-a1`
-127. `TEST/test361-diagonal-charset/js/RICO_DIAGONAL_CHARSET_AUDIT_TEST361.js?v=361-passive-charset-prg-audit`
+127. `TEST/test363-diagonal-multiframe-unlocked/js/RICO_DIAGONAL_MULTIFRAME_TEST363.js?v=363-test342-pass-recovered-a1`
+128. `TEST/test361-diagonal-charset/js/RICO_DIAGONAL_CHARSET_AUDIT_TEST361.js?v=361-passive-charset-prg-audit`
 
 ## Política de cambios
 
