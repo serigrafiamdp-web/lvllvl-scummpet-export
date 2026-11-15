@@ -45,6 +45,10 @@ JSON basado en el caso TEST362 50×35 (solo análisis en memoria; no se publica 
 - Delegación monoframe, SID, Group, ECM y Scroll Area reducida probada con mocks.
 - **El ensamblador de prueba era simulado; no afirma compilación real ni PASS de VICE.**
 
+### Matriz adicional: geometrías independientes (sin VICE)
+
+ASM generado para 4 frames que cambian también las dimensiones de Scroll Area: 50×35 / 48×31 / 44×27 / 40×25, velocidades de 8/1/3/7 px, ticks 1/2/3/4 y BANK1/BANK2 alternos; 5426 bytes por región de mapa/color. Se conservaron tablas de tamaño, stride, puntero, dirección, duración, banco y las rutinas de Color RAM. Esto confirma que **TEST354 no tenía fundamento para imponer una misma geometría a todos los frames del editor**, dentro del contrato físico del kernel probado. Aún sin PRG validado en VICE.
+
 ## Prueba VICE propuesta
 
 En la URL única https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/ cargar dos o cuatro frames con Window 40×25 y Scroll Area por ejemplo 50×35. Exportar PRG y verificar movimiento, contenido de todos los mapas, velocidad, duración, BANK1/BANK2, colores y ausencia de PETSCII no deseado. Repetir luego el JSON monoframe TEST362 para regresión.
