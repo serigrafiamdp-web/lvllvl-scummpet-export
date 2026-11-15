@@ -1,15 +1,16 @@
-# LVLLVL RICO — índice técnico (actualizado 14/11/2026)
+# LVLLVL RICO — índice técnico (actualizado 15/11/2026)
 
 **Primera lectura:** [README principal](../README.md) · [Editor publicado](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)
 
 ## Documentación vigente para desarrollar
 
 1. [Arquitectura Map Scroll y Group Animate — esquema, fuentes de datos, motores, memoria y rutinas](ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md)
-2. [Manifiesto exacto de scripts de index.html — 127 módulos, orden inalterable](MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md)
-3. [TEST362 PASS en VICE y matriz de validación real](PASS_Y_REGRESIONES_2026-11-14.md)
-4. [Análisis de 64tass: ASM completo, binarios por banco/frame/grupo y ZIP](PLAN_EXPORTACION_COMPLETA_64TASS_ASM_BIN_2026-11-14.md)
-5. [Limpieza de 39 directorios numéricos, respaldo y recuperación](LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md)
-6. [Caso de regresión TEST361/362 y selección de charset en diagonal](../TEST/test361-diagonal-charset/README.md)
+2. [Manifiesto exacto de scripts de index.html — 128 módulos, orden inalterable](MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md)
+3. [TEST363 multiframe diagonal recuperado de TEST342 PASS; pendiente VICE](../TEST/test363-diagonal-multiframe-unlocked/README.md)
+4. [TEST362 PASS en VICE y matriz de validación real](PASS_Y_REGRESIONES_2026-11-14.md)
+5. [Análisis de 64tass: ASM completo, binarios por banco/frame/grupo y ZIP](PLAN_EXPORTACION_COMPLETA_64TASS_ASM_BIN_2026-11-14.md)
+6. [Limpieza de 39 directorios numéricos, respaldo y recuperación](LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md)
+7. [Caso de regresión TEST361/362 y selección de charset en diagonal](../TEST/test361-diagonal-charset/README.md)
 
 ## Referencia técnica anterior (conservada)
 
