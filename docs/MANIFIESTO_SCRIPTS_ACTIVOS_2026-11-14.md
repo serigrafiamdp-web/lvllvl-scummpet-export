@@ -1,6 +1,6 @@
 # LVLLVL RICO — manifiesto de carga de la página principal
 
-Última auditoría: **15/11/2026** · rama `gh-pages`. Fuente: `index.html` de la versión TEST362 PASS, anterior a la limpieza histórica.
+Última auditoría: **15/11/2026** · rama `gh-pages`. Fuente: `index.html` actual, con TEST362 PASS y TEST363 multiframe integrado pendiente de VICE. El script TEST361 se carga al final como diagnóstico pasivo.
 
 Este es el **orden real de carga**, no un inventario de todas las pruebas existentes. Cambiar el orden de los módulos puede modificar los wrappers de `ToPRGAdv.prototype.createPRG`, el compositor, las condiciones de selección de ruta y el comportamiento de Group Animate.
 
