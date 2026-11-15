@@ -7,6 +7,7 @@
 | Caso | Evidencia | Alcance |
 |---|---|---|
 | TEST358 C17 | **PASS usuario** | Dock derecho Tile Editor arriba / Tiles abajo, proporción inicial 50/50; medir altura del splitter real, no `eastTilesPanel` (contenedor sin altura). No retirar `RICO_NATIVE_DOCK_TEST358_C17.js`. |
+| TEST342 (09/11) | **PASS histórico usuario / VICE** | Exportador diagonal multiframe aislado: fuente recuperada como TEST363. No incluye Group/Individual/SID. |
 | TEST362 | **PASS usuario en VICE** | PRG corregido que restaura charset personalizado en el caso de mapa 50×35, diagonal up-left 8 px/tick, BANK1, color uniforme. Diagnóstico en `TEST/test361-diagonal-charset/README.md`. Corrección del generador: commit `a8cda2ca4e6118abd554f54334996d0d01ec8374`. |
 | TEST328 (04/11) | **PASS histórico usuario** | ECM horizontal del caso MEGASOFT; no usarlo como prueba global de otros modos. |
 | TEST264 (24/10) | **PASS histórico usuario** | Export Multicolor simple con 1 frame, no extrapolable al resto. |
@@ -19,6 +20,7 @@
 | TEST359 — extensión de sidebar | Integrado en portada; no hay un PASS final explícito posterior al despliegue dentro de este registro. |
 | TEST360 — dos textos Group Animate en inglés | Integrado; sin PASS explícito en este registro. |
 | TEST361 — inspector de fuente diagonal | Instrumentación pasiva, verificada con datos sintéticos; no corrige el motor. |
+| TEST363 (15/11) | **Integrado, VICE pendiente** | Ruta 2+ frames basada en TEST342, con TEST362 charset; ASM para 2/3/4 frames y routing sintético comprobado. No marca PASS hasta probar PRG nuevo. |
 | TEST362 — 128 combinaciones del generador | **128/128 checks de fuente ASM**, NO 128/128 ejecuciones de VICE. |
 | Motor unificado todas las combinaciones | **Pendiente**: no hay prueba exhaustiva de todos los modos de exportación, frames, grupos, bancos, música y scroll. |
 | Exportación de PRG completo como ASM ejecutable 64tass | **No implementada/verificada**; solo existe selector TASS en exportación clásica de datos. |
