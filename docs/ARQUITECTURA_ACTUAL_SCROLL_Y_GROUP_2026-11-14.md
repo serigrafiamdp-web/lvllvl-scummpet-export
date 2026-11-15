@@ -1,7 +1,7 @@
 # LVLLVL RICO — arquitectura actual de Map Scroll y Group Animate
 **Auditoría:** 14/11/2026 · **base real:** `gh-pages/index.html` · **último PASS comunicado:** TEST362 (glifos diagonales en VICE).
 
-> Esta es la guía para otro coder. El nombre TEST de un fichero **no** indica que esté inactivo. Consultar el [orden de 127 scripts](MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md), el [inventario de capacidades](ESTADO_MASTER_22_OCTUBRE_2026.md) y [casos PASS](../TEST/test361-diagonal-charset/README.md). `main` y `gh-pages` tienen historias divergentes: la portada **ejecuta gh-pages**.
+> Esta es la guía para otro coder. El nombre TEST de un fichero **no** indica que esté inactivo. Consultar el [orden de 128 scripts](MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md), el [inventario de capacidades](ESTADO_MASTER_22_OCTUBRE_2026.md) y [casos PASS](../TEST/test361-diagonal-charset/README.md). `main` y `gh-pages` tienen historias divergentes: la portada **ejecuta gh-pages**.
 
 ## 1. Flujo completo
 
@@ -51,7 +51,7 @@ Se conserva **doble buffer** de pantalla cuando la ruta lo implementa: el main l
 | Vertical Up/Down | `TEST/test242-ondas-pingpong/js/RICO_PRG_LARGE_MAP_UNLOCK_TEST168.js` + overlays `js/RICO_PRG_VERTICAL_*TEST221..232.js` | Núcleo de mapa grande, scroll fino, Color RAM incremental y color directo; varios parches posteriores redefinen la ruta; inspeccionar todos |
 | Horizontal Left/Right | `TEST/test327-horizontal-animated-map/js/RICO_PRG_HORIZ_WIDE_TEST327.js`, `TEST/test326-horizontal-map-limits/js/RICO_PRG_HORIZ_COMPACT_TEST326.js`, `js/RICO_PRG_HORIZ_MULTIFRAME_TEST205.js` | Motor wide/compact, colector de animaciones por glyph y versiones multiframe; TEST327 inyecta scheduler |
 | Diagonal 4 direcciones | `TEST/test242-ondas-pingpong/js/RICO_PRG_DIAGONAL_TEST196.js` y su TEST221 embebido | `RICO_TEST196_DIAGONAL.collect(self)`, `.build(d)`: `render_to_dst`, `plan_step`, `update_d018`, buffers y optimizaciones de color |
-| Diagonal multiframe | `TEST/test354-calaca-diagonal-frames/js/RICO_DIAGONAL_MULTIFRAME_TEST354.js` | Wrapper especializado sobre `RICO_TEST196_DIAGONAL.build` con `frame_clock354` y planificadores por frame; no confundir con motor universal completo |
+| Diagonal multiframe | `TEST/test363-diagonal-multiframe-unlocked/js/RICO_DIAGONAL_MULTIFRAME_TEST363.js` y `TEST/test354-calaca-diagonal-frames/` | TEST363 recupera TEST342 PASS con mapas/colores/direcciones/bancos independientes; TEST354 conserva ruta especial de área reducida. TEST363 pendiente de VICE en portada. |
 | Map Scroll + individual (horizontal) | `TEST/test327-horizontal-animated-map/js/RICO_HORIZ_CHAR_SCHEDULER_TEST327.js` | Compila cambios de bytes sobre glyphs de pantalla; detecta conflictos de escritura; la versión actual puede rechazar ciertas superposiciones |
 | SID de exportación | `js/RICO_PRG_EIGHT_FRAMES_ORIGINAL_SID_TEST207.js` (evolución 211/228/229) | Enlaza fuente del exportador visual con música si está habilitada; no mezclar relojes sin revisar IRQ y CIA |
 | EBCM, bitmap multicolor | `TEST/test328-ecm-preserve-4-backgrounds/`, `TEST/test350-ecm-safe-router/`, `TEST/test282..297/` | Diferentes representaciones físicas y módulos especializados; **no** aplicar directamente supuestos del modo estándar a estas rutas |
