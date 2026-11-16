@@ -9,3 +9,8 @@
 **Acceptance:** Open usual URL, restart/reload several times, observe initial workspace flashing; confirm 54px Frames bar, sidebar 50/50 docking, viewport dimensions, drag handles, bank preview, and manual resize unchanged. Regression of palette TEST364/365/366 and SpotySID TEST368. User PASS pending.
 
 **Caveat:** This addresses a documented redundant resize path, but no in-browser trace proving it is the sole cause has yet been captured.
+
+
+## Resultado de prueba del usuario — 16/11/2026
+
+**TEST369 PASS confirmado**: desapareció el parpadeo transitorio del área de trabajo tras iniciar LVLLVL. Script activo en la portada `gh-pages`; checkpoint `release/test369-pass-2026-11-16`, commit funcional `e20d6f4da6deb1b242476e566efae910c8d51ecb`. No se modifica el motor exportador. [Cierre y pendientes](../../docs/CIERRE_TEST369_PASS_2026-11-16.md).
