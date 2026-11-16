@@ -92,3 +92,22 @@ Al pulsarlo, un nuevo diálogo de exportación para ZIP 64tass debe recopilar el
 ## 5. Estado del archivo de ejemplo del usuario
 
 Se recibió el mensaje "source de ejemplo generado con EXPORT C64 NEW", pero **no aparece ningún archivo ZIP adjunto en la conversación hasta este punto**. La investigación de código y manual está documentada; el contenido exacto del ZIP de ejemplo está pendiente y no se debe adivinar.
+
+## 6. Inspección del ZIP real aportado (source(1).zip)
+
+El usuario entregó el ZIP real generado por **Export C64 (NEW)**. Se inspeccionó localmente, sin publicar contenido personal ni música en el repositorio.
+
+- 26 entradas en el archivo, incluyendo dos carpetas.
+- `main.asm`: 2037 bytes, fuente ACME que depende de nueve módulos `asm/*.asm` y otros `data/*.asm`.
+- `data/sid.bin`: 2977 bytes de payload SID binario (init en $1000 y play en $1003 según main.asm).
+- `data/charset.asm`: 8973 bytes, 128 directivas de datos (2048 bytes de charset).
+- `data/frame_0_map.asm`: 4389 bytes y `data/frame_0_colors.asm`: 4392 bytes; otras tres parejas de archivos de frames comprimidos presentes.
+- **Los nueve archivos `asm/copycharset.asm`, `asm/copydata.asm`, `asm/animatedchars.asm`, `asm/displaynextframe.asm`, `asm/getframeinfo.asm`, `asm/player.asm`, `asm/playframes.asm`, `asm/setupinterrupts.asm` y `asm/zeropage.asm` contienen los mismos 9379 bytes de HTML:** comienzan por `<!DOCTYPE html>` y tienen título `Page not found · GitHub Pages`. Esto significa que el ZIP ACME original NO ES REENSAMBLABLE; faltan los módulos runtime, no es un defecto de TASS.
+
+### Integración TEST370
+
+Se agregó el nuevo ítem **Interface → Muzza\`s Export Tass 64** inmediatamente después de Export C64 (new). Abre el diálogo original con botón dedicado para ZIP 64tass. Convertidor de `!source`, `!binary`, `!byte` y `!word` a sintaxis 64tass y extracción de `.bin` cuando los datos son bytes literales. Valida referencias y rechaza los módulos HTML/404, explicando por qué no se genera el ZIP. El exportador original conserva su comportamiento.
+
+**Pruebas internas:** chequeo sintáctico JS PASS; simulación de registro de menú PASS; conversión de fuentes y datos de ejemplo PASS; rechazo de HTML/404 PASS. **Prueba en navegador y compilación en 64tass/VICE pendientes.** El usuario todavía NO tiene exportación universal de todas las combinaciones RICO; requiere recuperar los módulos perdidos y/o generar ASM desde el motor PRG real activo.
+
+**Commit de integración:** `3f1425bc29d6f2eec92f606dffdfbac25ba799a2`. **No publicar el ZIP aportado por el usuario sin autorización.**
