@@ -1,9 +1,10 @@
 # Documentación técnica de LVLLVL RICO
 
-**Actualizada: 16/11/2026 (Argentina)** · [README principal con nuevas features RICO](../README.md) · [Editor público](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)
+**Actualizada: 17/11/2026 (Argentina)** · [README principal con nuevas features RICO](../README.md) · [Editor público](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)
 
 ## Novedades y progreso
 
+- [**Inventario actualizado de funciones RICO (17/11)**](FEATURES_RICO_2026-11-17.md): qué existe en la interfaz, qué tiene PASS y qué sigue experimental.
 - [**Progreso del 16/11 — TEST364–372**](PROGRESO_2026-11-16.md): estados de PASS, fuentes y exportaciones pendientes.
 - [**TEST372 — restauración EBCM PRG**](../TEST/test372-restore-ebcm-export/README.md): **PASS del usuario**. Los wrappers 104/264 dejaban de respetar Extended.
 - [**TEST371 — Muzza 64tass**](../TEST/test371-muzza-live-asm/README.md): ZIP experimental con ASM capturado del PRG; todavía falta un PRG reconstruido que funcione en VICE.

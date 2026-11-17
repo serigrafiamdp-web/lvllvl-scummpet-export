@@ -13,10 +13,16 @@ Extensión de [LVLLVL de James](https://github.com/jaammees/lvllvl), con herrami
 - **Modos C64:** texto estándar, multicolor, Extended Background Color Mode (**EBCM/ECM**) y herramientas experimentales de **Multicolor Bitmap**.
 - Herramientas gráficas adicionales como **Rico's Decolorize**.
 
+### Herramientas adicionales de tilesets
+- **Remix con fuentes C64 estándar, Swedish y Japanese**, incluidas sus versiones Shifted.
+- **Double Height (8×16)** dividido en dos caracteres 8×8, y **módulos 16×16** divididos en cuatro caracteres 8×8.
+- **Biblioteca local de tilesets personalizados** y copiar/pegar bloques de varios caracteres.
+- **Dimensions por los cuatro lados** (Left / Right / Top / Bottom), manteniendo la separación entre Screen, Window y Scroll Area.
+
 ### Animaciones y Map Scroll
 - **Individual Animate** y **Group Animate**, desplazamientos de caracteres y grupos y efectos como ping-pong.
 - **Múltiples frames**, temporización por frame, variaciones de banco y colores.
-- **Map Scroll** horizontal, vertical y diagonal, con dirección, velocidad, **Window** y **Scroll Area** configurables.
+- **Map Scroll** horizontal, vertical y diagonal (**8 direcciones**), con **Pixels/Step 1–8**, Ticks/Step, Ping Pong y opciones Move In / Move Out; **Window** y **Scroll Area** configurables.
 - Rutas especializadas que combinan animación, scroll y música **SID**, con alcance distinto según el motor. **No todas las combinaciones tienen PASS en VICE.**
 
 ### Interfaz y productividad
@@ -28,6 +34,10 @@ Extensión de [LVLLVL de James](https://github.com/jaammees/lvllvl), con herrami
 - **PRG C64:** exportadores especializados para texto, EBCM, multicolor, desplazamientos, bancos, frames, animaciones y algunos casos SID.
 - **Export C64 (NEW)** original de James y **Export C64 Assembly → TASS**, que exporta principalmente datos.
 - **64tass Export (TEST371, experimental):** acceso nuevo desde Interface, captura de ASM del motor PRG, binarios y `reference.prg` en un ZIP. **No está certificado como exportador 64tass completo**: se reportó una animación cuyo PRG vuelve a BASIC. La comprobación real de ensamblado y ejecución sigue pendiente.
+
+**[Lista detallada de funciones RICO, con comprobación de scripts y límites por exportador](docs/FEATURES_RICO_2026-11-17.md)**. El README antiguo de `main` documenta 62 funciones de etapas anteriores; no todas son PASS actual de PRG.
+
+**Actualización del 17/11:** **TEST373** renombró el acceso de Interface a **64tass Export** (integrado; aún sin PASS visual independiente). Se mantiene **TEST372** como último PASS del usuario.
 
 ## Progreso reciente — 16/11/2026
 
@@ -97,6 +107,7 @@ El orden de carga de `<script>` determina qué wrapper intercepta cada exportaci
 - [Manifiesto de scripts del **14/11**](docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md) — foto histórica: cotejar con el `index.html` actual.
 - [PASS y regresiones hasta el 14/11](docs/PASS_Y_REGRESIONES_2026-11-14.md)
 - [Auditoría 64tass y módulos ASM](docs/TEST370_INVESTIGACION_MUZZA_EXPORT_TASS64_2026-11-16.md)
+- [Inventario auditado de funciones RICO (17/11)](docs/FEATURES_RICO_2026-11-17.md)
 
 **Reglas:** crear checkpoint antes de cambiar motores; mantener JSON intacto; corregir fallos sin eliminar efectos ni imponer restricciones artificiales; distinguir test JS, ASM, PRG y PASS visual de VICE; no publicar archivos privados JSON, PRG ni SID sin autorización.
 

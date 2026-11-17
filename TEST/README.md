@@ -1,6 +1,6 @@
 # Pruebas TEST y módulos activos de LVLLVL RICO
 
-**Actualizado: 16/11/2026 (Argentina)** · [Nuevas features RICO](../README.md) · [Editor habitual](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/) · [Progreso](../docs/PROGRESO_2026-11-16.md)
+**Actualizado: 17/11/2026 (Argentina)** · [Nuevas features RICO](../README.md) · [Editor habitual](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/) · [Progreso](../docs/PROGRESO_2026-11-16.md) · [Inventario de features](../docs/FEATURES_RICO_2026-11-17.md)
 
 ## PASS, regresiones y experimentos recientes
 
@@ -15,6 +15,7 @@
 | 370 | Diagnóstico real de ASM 404 en ZIP original, ruta reemplazada |
 | 371 | Muzza TASS **experimental**, PRG reconstruido todavía sin funcionamiento validado |
 | 372 | **PASS del usuario**: exportación EBCM restaurada con LILCHEB |
+| 373 | Se renombra menú **Interface → 64tass Export**; integrado, pendiente de PASS visual independiente |
 
 ## Carpetas TEST que intervienen en producción
 
