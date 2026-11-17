@@ -3,7 +3,7 @@
 **Fecha: 16/11/2026 (Argentina)** · **Estado: experimental, SIN PASS de ejecución en VICE.**
 
 ## Implementado
-- Nueva opción `Interface → Muzza`s Export Tass 64`, debajo de Export C64 (NEW).
+- Nueva opción `Interface → 64tass Export`, debajo de Export C64 (NEW).
 - Captura el ASM enviado por el exportador PRG activo al ensamblador de LVLLVL, compara los bytes producidos y genera un ZIP con `main.asm`, datos `*.bin`, `reference.prg`, `manifest.json` y scripts `build.bat` / `build.sh`.
 - Se intenta convertir las directivas ACME compatibles con 64tass; se rechazan fuentes faltantes o resultados que no coinciden con el PRG interno.
 

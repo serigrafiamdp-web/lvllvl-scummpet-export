@@ -1,6 +1,6 @@
 # LVLLVL RICO — editor de gráficos y animaciones C64 / PETSCII
 
-**Actualizado: 16/11/2026 (Argentina)** · **[Abrir el editor](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)**
+**Actualizado: 17/11/2026 (Argentina)** · **[Abrir el editor](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)**
 
 Extensión de [LVLLVL de James](https://github.com/jaammees/lvllvl), con herramientas y motores añadidos por RICO para crear, animar y exportar gráficos de Commodore 64.
 
@@ -27,7 +27,7 @@ Extensión de [LVLLVL de James](https://github.com/jaammees/lvllvl), con herrami
 ### Exportación
 - **PRG C64:** exportadores especializados para texto, EBCM, multicolor, desplazamientos, bancos, frames, animaciones y algunos casos SID.
 - **Export C64 (NEW)** original de James y **Export C64 Assembly → TASS**, que exporta principalmente datos.
-- **Muzza's Export Tass 64 (TEST371, experimental):** acceso nuevo desde Interface, captura de ASM del motor PRG, binarios y `reference.prg` en un ZIP. **No está certificado como exportador 64tass completo**: se reportó una animación cuyo PRG vuelve a BASIC. La comprobación real de ensamblado y ejecución sigue pendiente.
+- **64tass Export (TEST371, experimental):** acceso nuevo desde Interface, captura de ASM del motor PRG, binarios y `reference.prg` en un ZIP. **No está certificado como exportador 64tass completo**: se reportó una animación cuyo PRG vuelve a BASIC. La comprobación real de ensamblado y ejecución sigue pendiente.
 
 ## Progreso reciente — 16/11/2026
 

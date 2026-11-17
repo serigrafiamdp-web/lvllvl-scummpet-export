@@ -280,7 +280,7 @@ function addMenu(){
  var anchor=items.filter(function(m){return m.uiID==='export-c64';})[0];
  if(!anchor)return false;
  if(items.some(function(m){return m.uiID==='rico-muzza-tass64';})){state.menu=true;return true;}
- var item=menu.addItem({id:'rico-muzza-tass64',label:LABEL});
+ var item=menu.addItem({id:'rico-muzza-tass64',label:'64tass Export'});
  item.on('click',launch);
  var oldIndex=items.indexOf(item);if(oldIndex>=0)items.splice(oldIndex,1);
  items.splice(items.indexOf(anchor)+1,0,item);
