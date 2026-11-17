@@ -1,37 +1,39 @@
-# TEST — pruebas activas e historia de LVLLVL RICO
+# Pruebas TEST y módulos activos de LVLLVL RICO
 
-**Estado 14/11/2026.** La portada ejecutada por el usuario es **[LVLLVL en /](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)** desde `gh-pages/index.html`. **No es necesario entrar en /TEST/ para probar la versión actual.**
+**Actualizado: 16/11/2026 (Argentina)** · [Nuevas features RICO](../README.md) · [Editor habitual](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/) · [Progreso](../docs/PROGRESO_2026-11-16.md)
 
-## Las carpetas TEST cargadas no son descartables
+## PASS, regresiones y experimentos recientes
 
-Varios módulos de producción conservan el nombre TEST en su ruta. Ejemplos:
+| TEST | Estado |
+|---|---|
+| 364 | **PASS**: 16 índices de color C64 |
+| 365 | Paleta elegida conservada, integrado |
+| 366 | **PASS**: selector solo C64 |
+| 367 | FAIL; primer acceso SpotySID sustituido |
+| 368 | Acceso SpotySID integrado junto a HELP |
+| 369 | **PASS**: parpadeo inicial corregido |
+| 370 | Diagnóstico real de ASM 404 en ZIP original, ruta reemplazada |
+| 371 | Muzza TASS **experimental**, PRG reconstruido todavía sin funcionamiento validado |
+| 372 | **PASS del usuario**: exportación EBCM restaurada con LILCHEB |
 
-- `test242-ondas-pingpong/`: Group Animate del editor, motor diagonal y motor de mapa grande (incluye **fix TEST362**).
-- `test243-ondas-fast-pingpong/`, `test244-ondas-pingpong-fast/`, `test245-demoscene-speedcode/`, `test246-charset-remap/`, `test247-group-scroll-fast/`: optimizaciones de grupo, fuentes y compatibilidad.
-- `test326-horizontal-map-limits/`, `test327-horizontal-animated-map/`: horizontal, compactación y scheduler de glyphs animados.
-- `test328-ecm-preserve-4-backgrounds/`: preservación de fondos ECM, histórico PASS.
-- `test350-ecm-safe-router/`, `test351-ecm-frames-sid/`, `test352-standard-frames-sid/`: routing de ECM, frames y audio.
-- `test354-calaca-diagonal-frames/`: diagonal multiframe.
-- `test355-export-combinations/`: Group Animate multiframe standalone.
-- `test358-native-right-dock/`, `test359-full-height-right-sidebar/`: dock y altura de sidebar.
-- `test361-diagonal-charset/`: prueba pasiva de fuente y documentación del caso TEST362.
-- `test363-diagonal-multiframe-unlocked/`: recuperación del kernel TEST342 PASS para 2+ frames, direcciones, mapas, colores, velocidades y BANK independientes; **TEST363 todavía pendiente de prueba VICE en portada**.
+## Carpetas TEST que intervienen en producción
 
-Para **todos** los scripts que se ejecutan, no usar esta lista parcial: consultar [manifiesto exacto de index.html](../docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md).
+Los nombres TEST no significan que puedan borrarse. **Siempre consultar `gh-pages/index.html`** para determinar cuáles se cargan.
 
-## Limpieza de laboratorios históricos
+- `test242-ondas-pingpong/` y `test243..247-*/`: motores y optimizaciones Group Animate.
+- `test326-horizontal-map-limits/`, `test327-horizontal-animated-map/`, `test328-ecm-preserve-4-backgrounds/`: horizontal y EBCM.
+- `test350-ecm-safe-router/`, `test351-ecm-frames-sid/`, `test352-standard-frames-sid/`: modos y audio.
+- `test354-calaca-diagonal-frames/`, `test355-export-combinations/`, `test363-diagonal-multiframe-unlocked/`: frames, Group y diagonales (VICE de las rutas nuevas pendiente).
+- `test358-native-right-dock/`, `test359-full-height-right-sidebar/`, `test369-startup-workspace-flicker/`: Dock y layout.
+- `test364-c64-palette-reader/`, `test365-c64-palette-selection/`, `test366-c64-only-palettes/`: paletas C64.
+- `test368-spotysid-link-fix/`, `test371-muzza-live-asm/`, `test372-restore-ebcm-export/`: menú SpotySID, ZIP experimental y reparación EBCM.
 
-El 14/11/2026 se archivaron y retiraron de la rama `gh-pages` **39 carpetas numéricas sin nombre**: `test150..165` y `test238..260`, **199 archivos**. **NINGUNO se carga desde la portada actual.**
+El [manifiesto del 14/11](../docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md) es una foto histórica; el `index.html` es la fuente de verdad para TEST364–372.
 
-- **Recuperación del histórico completo:** [`archive/tests-pre-audit-2026-11-14-test362-pass`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/archive/tests-pre-audit-2026-11-14-test362-pass)
-- [Informe de limpieza y su carácter reversible](../docs/LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md).
-- Los antiguos links /TEST/test150/, /TEST/test254/ etc. ya no funcionan desde la web canónica; recuperar su contenido desde el branch archivado o los MASTER congelados, sin sobrescribir motores nuevos.
+## Respaldo y normas de prueba
 
-## PASS, experimentos y prioridades
+- [Checkpoint 16/11 — TEST372 PASS](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test372-pass-2026-11-16).
+- [Checkpoint anterior — TEST369 PASS](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test369-pass-2026-11-16).
+- [Archivo de 39 carpetas antiguas (14/11)](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/archive/tests-pre-audit-2026-11-14-test362-pass); [informe](../docs/LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md).
 
-- [PASS y pendientes actualizados](../docs/PASS_Y_REGRESIONES_2026-11-14.md): TEST362 PASS de VICE para el PRG corregido de scroll diagonal; TEST358 C17 PASS de layout; otros modos se mantienen separados.
-- [Arquitectura de Map Scroll y Group Animate](../docs/ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md).
-- [64tass — por qué los datos ASM existentes todavía no implican exportación completa del motor](../docs/PLAN_EXPORTACION_COMPLETA_64TASS_ASM_BIN_2026-11-14.md).
-- [Auditoría TEST330 (historia de limitaciones y trabajos pendientes)](../docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md).
-
-**Reglas para nuevas pruebas:** reproducir fallo, aislar motor y recursos, no añadir topes artificiales ni omitir efectos; no tratar compilación JS/ASM como PASS de VICE; después de la validación integrar en **la misma URL principal** del editor. Conservar nuevas pruebas históricas en ramas etiquetadas, no multiplicar clones sin utilidad.
+**Regla:** correcciones aisladas, sin romper exportaciones existentes ni sustituir una función por una versión incompleta. Diferenciar test JavaScript, ASM, PRG generado, PRG funcionando y PASS en VICE. Los proyectos privados de usuarios no se publican.

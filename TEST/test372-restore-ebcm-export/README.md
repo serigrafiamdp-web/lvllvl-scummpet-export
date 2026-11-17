@@ -1,16 +1,24 @@
-# TEST372 — Restore native EBCM PRG export
+# TEST372 — EBCM / Extended PRG restaurado
 
-User comparison \`LILCHEB.zip\`:
-- Both James and RICO JSON contain the same 26 frames and the same per-cell backgrounds \`-1, 9, 11, 12, 15\` (four actual C64 colors). Both layers have \`screenMode: textmode\`, so original PRG's 'Extended' export selection is independent of editor layer mode.
-- James original PRG: 44,122 bytes, PRG load $0801, **$0811=$01** (Extended Background Color Mode).
-- RICO PRG: 47,119 bytes, PRG load $0801, **$0811=$00** (standard text).
+**Fecha: 16/11/2026 (Argentina)** · **Estado: PASS confirmado por el usuario** en el caso LILCHEB («ESTA ok»). No implica validación de todas las combinaciones avanzadas.
 
-**Exact cause:** the RICO TEST104 wrapper and its nested TEST264 wrapper unconditionally set \`safeArgs.mode='standard'\` for non-multicolor modes. Both force unrelated args; their bank switch hook replaces the player's STA $D024, which is EBCM's 4th background color. The native James exporter *already has* real Extended remapping and four background colors.
+## Reproducción
 
-**Minimal correction:** On BOTH wrappers, before mutating any argument or intercepting downloads, check \`args.mode === 'extended'\` and immediately delegate with unchanged original arguments to the previous exporter. In non-extended mode, behavior remains byte-for-byte identical in the scripts. This is **not** a PRG byte patch, because charset and frame/color tables also differ.
+Comparación de dos JSON y PRG de `LILCHEB.zip`:
+- Ambos JSON contienen **26 frames**, mismo dibujo, fondos de celda que incluyen `9, 11, 12, 15` y transparente `-1`. La capa guarda `screenMode: textmode`, pero el modo PRG Extended se elige en el diálogo.
+- **James:** PRG 44.122 bytes, carga `$0801`, `$0811=$01` (Extended).
+- **RICO anterior:** PRG 47.119 bytes, `$0811=$00` (standard).
 
-Original JS modules remain in their original repository locations. The live index only swaps those two script references for the TEST372 guarded copies. No change to editor data, palette changes, Dock, TASS, other PRG exporters, or main.js.
+## Regresión encontrada y solución
 
-**Verification required by user:** Load \`LIL CHEB RICO (1).json\`, open original C64 PRG exporter, select **Extended Color** (the native dialog should auto-select if background colors are detected), export and test in VICE. Compare new PRG $0811 and all 26 frames and colors against James. Check standard and multicolor dual-bank exports still work. No user PASS or VICE PASS yet.
+Los wrappers de **TEST104 y TEST264** imponían `safeArgs.mode='standard'` aunque se pidiera `extended`. Además, su hook de cambio de BANK intervenía `$D024`, que en EBCM almacena el cuarto color de fondo.
 
-**Scope:** This restores the EBCM-only path. EBCM combined with an actual BANK 2 switch requires a separate $D024-safe switch scheduler and is not claimed as implemented.
+**Solución mínima:** ambos wrappers delegan intactos al exportador anterior cuando `args.mode === 'extended'`. Conservan sus rutas previas para standard/multicolor. No se cambió el JSON, paletas, TASS ni `js/main.js`.
+
+Scripts efectivos:
+- `TEST/test372-restore-ebcm-export/js/RICO_PRG_DUAL_BANK_TEST264_EBC_GUARD_TEST372.js`
+- `TEST/test372-restore-ebcm-export/js/RICO_PRG_DUAL_BANK_TEST104_EBC_GUARD_TEST372.js`
+
+**QA:** PASS reportado por el usuario para LILCHEB; prueba automatizada de delegación preservó los argumentos originales. EBCM con un BANK 2 efectivo o combinaciones SID/Group/Scroll exige compositor o pruebas adicionales; este PASS no significa soporte universal.
+
+[Progreso 16/11](../../docs/PROGRESO_2026-11-16.md) · [README principal](../../README.md)

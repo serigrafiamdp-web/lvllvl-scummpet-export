@@ -1,113 +1,110 @@
-# LVLLVL RICO — editor PETSCII / C64 y exportadores (estado 15/11/2026)
+# LVLLVL RICO — editor de gráficos y animaciones C64 / PETSCII
 
-**Editor único:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/  
-**Código que se ejecuta realmente:** rama [`gh-pages`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/gh-pages).  
-**Último PASS confirmado:** **TEST362**, charset correcto en VICE para el caso reproducible de scroll diagonal. Ver [alcance exacto de los PASS](docs/PASS_Y_REGRESIONES_2026-11-14.md).
+**Actualizado: 16/11/2026 (Argentina)** · **[Abrir el editor](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)**
 
-> **Nuevo coder:** antes de modificar cualquier exportador, abrir [Arquitectura Map Scroll + Group Animate](docs/ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md) y el [manifiesto de scripts activos](docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md). **No trabajar desde `main` por accidente:** diverge del editor publicado. No mover pruebas a otra URL para validarlas: la portada canónica es la única dirección de pruebas del usuario.
+Extensión de [LVLLVL de James](https://github.com/jaammees/lvllvl), con herramientas y motores añadidos por RICO para crear, animar y exportar gráficos de Commodore 64.
 
-## Qué es este proyecto
+## Nuevas features RICO
 
-Extensión de LVLLVL para edición de arte de caracteres Commodore 64 y PETSCII, con **BANK 1 / BANK 2**, editor de tiles y grupos, efectos individuales, animación de bitmap compuesto, mapas de scroll, modo multicolor, ECM, bitmap, frames y exportadores PRG C64. Se han acumulado motores especializados, overlays y rutas de prueba. **Que aparezca una opción en el editor no significa que todas sus combinaciones ya tengan PASS de ejecución en VICE.**
+### Caracteres, bancos y colores
+- **BANK 1 / BANK 2:** dos bancos de hasta 256 caracteres de 8×8, selector de banco por frame, edición y previsualización independiente.
+- **Remix Tileset** y herramientas para organizar caracteres, reconstruir composiciones y editar tiles individuales.
+- **Paletas C64 Colodore, Pepto y VICE:** los 16 índices se conservan; selector dedicado exclusivamente a Commodore 64.
+- **Modos C64:** texto estándar, multicolor, Extended Background Color Mode (**EBCM/ECM**) y herramientas experimentales de **Multicolor Bitmap**.
+- Herramientas gráficas adicionales como **Rico's Decolorize**.
 
-### Mapa de funcionamiento para otro programador
+### Animaciones y Map Scroll
+- **Individual Animate** y **Group Animate**, desplazamientos de caracteres y grupos y efectos como ping-pong.
+- **Múltiples frames**, temporización por frame, variaciones de banco y colores.
+- **Map Scroll** horizontal, vertical y diagonal, con dirección, velocidad, **Window** y **Scroll Area** configurables.
+- Rutas especializadas que combinan animación, scroll y música **SID**, con alcance distinto según el motor. **No todas las combinaciones tienen PASS en VICE.**
+
+### Interfaz y productividad
+- **Dock derecho** con paneles de tiles y edición, vista 50/50, mejor previsualización y controles compactos.
+- **Inicio estable:** corregido el parpadeo transitorio del área de trabajo.
+- **SpotySID** junto a HELP: abre el reproductor en otra pestaña.
+
+### Exportación
+- **PRG C64:** exportadores especializados para texto, EBCM, multicolor, desplazamientos, bancos, frames, animaciones y algunos casos SID.
+- **Export C64 (NEW)** original de James y **Export C64 Assembly → TASS**, que exporta principalmente datos.
+- **Muzza's Export Tass 64 (TEST371, experimental):** acceso nuevo desde Interface, captura de ASM del motor PRG, binarios y `reference.prg` en un ZIP. **No está certificado como exportador 64tass completo**: se reportó una animación cuyo PRG vuelve a BASIC. La comprobación real de ensamblado y ejecución sigue pendiente.
+
+## Progreso reciente — 16/11/2026
+
+| TEST | Mejora | Estado |
+|---|---|---|
+| **364** | Correcta lectura de 16 índices de color C64 | **PASS del usuario** |
+| 365 | Mantiene la paleta C64 elegida | Integrado; sin PASS aislado |
+| **366** | Selector solo C64, sin pestañas adicionales | **PASS del usuario** |
+| 367 | Primer botón SpotySID | FAIL; sustituido por TEST368 |
+| 368 | SpotySID junto a HELP, nueva pestaña | Integrado |
+| **369** | Solución del parpadeo al iniciar | **PASS del usuario** |
+| 370 | Detección de nueve módulos ASM que eran páginas 404 en ZIP C64 NEW | Diagnóstico confirmado; reemplazado por 371 |
+| **371** | ZIP con ASM de la ruta PRG activa y binarios | Experimental; PRG 64tass todavía no funcional en todos los casos |
+| **372** | Recuperación de exportación PRG **Extended/EBCM** | **PASS confirmado por el usuario** (LILCHEB) |
+
+**TEST372** restaura la ruta Extended para el caso probado; no significa que EBCM + BANK 2, SID, Group y Map Scroll ya estén todos combinados. Las pruebas simuladas o de ensamblado no sustituyen pruebas reales de VICE.
+
+**[Ver el progreso detallado, hallazgos y pendientes del 16/11](docs/PROGRESO_2026-11-16.md)** · **[Checkpoint TEST372 PASS](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test372-pass-2026-11-16)**
+
+---
+
+## Información técnica para coders
+
+**Código en producción:** rama [`gh-pages`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/gh-pages), archivo `index.html`. **No editar `main` suponiendo que publicará los cambios:** contiene código legado divergente.
+
+### Funcionamiento y exportadores
 
 ```text
- index.html                     <- orden de scripts CRÍTICO (128 externos+locales)
-    │
-    ├── js/main.js              <- base LVLLVL empaquetada
-    ├── js/RICO_*.js            <- extensiones RICO y wrappers originales
-    └── TEST/testNNN-.../js/    <- módulos actualmente CARGADOS desde la portada
-         │
-   JSON / TileSet / Frame / Layer
-         ├── BANK1: 256 caracteres (8×8); BANK2: 256 caracteres (8×8)
-         ├── Group Animate: selecciones y geometría por banco
-         ├── Window + Scroll Area por frame
-         ├── Map Scroll: dirección, ticks, píxeles, bordes
-         └── Frame Duration / SID / colores / modo
-         │
-   ToPRGAdv.prototype.createPRG(args)  <- cadena de wrappers (último sobre primero)
-         │
-         ├── Vertical Up/Down
-         ├── Horizontal Left/Right
-         ├── 4 diagonales
-         ├── Map + Individual / Group (según compositor)
-         ├── Standalone Group / Group multiframe
-         ├── ECM / Multicolor Text / Bitmap (motores propios)
-         └── integración SID (si se seleccionó)
-         │
-   buildSource / build (ASM 6502, mayormente sintaxis ACME)
-         ↓
-   g_app.assembler.assemble
-         ↓
-   PRG C64 -> VICE (comprobar glyphs, raster, colores, tiempo, SID)
+gh-pages/index.html           ← orden de scripts crítico
+  ├─ js/main.js               ← LVLLVL original empaquetado
+  ├─ js/RICO_*.js             ← extensiones y wrappers históricos
+  └─ TEST/testNNN-.../js/     ← otros módulos de producción
+       ↓
+JSON / Layer / TileSet / BANK1 y BANK2 / Frames
+       ↓
+Individual + Group + Scroll Area / Map Scroll + SID / modos C64
+       ↓
+ToPRGAdv.prototype.createPRG(args)
+       ↓
+motor específico → ASM 6502 → g_app.assembler.assemble
+       ↓
+PRG → prueba real en VICE
 ```
 
-La fuente de verdad para el mapa de dependencias es el [manifiesto de scripts](docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md); esta figura solo resume el flujo.
+El orden de carga de `<script>` determina qué wrapper intercepta cada exportación. **No retirar carpetas TEST por su nombre ni asumir soporte universal.**
 
-## Principales rutinas y archivos activos
+### Componentes importantes
 
-| Área | Ubicación / responsabilidad |
+| Área | Referencia |
 |---|---|
-| **Group Animate (editor)** | `TEST/test242-ondas-pingpong/js/RICO_GROUP_ANIMATE_TEST34.js`. Almacena `ricoGroupAnimationsV1` en el documento del Tileset, compone bitmap `widthTiles×heightTiles`, mueve fases y redistribuye píxeles en caracteres 8×8. |
-| **Group-only C64** | `TEST/test247-group-scroll-fast/js/RICO_GROUP_STANDALONE_TEST247.js`, `TEST/test243..247-*/js/` para aceleradores y optimizaciones. |
-| **Group + múltiples frames** | `TEST/test355-export-combinations/js/RICO_GROUP_MULTIFRAME_TEST355.js`. Tiene rutas especializadas y casos pendientes; no asumir soporte universal. |
-| **Map Scroll / tamaño de pantalla** | `js/RICO_WINDOW_DIMENSION_SCROLL_AREA_TEST75.js`, `js/RICO_MAP_SCROLL_PREVIEW_SCROLL_AREA_TEST79.js`: Window, Scroll Area y estado por frame. |
-| **Up / Down** | `TEST/test242-ondas-pingpong/js/RICO_PRG_LARGE_MAP_UNLOCK_TEST168.js` más overlays verticales 221–232. |
-| **Left / Right** | `TEST/test327-horizontal-animated-map/js/RICO_PRG_HORIZ_WIDE_TEST327.js`, `TEST/test326-horizontal-map-limits/js/RICO_PRG_HORIZ_COMPACT_TEST326.js`. |
-| **4 diagonales** | `TEST/test242-ondas-pingpong/js/RICO_PRG_DIAGONAL_TEST196.js` y componentes incrementales TEST221; **fix TEST362** ya integrado. |
-| **Diagonales multiframe** | `TEST/test363-diagonal-multiframe-unlocked/js/RICO_DIAGONAL_MULTIFRAME_TEST363.js` recupera el **TEST342 PASS** (2+ frames, direcciones/mapas/colores/bancos propios). `TEST/test354-calaca-diagonal-frames/` sigue disponible para un caso especial de área reducida. TEST363 pendiente de VICE en la portada. |
-| **Caracteres individuales + horizontal** | `TEST/test327-horizontal-animated-map/js/RICO_HORIZ_CHAR_SCHEDULER_TEST327.js`. |
-| **SID integrado** | `js/RICO_PRG_EIGHT_FRAMES_ORIGINAL_SID_TEST207.js`, con evolución documentada de TEST211/228/229. |
-| **ECM / bitmap y colores** | `TEST/test328-ecm-preserve-4-backgrounds/`, `TEST/test350-ecm-safe-router/`, `TEST/test279..297-*/js/` según orden real. |
-| **Panel derecho** | `TEST/test358-native-right-dock/js/RICO_NATIVE_DOCK_TEST358_C17.js`, `TEST/test359-full-height-right-sidebar/js/RICO_FULL_HEIGHT_RIGHT_SIDEBAR_TEST359.js`. |
-| **Diagnóstico PRG** | `TEST/test361-diagonal-charset/js/RICO_DIAGONAL_CHARSET_AUDIT_TEST361.js`: auditoría pasiva, no bloquea exportación. |
+| Group Animate | `TEST/test242-ondas-pingpong/` y optimizadores 243–247 |
+| Map vertical | `TEST/test242-ondas-pingpong/js/RICO_PRG_LARGE_MAP_UNLOCK_TEST168.js` y TEST221–232 |
+| Map horizontal | `TEST/test326-horizontal-map-limits/`, `TEST/test327-horizontal-animated-map/` |
+| Diagonal y multiframe | `TEST/test242-ondas-pingpong/js/RICO_PRG_DIAGONAL_TEST196.js`, `TEST/test363-diagonal-multiframe-unlocked/` |
+| Group con frames | `TEST/test355-export-combinations/` |
+| SID | `js/RICO_PRG_EIGHT_FRAMES_ORIGINAL_SID_TEST207.js` |
+| EBCM | `TEST/test328-ecm-preserve-4-backgrounds/`, `TEST/test350-ecm-safe-router/`, `TEST/test351-ecm-frames-sid/` |
+| EBCM restaurado | `TEST/test372-restore-ebcm-export/` — corrige los wrappers Dual BANK 104 y 264 |
+| Dock y layout | `TEST/test358-native-right-dock/`, `TEST/test359-full-height-right-sidebar/`, `TEST/test369-startup-workspace-flicker/` |
+| Muzza TASS | `TEST/test371-muzza-live-asm/` — prototipo, no compilación VICE certificada |
 
-**Advertencia:** un mismo archivo puede contener correcciones de TEST posteriores al número de su nombre. Los wrappers necesitan el orden de carga de `index.html`. No eliminar un archivo por su nombre, ni declarar nuevas restricciones para “arreglar” otra combinación.
+### Documentación, pruebas y seguridad
 
-## Estado de las pruebas
+- [Índice técnico actualizado](docs/README.md) · [Historial de TEST](TEST/README.md)
+- [Progreso 16/11 — TEST364 a TEST372](docs/PROGRESO_2026-11-16.md)
+- [Arquitectura de Map Scroll y Group Animate](docs/ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md)
+- [Manifiesto de scripts del **14/11**](docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md) — foto histórica: cotejar con el `index.html` actual.
+- [PASS y regresiones hasta el 14/11](docs/PASS_Y_REGRESIONES_2026-11-14.md)
+- [Auditoría 64tass y módulos ASM](docs/TEST370_INVESTIGACION_MUZZA_EXPORT_TASS64_2026-11-16.md)
 
-| Checkpoint | Qué está confirmado |
-|---|---|
-| **TEST342 — PASS histórico usuario / VICE (09/11)** | Diagonal multiframe en la versión aislada; kernel recuperado como TEST363, revalidación pendiente. |
-| **TEST363 — pendiente de VICE** | Ruta recuperada para 2+ frames independientes, sin alterar TEST362 ni agregar bloqueos globales. |
-| **TEST362 — PASS usuario / VICE** | Corrigió la selección errónea del charset BANK1 en scroll diagonal con color uniforme; se preservan las demás rutas. El caso 50×35, 8 px/tick, up-left está documentado. |
-| **TEST358 C17 — PASS usuario** | Distribución 50/50 del editor derecho Tile Editor / Tiles. |
-| **TEST359 / TEST360 / TEST361** | Cambios publicados o diagnósticos, sin un PASS general registrado en esta auditoría. |
-| **TEST328 / TEST264 y otros históricos** | PASS de casos específicos de ECM, multicolor y scroll; consultar el [registro](docs/PASS_Y_REGRESIONES_2026-11-14.md). |
-| **Todas las combinaciones de exportación** | **No certificadas.** Objetivo actual: recuperar combinaciones, no agregar límites artificiales. |
+**Reglas:** crear checkpoint antes de cambiar motores; mantener JSON intacto; corregir fallos sin eliminar efectos ni imponer restricciones artificiales; distinguir test JS, ASM, PRG y PASS visual de VICE; no publicar archivos privados JSON, PRG ni SID sin autorización.
 
-## ¿Puede exportar animaciones completas como ASM 64tass?
+### Copias de recuperación
+- [TEST372 PASS — 16/11/2026](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test372-pass-2026-11-16)
+- [TEST369 PASS — cierre anterior](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test369-pass-2026-11-16)
+- [Archivo histórico TEST362 previo a la limpieza del 14/11](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/archive/tests-pre-audit-2026-11-14-test362-pass)
 
-**Datos en formato TASS:** sí hay selector TASS en **Export Assembly**, procedente de la herramienta original, para datos de charset/mapas/colores. **Código ejecutable completo de Map Scroll + Group Animate + individuales + frames + SID en ZIP 64tass:** **aún no está completo ni verificado** como función exportadora de esta versión.
+La limpieza histórica del 14/11 archivó 39 carpetas numéricas (199 archivos) inactivos sin quitar los scripts que se cargaban en la portada. [Informe reversible](docs/LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md).
 
-Un paquete útil a otro coder debe incluir ASM de rutinas, **binarios ordenados** de BANK1/BANK2, mapas, colores, frames, grupos y SID según corresponda, más un **manifiesto con direcciones, modo, dependencias, offsets y hashes**. Técnicamente puede ser monolítico con `.byte`, pero recomendamos separar los assets en `data/*.bin` con `.binary` y reensamblar en 64tass. [Estudio técnico, estructura propuesta y checklist](docs/PLAN_EXPORTACION_COMPLETA_64TASS_ASM_BIN_2026-11-14.md).
-
-## Documentación principal (empezar aquí)
-
-- **[Arquitectura actual — Map Scroll, bancos y Group Animate](docs/ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md)**
-- **[Manifiesto de los 128 scripts activos (orden de carga)](docs/MANIFIESTO_SCRIPTS_ACTIVOS_2026-11-14.md)**
-- **[PASS recientes y regresiones pendientes](docs/PASS_Y_REGRESIONES_2026-11-14.md)**
-- **[64tass ASM + binarios — auditoría de viabilidad](docs/PLAN_EXPORTACION_COMPLETA_64TASS_ASM_BIN_2026-11-14.md)**
-- **[Limpieza de tests y cómo recuperar el histórico](docs/LIMPIEZA_TESTS_Y_ARCHIVO_2026-11-14.md)**
-- **[Arquitectura anterior, mapa de memoria y SID](docs/ARQUITECTURA_MOTOR_Y_EXPORT.md)**
-- **[Auditoría previa de combinaciones](docs/AUDITORIA_MODOS_Y_EXPORT_TEST330_2026-11-05.md)**
-- [Índice general](docs/README.md) · [Historial de tests](TEST/README.md)
-
-## Política de conservación
-
-- Versión web: `gh-pages`; `main` es código legado divergente.
-- Antes de limpiar, se congeló **todo** en [`archive/tests-pre-audit-2026-11-14-test362-pass`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/archive/tests-pre-audit-2026-11-14-test362-pass).
-- Se retiraron **39 carpetas numéricas antiguas** (`TEST/test150..165` y `TEST/test238..260`), **199 archivos**, solamente de `gh-pages`; todos recuperables en la rama archivada. No se eliminó ningún script de la portada.
-- Las carpetas de laboratorio con nombre descriptivo, aunque no se carguen, se conservan mientras sus resultados y rutas técnicas se auditan.
-- **No subir sin autorización** JSON, PRG o SID privados aportados por usuarios. La documentación usa parámetros, hashes y diagnósticos en lugar de publicar muestras privadas.
-
-## Flujo de trabajo sugerido para contribuir
-
-1. Crear rama de trabajo basada en **`gh-pages`**, nunca fusionar `main` sin auditoría.
-2. Abrir el **manifiesto**, identificar `ToPRGAdv`, `build` y wrappers que cambian esa ruta.
-3. Agregar solución con alternativa real para la combinación afectada; no quitar features ni introducir bloqueos arbitrarios.
-4. Ejecutar pruebas JS/ASM y comparar el PRG, pero registrar como PASS únicamente la combinación verificada visualmente en **VICE**.
-5. Actualizar documentación de ruta, memoria, qué combinaciones cubre, casos FAIL/PASS y commit; publicar siempre la **misma URL principal**.
-
-**Punto de partida histórico completo:** [README anterior a esta auditoría](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/archive/tests-pre-audit-2026-11-14-test362-pass/README.md). Se mantiene intacto en la rama archivada para consultar los MASTER y la cronología detallada.
+**Editor habitual:** https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/ — **Original:** [James / LVLLVL](https://github.com/jaammees/lvllvl).
