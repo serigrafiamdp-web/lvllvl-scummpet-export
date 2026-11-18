@@ -6,7 +6,7 @@
  */
 (function () {
   'use strict';
-  var URL = 'https://serigrafiamdp-web.github.io/RICOS-MOD-JAMES-SIDPLAYER-ONLINE/';
+  var URL = 'https://serigrafiamdp-web.github.io/SpotySID/';
   var LINK_ID = 'rico-spotysid-menu-link';
   var state = { version: 368, status: 'WAITING FOR HELP MENU', attached: false, barId: null };
   var observer = null;
