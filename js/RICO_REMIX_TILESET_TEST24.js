@@ -140,6 +140,9 @@
     this.scale = 2;
     this.spacing = 2;
     this.across = 16;
+    // TEST380: optional destination cursor. Null retains the legacy same-slot import.
+    this.selectedTargetCombined = null;
+    this.selectedSourceCombined = null;
   }
 
   RicoRemix24.prototype = {
@@ -164,7 +167,7 @@
                 '<div id="ricoRemix24CustomInfo" style="color:#999;white-space:nowrap;"></div>' +
               '</div>' +
               '<div id="ricoRemix24CustomArea" style="flex:1;min-height:0;overflow:hidden;background:#050505;padding:0 8px 2px 8px;box-sizing:border-box;display:flex;justify-content:center;align-items:flex-start;">' +
-                '<canvas id="ricoRemix24ProjectCanvas" style="display:block;background:#050505;image-rendering:pixelated;"></canvas>' +
+                '<canvas id="ricoRemix24ProjectCanvas" style="display:block;background:#050505;image-rendering:pixelated;cursor:pointer;"></canvas>' +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -221,6 +224,8 @@
       this.tileHeight = tileSet.getTileHeight();
       this.snapshotBank2 = this.loadBank2Snapshot(tileSet);
       this.currentSourceId = 'pair:c64';
+      this.selectedTargetCombined = null;
+      this.selectedSourceCombined = null;
       this.clearDraft();
 
       if(this.dialog === null) this.createUI();
@@ -269,6 +274,7 @@
       var self = this;
       var root = document.getElementById('ricoRemix24Root');
       var canvas = document.getElementById('ricoRemix24SourceCanvas');
+      var projectCanvas = document.getElementById('ricoRemix24ProjectCanvas');
 
       if(root && !root.getAttribute('data-rico24-bound')) {
         root.setAttribute('data-rico24-bound', '1');
@@ -283,6 +289,14 @@
       if(canvas && !canvas.getAttribute('data-rico24-bound')) {
         canvas.setAttribute('data-rico24-bound', '1');
         canvas.addEventListener('click', function(event) { self.sourceCanvasClick(event); });
+      }
+      if(projectCanvas && !projectCanvas.getAttribute('data-rico24-target-bound')) {
+        projectCanvas.setAttribute('data-rico24-target-bound', '1');
+        projectCanvas.addEventListener('click', function(event) {
+          // Double Height and 16x16 retain their own insertion cursors.
+          if(self.__rico30DoubleHeight || self.__rico31QuadMode) return;
+          self.projectCanvasClick(event);
+        });
       }
     },
 
@@ -309,6 +323,7 @@
       if(!def) def = this.sourceDefsById['pair:c64'];
       if(!def) return;
       this.currentSourceId = def.id;
+      this.selectedSourceCombined = null;
       this.renderSidebar();
 
       var title = document.getElementById('ricoRemix24SourceTitle');
@@ -322,9 +337,9 @@
       }
 
       if(def.width === 7 && def.height === 8) {
-        this.setStatus(def.label + ': source 7x8 adapted to C64 8x8 by adding one blank column on the right.');
+        this.setStatus(def.label + ': 7x8 padded to C64 8x8. Select a CUSTOM slot on the right, then a SOURCE glyph on the left.');
       } else {
-        this.setStatus(def.label + ': source loaded. Click a glyph in either half to replace the same slot in BANK 1 or BANK 2.');
+        this.setStatus(def.label + ': select a CUSTOM destination on the right, then a SOURCE glyph on the left.');
       }
     },
 
@@ -442,7 +457,7 @@
 
         var draft = this.draftByBank[bank][tileIndex];
         var sourceIndex = state.start + tileIndex;
-        if(draft && draft.sourceKey === state.key && draft.sourceIndex === sourceIndex) {
+        if((draft && draft.sourceKey === state.key && draft.sourceIndex === sourceIndex) || this.selectedSourceCombined === combined) {
           ctx.strokeStyle = '#2d80ff'; ctx.lineWidth = 2;
           ctx.strokeRect(baseX - 1, baseY - 1, 8 * scale + 2, 8 * scale + 2);
         }
@@ -468,7 +483,53 @@
       var tileIndex = combined & 255;
       var state = this.sourceBanks[bank];
       if(!state || !state.imageData || tileIndex >= state.count) return;
+      this.selectedSourceCombined = combined;
       this.toggleSourceTile(bank, tileIndex);
+    },
+
+    projectCanvasClick: function(event) {
+      var canvas = document.getElementById('ricoRemix24ProjectCanvas');
+      if(!canvas) return;
+      var rect = canvas.getBoundingClientRect();
+      if(!rect.width || !rect.height) return;
+      var x = (event.clientX - rect.left) * canvas.width / rect.width - this.spacing;
+      var y = (event.clientY - rect.top) * canvas.height / rect.height - this.spacing;
+      if(x < 0 || y < 0) return;
+      var cellW = 8 * this.scale + this.spacing;
+      var cellH = 8 * this.scale + this.spacing;
+      var col = Math.floor(x / cellW), row = Math.floor(y / cellH);
+      if(col < 0 || col >= this.across || row < 0 || row >= 32) return;
+      if(x - col * cellW >= 8 * this.scale || y - row * cellH >= 8 * this.scale) return;
+      this.selectedTargetCombined = row * this.across + col;
+      this.renderProject();
+      var bank = this.selectedTargetCombined < BANK_SIZE ? 1 : 2;
+      this.setStatus('Destination: BANK ' + bank + ', slot ' + (this.selectedTargetCombined & 255) + '. Click a SOURCE glyph to insert; the cursor advances.');
+    },
+
+    importAtSelectedTarget: function(sourceBank, sourceTileIndex) {
+      if(this.selectedTargetCombined === null) return false;
+      var combined = this.selectedTargetCombined;
+      var targetBank = combined < BANK_SIZE ? 1 : 2;
+      var targetSlot = combined & 255;
+      var state = this.sourceBanks[sourceBank];
+      var data = this.getSourceTileData(sourceBank, sourceTileIndex);
+      if(!state || !data) return false;
+      var drafts = this.draftByBank[targetBank];
+      if(!drafts[targetSlot]) this.draftCountByBank[targetBank]++;
+      drafts[targetSlot] = {
+        sourceKey: state.key,
+        charsetId: state.charsetId,
+        sourceIndex: state.start + sourceTileIndex,
+        tileIndex: targetSlot,
+        data: data.slice(0)
+      };
+      // Advance only within the selected destination bank, like Double Height.
+      this.selectedTargetCombined = (targetBank === 2 ? BANK_SIZE : 0) + ((targetSlot + 1) % BANK_SIZE);
+      this.setStatus('SOURCE BANK ' + sourceBank + ' / glyph ' + (state.start + sourceTileIndex) +
+        ' -> CUSTOM BANK ' + targetBank + ' / slot ' + targetSlot + '. Next: ' + (this.selectedTargetCombined & 255) + '.');
+      this.renderSource();
+      this.renderProject();
+      return true;
     },
 
     toggleSourceTile: function(bank, tileIndex) {
@@ -478,6 +539,10 @@
       }
       if(this.snapshotCount !== 256) {
         this.setStatus('Rico Remix dual-bank mode requires CHARSET BANK 1 to contain exactly 256 tiles.');
+        return;
+      }
+      if(this.selectedTargetCombined !== null) {
+        this.importAtSelectedTarget(bank, tileIndex);
         return;
       }
 
@@ -529,7 +594,7 @@
         var snapshot = bank === 1 ? this.snapshotBank1 : this.snapshotBank2;
         var draft = this.draftByBank[bank][tileIndex];
         var pixels = draft ? draft.data : (snapshot[tileIndex] && snapshot[tileIndex].data.length ? snapshot[tileIndex].data[0] : null);
-        if(!pixels) continue;
+        if(!pixels) pixels = []; // The insertion cursor must also be visible on empty slots.
         var col = combined % across;
         var row = Math.floor(combined / across);
         var baseX = spacing + col * cellW;
@@ -538,6 +603,10 @@
         for(var y = 0; y < 8; y++) for(var x = 0; x < 8; x++) if(pixels[x + y * 8]) ctx.fillRect(baseX + x * scale, baseY + y * scale, scale, scale);
         if(draft) {
           ctx.strokeStyle = '#2d80ff'; ctx.lineWidth = 2;
+          ctx.strokeRect(baseX - 1, baseY - 1, 8 * scale + 2, 8 * scale + 2);
+        }
+        if(this.selectedTargetCombined === combined && !this.__rico30DoubleHeight && !this.__rico31QuadMode) {
+          ctx.strokeStyle = '#ffd84d'; ctx.lineWidth = 2;
           ctx.strokeRect(baseX - 1, baseY - 1, 8 * scale + 2, 8 * scale + 2);
         }
       }
@@ -549,6 +618,10 @@
       if(!info) return;
       var b1 = this.draftCountByBank[1] || 0, b2 = this.draftCountByBank[2] || 0;
       info.innerHTML = '<b>' + (b1 + b2) + '</b> modified slots';
+      if(this.selectedTargetCombined !== null && !this.__rico30DoubleHeight && !this.__rico31QuadMode) {
+        info.innerHTML += ' · NEXT BANK ' + (this.selectedTargetCombined < BANK_SIZE ? 1 : 2) +
+          ' / ' + (this.selectedTargetCombined & 255);
+      }
     },
 
     setStatus: function(message) {
