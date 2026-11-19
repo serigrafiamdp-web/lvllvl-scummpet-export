@@ -1,6 +1,6 @@
 # Pruebas TEST y módulos activos de LVLLVL RICO
 
-**Actualizado: 17/11/2026 (Argentina)** · [Nuevas features RICO](../README.md) · [Editor habitual](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/) · [Progreso](../docs/PROGRESO_2026-11-16.md) · [Inventario de features](../docs/FEATURES_RICO_2026-11-17.md)
+**Actualizado: 19/11/2026 (Argentina)** · [Nuevas features RICO](../README.md) · [Editor habitual](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/) · [Progreso](../docs/PROGRESO_2026-11-16.md) · [Inventario de features](../docs/FEATURES_RICO_2026-11-17.md)
 
 ## PASS, regresiones y experimentos recientes
 
@@ -16,6 +16,7 @@
 | 371 | Muzza TASS **experimental**, PRG reconstruido todavía sin funcionamiento validado |
 | 372 | **PASS del usuario**: exportación EBCM restaurada con LILCHEB |
 | 373 | Se renombra menú **Interface → 64tass Export**; integrado, pendiente de PASS visual independiente |
+| 380 | **Remix Tileset**: selección de casillero CUSTOM a la derecha y copia de cualquier glyph SOURCE a ese destino; cursor avanza dentro del mismo BANK. **8 checks JS PASS**, falta PASS visual en navegador. [Detalles](test380-remix-target-cursor/README.md) |
 
 ## Carpetas TEST que intervienen en producción
 
