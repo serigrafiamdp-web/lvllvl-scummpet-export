@@ -1,120 +1,120 @@
 # LVLLVL RICO — Commodore 64 Graphics, Animation & Export Tools
 
-**Actualizado: 17 de noviembre de 2026** · Proyecto basado en [LVLLVL de James](https://github.com/jaammees/lvllvl) y ampliado por **RICO**.
+**Last updated: November 19, 2026** · Based on [James's LVLLVL](https://github.com/jaammees/lvllvl), extended and developed by **RICO**.
 
-**[Abrir LVLLVL RICO](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)** · **[Ver el código que se ejecuta (gh-pages)](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/gh-pages)** · **[Inventario completo de features y módulos](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/FEATURES_RICO_2026-11-17.md)**
+**[Launch LVLLVL RICO](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)** · **[Explore the live code (gh-pages)](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/gh-pages)** · **[Full feature and module inventory](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/FEATURES_RICO_2026-11-17.md)**
 
-> **Para desarrolladores:** GitHub muestra esta portada desde `main`, pero el editor y sus motores activos viven en **`gh-pages`**. La rama `main` conserva código anterior; su README se mantiene sincronizado para mostrar las mejoras actuales. Probar siempre en el enlace del editor.
+> **For developers:** GitHub displays this README from `main`, but the live editor and its active export engines are maintained on **`gh-pages`**. The `main` branch retains older code; its README is kept in sync to present the current features. Always use the online editor linked above when testing changes.
 
-## Features RICO — nuevas funciones y mejoras
+## RICO Features — New Tools and Improvements
 
-### 1. Dual Charset, Tileset y herramientas de dibujo
+### 1. Dual Charset, Tilesets & Drawing Tools
 
-- **BANK 1 + BANK 2:** dos conjuntos independientes de **256 caracteres de 8×8** (512 caracteres disponibles para trabajar). Edición y previsualización por banco; selección de banco por frame.
-- **BANK 2 Shifted:** inicialización con el charset C64 Shifted, que después se puede modificar sin sustituir BANK 1.
-- **Rico's Remix Tileset:** reemplazo y mezcla de caracteres entre bancos, incluyendo fuentes **C64, Swedish y Japanese** y variantes Shifted.
-- **Remix Double Height:** divide una fuente de **8×16** en dos caracteres C64 de 8×8. **Remix 16×16:** divide cada diseño en cuatro caracteres 8×8.
-- **Biblioteca local de Tilesets:** guardar, importar y reutilizar conjuntos personalizados en el navegador.
-- **Edit Group Chars:** editar conjuntos de caracteres como una superficie; selección y copiar/pegar bloques de varios caracteres.
-- **Paletas C64 mejoradas:** Colodore, Pepto y VICE; lectura de los **16 índices de color** y conservación de la selección. Selector enfocado exclusivamente en C64.
-- **ECM / EBCM:** herramientas de selección y reorganización de caracteres, fondos múltiples y corrección de la ruta de exportación Extended para preservar sus cuatro colores.
+- **BANK 1 + BANK 2:** two independent sets of **256 characters at 8×8 pixels each** (512 characters to work with). Edit and preview either bank and select the active bank per frame.
+- **Shifted BANK 2:** initialize the second bank with the C64 Shifted character set, then customize it without replacing BANK 1.
+- **Rico's Remix Tileset:** replace and mix characters between banks, including **C64, Swedish and Japanese** character sets and their Shifted variants.
+- **Remix Double Height:** split an **8×16** character into two C64 8×8 characters. **Remix 16×16:** split a design into four 8×8 characters.
+- **Local Tileset Library:** save, import and reuse custom tilesets in the browser.
+- **Edit Group Chars:** edit several characters as a single canvas; select, copy and paste multi-character blocks.
+- **Improved C64 Palettes:** Colodore, Pepto and VICE, with all **16 color indices** read correctly and palette selection preserved. A C64-only palette selector keeps the interface focused.
+- **ECM / EBCM:** tools for character selection and reorganization, multiple background colors, and a repaired Extended-mode export path preserving all four backgrounds.
 
-### 2. Animaciones de caracteres y grupos
+### 2. Character & Group Animation
 
-- **Individual Animate:** animación de caracteres por banco, con desplazamientos y efectos disponibles según el modo.
-- **Group Animate:** varios caracteres se animan como una superficie continua, con movimiento, variantes ping-pong y edición visual.
-- **Control de velocidad:** ticks y desplazamiento de **1 a 8 píxeles por paso** donde la ruta lo admite.
-- **Múltiples frames:** duración, secuencia, colores y selección de charset por frame; visualización animada en el editor.
-- **Animación + scroll:** motores especializados para combinar movimiento de mapa y caracteres, sin reemplazar por defecto las animaciones con imágenes fijas.
+- **Individual Animate:** animate characters within each bank, with shifts and effects available according to the active mode.
+- **Group Animate:** animate multiple characters as one continuous canvas, with movement, ping-pong variants and visual editing.
+- **Speed controls:** tick timing and movements of **1–8 pixels per step** on supported paths.
+- **Multiple frames:** frame durations, sequence, colors and character-bank selection, with animated previews inside the editor.
+- **Animation + Scroll:** specialized engines aim to combine map movement and character animation without silently replacing animated elements with static images.
 
-### 3. Rico's Map Scroll, Window y Dimensions
+### 3. Rico's Map Scroll, Window & Dimensions
 
-- **Scroll en ocho direcciones:** Left, Right, Up, Down y las cuatro diagonales.
-- **Ping Pong**, **Move In** y **Move Out** para los movimientos disponibles en el diálogo.
-- **Pixels/Step (1–8)** y **Ticks/Step** para ajustar desplazamiento y velocidad.
-- **Window Dimensions:** define lo que se ve en pantalla de forma independiente del tamaño total del mapa.
-- **Scroll Area:** delimita la región fuente del movimiento, distinta del Window y del dibujo completo.
-- **Dimensions por los cuatro lados:** ampliar o ajustar Left, Right, Top y Bottom sin limitar el proyecto a una única pantalla C64.
-- **Configuraciones por frame**, previsualizaciones y guías de viewport para mapas mayores que el área visible.
+- **Eight scrolling directions:** Left, Right, Up, Down and all four diagonals.
+- **Ping Pong**, **Move In** and **Move Out** for the movements available in the dialog.
+- **Pixels/Step (1–8)** and **Ticks/Step** controls for displacement and speed.
+- **Window Dimensions:** define the visible viewport independently of the full map size.
+- **Scroll Area:** select the source region to scroll, independently of the Window and the full artwork.
+- **Four-sided Dimensions controls:** extend or adjust Left, Right, Top and Bottom without restricting a project to a single C64 screen.
+- **Per-frame configurations**, previews and viewport guides for maps larger than the visible area.
 
-### 4. Multicolor, Bitmap y música
+### 4. Multicolor, Bitmap & Music
 
-- **C64 Text Multicolor** y **Extended Background Color Mode**, con herramientas de color adaptadas a cada modo.
-- **Multicolor Bitmap (experimental):** pintura, remapeo de colores, previsualización en vivo y **Rico's Decolorize**.
-- **Optimización bitmap:** buffers alternos, agrupación de tiles, tablas de búsqueda y speedcode especializado para rutas que lo soportan.
-- **Música SID integrada** en algunos motores PRG, con opciones de sincronización de audio y vídeo; no todas las combinaciones de scroll, grupo y SID están certificadas.
+- **C64 Text Multicolor** and **Extended Background Color Mode**, with mode-specific color tools.
+- **Multicolor Bitmap (experimental):** drawing, color remapping, live previews and **Rico's Decolorize**.
+- **Bitmap optimization:** alternate buffers, tile grouping, lookup tables and specialized speedcode on supported paths.
+- **Integrated SID music** in selected PRG engines, with audio/video synchronization options. Not every scroll, group-animation and SID combination has been verified.
 
-### 5. Exportación de programas C64
+### 5. C64 Program Export
 
-- **Export PRG:** rutas específicas para texto, multicolor, EBCM, desplazamiento horizontal/vertical/diagonal, BANK, frames y algunas animaciones con SID.
-- **Desplazamiento fino y optimizaciones de Color RAM:** actualizaciones incrementales, procesamiento especializado por dirección y doble buffer en los motores compatibles.
-- **Exportación EBCM recuperada:** el modo Extended vuelve a respetarse en el caso reproducible de LILCHEB; los cuatro fondos no se deben sobrescribir con la conmutación de BANK.
-- **Export C64 (NEW)** y **Export C64 Assembly** del editor original siguen disponibles.
-- **Interface → 64tass Export (experimental):** genera un ZIP con fuente ASM tomada de la ruta PRG activa, binarios y PRG de referencia para que un coder pueda reconstruirlo y revisarlo. **Todavía no es un exportador universal probado**: una animación reconstruida volvió a BASIC y falta validación de equivalencia con 64tass y VICE.
+- **Export PRG:** specialized paths for text, multicolor, EBCM, horizontal/vertical/diagonal scrolling, banks, frames and some SID-assisted animations.
+- **Fine scrolling and Color RAM optimizations:** incremental updates, direction-specific processing and double buffering in compatible engines.
+- **Restored EBCM export:** Extended mode is honored again in the reproducible LILCHEB case; BANK switching must not overwrite the four EBCM background colors.
+- The original editor's **Export C64 (NEW)** and **Export C64 Assembly** options remain available.
+- **Interface → 64tass Export (experimental):** generates a ZIP containing ASM captured from the active PRG path, binary assets and a reference PRG for developers to inspect and rebuild. **This is not yet a universally verified exporter**: one rebuilt animation returned to BASIC, and byte-for-byte equivalence plus execution in 64tass/VICE still require validation.
 
-### 6. Interfaz de trabajo
+### 6. Workspace & Interface
 
-- **Dock derecho** con paneles ajustables de Tile Editor / Tiles y disposición inicial **50/50**.
-- Mejoras de previsualización de bancos, charset, frames, regiones visibles y controles de tiles.
-- **Arranque optimizado:** eliminado el parpadeo inicial observado en el área de trabajo.
-- Botón **SpotySID** junto a HELP para abrir el reproductor en una pestaña nueva.
+- **Right-hand Dock** with adjustable Tile Editor / Tiles panels and a default **50/50** layout.
+- Improved previews for banks, character sets, frames, visible regions and tile controls.
+- **Optimized startup:** removed the initial workspace flicker observed when loading the editor.
+- **SpotySID** button next to HELP, opening the SID player in a new tab.
 
-## Mejoras recientes que ya se pueden probar
+## Recent Improvements You Can Try
 
-| Mejora | Resultado observado / objetivo de prueba |
+| Improvement | Observed result / What to test |
 |---|---|
-| **Paletas C64** | Se recuperaron los 16 colores de Colodore/Pepto/VICE y el selector C64 dedicado; cambios aprobados en el editor. |
-| **Editor más estable** | El área de trabajo dejó de parpadear al iniciar; confirmación del usuario. |
-| **Exportación EBCM** | Corregida la pérdida de Extended y de los fondos EBCM en LILCHEB; confirmado para ese proyecto. |
-| **64tass Export** | Ya aparece en Interface con el nombre definitivo; **reconstrucción ejecutable todavía en desarrollo**. |
-| **Dock y bancos** | Ajustes de proporción y presentación de los dos bancos sin retirar las herramientas anteriores. |
+| **C64 Palettes** | Correct 16-color handling for Colodore/Pepto/VICE and a dedicated C64 selector; confirmed in the editor. |
+| **Editor stability** | Startup workspace flicker fixed and confirmed by the user. |
+| **EBCM Export** | Restored Extended mode and background colors in LILCHEB; confirmed for that project. |
+| **64tass Export** | Available under Interface with its final name; **producing a working rebuilt executable is still in progress**. |
+| **Dock & Banks** | Updated panel proportions and dual-bank presentation while retaining existing editing tools. |
 
-## Cómo probar las funciones
+## How to Test the Features
 
-| Qué probar | Pasos sugeridos | Qué verificar |
+| Feature | Suggested steps | Expected behavior |
 |---|---|---|
-| **Dual BANK y Remix** | Abrir un proyecto C64, alternar BANK 1/BANK 2 y probar Remix Tileset con una fuente Shifted o Swedish/Japanese. | Los cambios quedan en el banco seleccionado; BANK 1 se conserva al editar BANK 2. |
-| **Double Height / 16×16** | En Remix, elegir un carácter alto o un módulo 16×16 y colocarlo en el charset. | La composición usa dos o cuatro caracteres C64 de 8×8. |
-| **Group Animate** | Seleccionar varios tiles, configurar una animación grupal y previsualizarla. | Movimiento coherente, velocidad y efecto sobre el conjunto. |
-| **Map Scroll** | Crear un mapa mayor que Window, definir Scroll Area y cambiar dirección y Pixels/Step. | Movimiento en la previsualización sin alterar el dibujo exterior. |
-| **Extended / EBCM** | Configurar fondos por celda, elegir **Extended** en Export PRG y comprobar el PRG en VICE. | Los cuatro fondos se mantienen durante los frames. |
-| **Multicolor Bitmap** | Cambiar al modo gráfico experimental, pintar y probar Decolorize. | Edición y preview coherentes; comprobar PRG por separado. |
-| **SID + animación** | Usar una ruta compatible, exportar PRG y ejecutarlo en VICE. | La música y los frames funcionan al ritmo esperado; registrar la combinación exacta. |
-| **64tass Export** | Abrir **Interface → 64tass Export**, generar ZIP e intentar recompilar con 64tass. | Comparar el resultado con `reference.prg`; si vuelve a BASIC, registrar dirección de carga/arranque. **No declarar PASS sin ejecución.** |
+| **Dual BANK & Remix** | Open a C64 project, switch between BANK 1 and BANK 2, and try Remix Tileset with a Shifted, Swedish or Japanese charset. | Edits affect the selected bank; BANK 1 stays intact when editing BANK 2. |
+| **Double Height / 16×16** | Use Remix to load a double-height character or 16×16 tile module into the charset. | The result consists of two or four C64 8×8 characters. |
+| **Group Animate** | Select several tiles, configure a group animation and preview it. | Group motion, timing and effects remain coherent across the selected characters. |
+| **Map Scroll** | Build a map larger than the Window, define the Scroll Area, and change scrolling direction and Pixels/Step. | The map moves within the preview without changing artwork outside the selected region. |
+| **Extended / EBCM** | Configure per-cell background colors, choose **Extended** in Export PRG and run the resulting PRG in VICE. | All four background colors are preserved across frames. |
+| **Multicolor Bitmap** | Switch to the experimental bitmap mode, paint and test Decolorize. | Editing and previews remain consistent; test the exported PRG separately. |
+| **SID + Animation** | Choose a supported export path, build the PRG and run it in VICE. | Music and frames run with the intended timing; document the exact combination used. |
+| **64tass Export** | Open **Interface → 64tass Export**, generate a ZIP and try to rebuild it using 64tass. | Compare the result with `reference.prg`; if it returns to BASIC, record the load address and startup behavior. **Do not mark it as passing without execution.** |
 
-**No todas las opciones visibles tienen un exportador PRG equivalente.** Para colaborar, informá modo C64, dimensiones, Window/Scroll Area, dirección, pixels/ticks, BANK, cantidad de frames, grupos, SID y qué ocurrió en VICE.
+**Not every option available in the UI has an equivalent, fully working PRG export path.** When reporting an issue, include the C64 mode, dimensions, Window/Scroll Area, direction, pixel/tick settings, bank, frame count, groups, SID settings and the observed behavior in VICE.
 
-## Trabajo en curso
+## Work in Progress
 
-- Unificar combinaciones de **Map Scroll + Group Animate + Individual Animate + frames + BANK + SID** sin perder efectos.
-- Completar las rutas de **ECM/EBCM con BANK 2 y otras combinaciones**, respetando la memoria y los registros VIC-II.
-- Reconstruir correctamente el ZIP de **64tass Export** y comprobar el PRG real en VICE.
-- Ampliar la matriz de exportación sin reintroducir bloqueos o límites arbitrarios.
+- Combine **Map Scroll + Group Animate + Individual Animate + frames + BANK + SID** without losing effects.
+- Extend **ECM/EBCM with BANK 2 and additional combinations**, respecting C64 memory layout and VIC-II registers.
+- Make **64tass Export** produce reproducible, working PRGs and verify them in VICE.
+- Expand the export compatibility matrix without reintroducing arbitrary restrictions or disabling previously supported workflows.
 
-## Para coders: dónde está cada cosa
+## For Developers: Where Everything Lives
 
-El orden de scripts de **[`gh-pages/index.html`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/index.html)** es esencial. La base compilada es `js/main.js`; las extensiones viven en `js/RICO_*.js` y `TEST/.../js/` (muchos archivos con nombre TEST son **código activo**, no laboratorios descartables).
+The script order in **[`gh-pages/index.html`](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/index.html)** is essential. The original bundled application is in `js/main.js`; extensions live in `js/RICO_*.js` and `TEST/.../js/`. Many files named TEST are **active production code**, not disposable experiments.
 
 ```text
 JSON / TileSet / Layer / Frames / BANK 1 + BANK 2
           ↓
 Individual Animate / Group Animate / Map Scroll / SID
           ↓
-ToPRGAdv.prototype.createPRG(args)  ← cadena de motores y wrappers
+ToPRGAdv.prototype.createPRG(args)  ← export-engine and wrapper chain
           ↓
-ASM 6502 → ensamblador integrado → PRG → VICE
+6502 ASM → integrated assembler → PRG → VICE
 ```
 
-**Documentación para continuar:**
-- [Inventario técnico de features, módulos y límites](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/FEATURES_RICO_2026-11-17.md).
-- [Arquitectura Map Scroll + Group Animate](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md).
-- [Estado y pendientes de exportación](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/PROGRESO_2026-11-16.md).
-- [Índice técnico y documentación de desarrollo](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/README.md).
-- [Historial de pruebas y PASS/FAIL](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/TEST/README.md).
-- [Checkpoint recuperable antes de nuevas exportaciones](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test372-pass-2026-11-16).
+**Further documentation:**
+- [Technical feature inventory, modules and limitations](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/FEATURES_RICO_2026-11-17.md).
+- [Map Scroll + Group Animate architecture](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/ARQUITECTURA_ACTUAL_SCROLL_Y_GROUP_2026-11-14.md).
+- [Export status and remaining work](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/PROGRESO_2026-11-16.md).
+- [Technical index and development notes](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/README.md).
+- [Test history and PASS/FAIL records](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/TEST/README.md).
+- [Recovery checkpoint before further exporter changes](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/tree/release/test372-pass-2026-11-16).
 
-**Método de trabajo:** probar cambios contra la misma URL pública; conservar las rutas anteriores; comparar ASM, PRG y ejecución real en VICE. No publicar JSON, SID ni PRG privados sin permiso. El código original de James conserva su [crédito y repositorio](https://github.com/jaammees/lvllvl).
+**Development approach:** test against the same public editor URL, preserve existing paths, and compare generated ASM, PRGs and actual VICE execution. Do not publish private JSON, SID or PRG files without permission. Credit for the original editor belongs to [James and the LVLLVL project](https://github.com/jaammees/lvllvl).
 
 ---
 
-**[Abrir el editor online](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)** · **[Explorar features y código](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/FEATURES_RICO_2026-11-17.md)**
+**[Launch the online editor](https://serigrafiamdp-web.github.io/lvllvl-scummpet-export/)** · **[Explore features and source code](https://github.com/serigrafiamdp-web/lvllvl-scummpet-export/blob/gh-pages/docs/FEATURES_RICO_2026-11-17.md)**
