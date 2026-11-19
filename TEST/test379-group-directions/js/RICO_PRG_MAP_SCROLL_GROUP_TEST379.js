@@ -1158,11 +1158,12 @@ function buildSource(d,options){
     out.push(' sta frame_remaining');
     out.push(' lda duration_hi_table,x');
     out.push(' sta frame_remaining_hi');
-    // TEST137: For a single-frame fast 1T Map Scroll, frame-duration rollover
-    // must not drop the scroll step. The native char IRQ always ticks, so
-    // skipping this frame_tick_scroll made a periodic lateral-only frame.
-    // Preserve the original duration behavior in all non-1T configurations.
-    if(fastColorOnePass){
+    // TEST380: a one-frame Map Scroll is continuous regardless of Frame
+    // Duration, Ticks/Step or Pixels/Step. Previously only the 1T/1px
+    // fast path reached frame_tick_scroll after duration rollover; all
+    // other vertical/horizontal paths returned early and appeared frozen.
+    // No-scroll one-frame animations keep their prior IRQ scheduling.
+    if(hasRealScroll){
       out.push(' jmp frame_tick_scroll');
     } else {
       out.push(' rts');
