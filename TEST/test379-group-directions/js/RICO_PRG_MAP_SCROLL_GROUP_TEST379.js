@@ -1141,6 +1141,10 @@ function buildSource(d,options){
   out.push(' jsr commit_hidden_frame');
   out.push(' rts');
   out.push('frame_tick_timer');
+  // TEST382: single-frame Map Scroll is a continuous raster effect.
+  // Frame Duration is only a frame-change clock, and must not gate its
+  // animation or inject long pauses. Keep multi-frame scheduling intact.
+  if(f.length===1 && hasRealScroll)out.push(' jmp frame_tick_scroll');
   out.push(' lda frame_remaining');
   out.push(' bne frame_tick_dec_low');
   out.push(' lda frame_remaining_hi');
