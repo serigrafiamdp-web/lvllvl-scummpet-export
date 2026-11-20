@@ -183,6 +183,38 @@ function assemble(source){
  for(var i=r.start;i<r.end;i++)bytes[i-r.start+2]=mem[i]&255;
  return bytes;
 }
+// When a project mixes vertical and diagonal frames, optionally export only
+// the selected vertical frame for a non-destructive diagnostic. Never imply
+// that the complete multi-frame export has been repaired.
+function selectedVerticalProxy(self,args,index){
+ var ed=self.editor,graphic=ed.graphic,layer=ed.layers.getSelectedLayerObject();
+ var vGraphic=Object.create(graphic);vGraphic.frames=[graphic.frames[index]];
+ vGraphic.frameCount=1;vGraphic.currentFrame=0;
+ vGraphic.getCurrentFrame=function(){return 0;};
+ vGraphic.getFrameCount=function(){return 1;};
+ var vLayer=Object.create(layer);
+ vLayer.getCell=function(p){return layer.getCell.call(layer,Object.assign({},p,{frame:index}));};
+ if(typeof layer.getBackgroundColor==='function')vLayer.getBackgroundColor=function(){return layer.getBackgroundColor.call(layer,index);};
+ if(typeof layer.getBorderColor==='function')vLayer.getBorderColor=function(){return layer.getBorderColor.call(layer,index);};
+ var layers=Object.create(ed.layers);layers.getSelectedLayerObject=function(){return vLayer;};
+ var vEditor=Object.create(ed);vEditor.graphic=vGraphic;vEditor.layers=layers;
+ var original=self.editor;self.editor=vEditor;
+ try{
+  if(!candidate(self,args))throw Error('La frame seleccionada no cumple los requisitos para el motor vertical básico (40x25 Text, sin animaciones).');
+  var d=collect(self),prg=assemble(build(d));self.prg=prg;
+  state.last='ASSEMBLED_SINGLE_SELECTED_FRAME';
+  state.lastRoute='TEST383 SOLO frame '+(index+1)+' '+d.dir+' '+d.pixels+'px/'+d.ticks+'t';
+  if(args.download===false)return prg;
+  var filename='rico-test383-frame-'+(index+1)+'-scroll-'+d.dir+'.prg';
+  if(typeof window.download!=='function')throw Error('download() unavailable');
+  window.download(prg,filename,'application/prg');
+  return prg;
+ }catch(e){
+  state.last='ERROR';state.lastError=String(e.message||e);
+  console.error('[RICO TEST383 single selected frame]',e);
+  alert('TEST383: '+state.lastError);return false;
+ }finally{self.editor=original;}
+}
 ToPRGAdv.prototype.createPRG=function(args){
  args=args||{};
  var ed=this&&this.editor,fs=ed&&ed.graphic&&ed.graphic.frames||[];
@@ -192,7 +224,13 @@ ToPRGAdv.prototype.createPRG=function(args){
   if(types.some(function(t){return t==='up'||t==='down';})&&types.some(function(t){return /^diag-/.test(t);}) ){
    state.last='UNSUPPORTED_MIXED_FRAMES';
    state.lastRoute=types.join(' + ');
-   alert('TEST383: Map Scroll vertical + diagonal en distintas frames no tiene un motor PRG verificado. No se exportó una imagen estática. Conservá el proyecto; esta combinación necesita un compositor multiframe.');
+   var selected=ed.graphic.getCurrentFrame?ed.graphic.getCurrentFrame():(ed.graphic.currentFrame||0);
+   var direction=types[selected]||'';
+   if((direction==='up'||direction==='down')&&
+      typeof window.confirm==='function'&&
+      window.confirm('TEST383: esta animación tiene frames verticales y diagonales. La mezcla aún no está soportada. ¿Exportar SOLO la frame vertical seleccionada ('+(selected+1)+') para comprobar Map Scroll, sin modificar tu proyecto?'))
+     return selectedVerticalProxy(this,args,selected);
+   alert('TEST383: el proyecto mezcla Map Scroll vertical y diagonal. Seleccioná la frame vertical y exportá para probarla individualmente, sin modificar las otras frames.');
    return false;
   }
  }
